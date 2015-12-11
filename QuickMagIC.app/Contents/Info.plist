@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>QuickMagIC</string>
 	<key>CFBundleIconFile</key>
-	<string>PythonApplet.icns</string>
+	<string>text_x_xslfo.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.pythonmac.unspecified.QuickMagIC</string>
 	<key>CFBundleInfoDictionaryVersion</key>

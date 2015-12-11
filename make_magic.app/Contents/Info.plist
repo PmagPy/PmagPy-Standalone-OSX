@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>make_magic</string>
 	<key>CFBundleIconFile</key>
-	<string>PythonApplet.icns</string>
+	<string>text_x_xslfo.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.pythonmac.unspecified.make_magic</string>
 	<key>CFBundleInfoDictionaryVersion</key>
