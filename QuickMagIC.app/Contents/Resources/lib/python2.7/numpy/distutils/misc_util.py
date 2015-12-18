@@ -13,6 +13,24 @@ import shutil
 
 import distutils
 from distutils.errors import DistutilsError
+try:
+    from threading import local as tlocal
+except ImportError:
+    from dummy_threading import local as tlocal
+
+# stores temporary directory of each thread to only create one per thread
+_tdata = tlocal()
+
+# store all created temporary directories so they can be deleted on exit
+_tmpdirs = []
+def clean_up_temporary_directory():
+    for d in _tmpdirs:
+        try:
+            shutil.rmtree(d)
+        except OSError:
+            pass
+
+atexit.register(clean_up_temporary_directory)
 
 try:
     set
@@ -31,7 +49,8 @@ __all__ = ['Configuration', 'get_numpy_include_dirs', 'default_config_dict',
            'get_script_files', 'get_lib_source_files', 'get_data_files',
            'dot_join', 'get_frame', 'minrelpath', 'njoin',
            'is_sequence', 'is_string', 'as_list', 'gpaths', 'get_language',
-           'quote_args', 'get_build_architecture', 'get_info', 'get_pkg_info']
+           'quote_args', 'get_build_architecture', 'get_info', 'get_pkg_info',
+           'get_num_build_jobs']
 
 class InstallableLib(object):
     """
@@ -59,6 +78,36 @@ class InstallableLib(object):
         self.name = name
         self.build_info = build_info
         self.target_dir = target_dir
+
+
+def get_num_build_jobs():
+    """
+    Get number of parallel build jobs set by the --parallel command line
+    argument of setup.py
+    If the command did not receive a setting the environment variable
+    NPY_NUM_BUILD_JOBS checked and if that is unset it returns 1.
+
+    Returns
+    -------
+    out : int
+        number of parallel jobs that can be run
+
+    """
+    from numpy.distutils.core import get_distribution
+    envjobs = int(os.environ.get("NPY_NUM_BUILD_JOBS", 1))
+    dist = get_distribution()
+    # may be None during configuration
+    if dist is None:
+        return envjobs
+
+    # any of these three may have the job set, take the largest
+    cmdattr = (getattr(dist.get_command_obj('build'), 'parallel', None),
+               getattr(dist.get_command_obj('build_ext'), 'parallel', None),
+               getattr(dist.get_command_obj('build_clib'), 'parallel', None))
+    if all(x is None for x in cmdattr):
+        return envjobs
+    else:
+        return max(x for x in cmdattr if x is not None)
 
 def quote_args(args):
     # don't used _nt_quote_args as it does not check if
@@ -248,26 +297,13 @@ def gpaths(paths, local_path='', include_non_existing=True):
         paths = (paths,)
     return _fix_paths(paths, local_path, include_non_existing)
 
-
-_temporary_directory = None
-def clean_up_temporary_directory():
-    global _temporary_directory
-    if not _temporary_directory:
-        return
-    try:
-        shutil.rmtree(_temporary_directory)
-    except OSError:
-        pass
-    _temporary_directory = None
-
 def make_temp_file(suffix='', prefix='', text=True):
-    global _temporary_directory
-    if not _temporary_directory:
-        _temporary_directory = tempfile.mkdtemp()
-        atexit.register(clean_up_temporary_directory)
+    if not hasattr(_tdata, 'tempdir'):
+        _tdata.tempdir = tempfile.mkdtemp()
+        _tmpdirs.append(_tdata.tempdir)
     fid, name = tempfile.mkstemp(suffix=suffix,
                                  prefix=prefix,
-                                 dir=_temporary_directory,
+                                 dir=_tdata.tempdir,
                                  text=text)
     fo = os.fdopen(fid, 'w')
     return fo, name

@@ -3,9 +3,23 @@ from __future__ import division, absolute_import, print_function
 from .info import __doc__
 from numpy.version import version as __version__
 
+# disables OpenBLAS affinity setting of the main thread that limits
+# python threads or processes to one core
+import os
+env_added = []
+for envkey in ['OPENBLAS_MAIN_FREE', 'GOTOBLAS_MAIN_FREE']:
+    if envkey not in os.environ:
+        os.environ[envkey] = '1'
+        env_added.append(envkey)
 from . import multiarray
+for envkey in env_added:
+    del os.environ[envkey]
+del envkey
+del env_added
+del os
+
 from . import umath
-from . import _internal # for freeze programs
+from . import _internal  # for freeze programs
 from . import numerictypes as nt
 multiarray.set_typeDict(nt.sctypeDict)
 from . import numeric
@@ -17,7 +31,6 @@ from . import records as rec
 from .records import *
 from .memmap import *
 from .defchararray import chararray
-from . import scalarmath
 from . import function_base
 from .function_base import *
 from . import machar
@@ -28,8 +41,7 @@ from . import shape_base
 from .shape_base import *
 del nt
 
-from .fromnumeric import amax as max, amin as min, \
-     round_ as round
+from .fromnumeric import amax as max, amin as min, round_ as round
 from .numeric import absolute as abs
 
 __all__ = ['char', 'rec', 'memmap']

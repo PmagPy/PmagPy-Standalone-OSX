@@ -1,14 +1,16 @@
 from __future__ import division, absolute_import, print_function
 
 import sys
-from os import path
-import numpy as np
-from numpy.testing import *
-from numpy.compat import asbytes, asunicode
-
-import warnings
 import collections
 import pickle
+from os import path
+
+import numpy as np
+from numpy.compat import asbytes
+from numpy.testing import (
+    TestCase, run_module_suite, assert_, assert_equal, assert_array_equal,
+    assert_array_almost_equal, assert_raises
+    )
 
 
 class TestFromrecords(TestCase):
@@ -53,10 +55,11 @@ class TestFromrecords(TestCase):
         filename = path.join(data_dir, 'recarray_from_file.fits')
         fd = open(filename, 'rb')
         fd.seek(2880 * 2)
-        r = np.rec.fromfile(fd, formats='f8,i4,a5', shape=3, byteorder='big')
+        r1 = np.rec.fromfile(fd, formats='f8,i4,a5', shape=3, byteorder='big')
         fd.seek(2880 * 2)
-        r = np.rec.array(fd, formats='f8,i4,a5', shape=3, byteorder='big')
+        r2 = np.rec.array(fd, formats='f8,i4,a5', shape=3, byteorder='big')
         fd.close()
+        assert_equal(r1, r2)
 
     def test_recarray_from_obj(self):
         count = 10
@@ -73,10 +76,95 @@ class TestFromrecords(TestCase):
             assert_((mine.data2[i] == 0.0))
 
     def test_recarray_from_repr(self):
-        x = np.rec.array([ (1, 2)], dtype=[('a', np.int8), ('b', np.int8)])
-        y = eval("np." + repr(x))
-        assert_(isinstance(y, np.recarray))
-        assert_equal(y, x)
+        a = np.array([(1,'ABC'), (2, "DEF")],
+                     dtype=[('foo', int), ('bar', 'S4')])
+        recordarr = np.rec.array(a)
+        recarr = a.view(np.recarray)
+        recordview = a.view(np.dtype((np.record, a.dtype)))
+
+        recordarr_r = eval("numpy." + repr(recordarr), {'numpy': np})
+        recarr_r = eval("numpy." + repr(recarr), {'numpy': np})
+        recordview_r = eval("numpy." + repr(recordview), {'numpy': np})
+
+        assert_equal(type(recordarr_r), np.recarray)
+        assert_equal(recordarr_r.dtype.type, np.record)
+        assert_equal(recordarr, recordarr_r)
+
+        assert_equal(type(recarr_r), np.recarray)
+        assert_equal(recarr_r.dtype.type, np.record)
+        assert_equal(recarr, recarr_r)
+
+        assert_equal(type(recordview_r), np.ndarray)
+        assert_equal(recordview.dtype.type, np.record)
+        assert_equal(recordview, recordview_r)
+
+    def test_recarray_views(self):
+        a = np.array([(1,'ABC'), (2, "DEF")],
+                     dtype=[('foo', int), ('bar', 'S4')])
+        b = np.array([1,2,3,4,5], dtype=np.int64)
+
+        #check that np.rec.array gives right dtypes
+        assert_equal(np.rec.array(a).dtype.type, np.record)
+        assert_equal(type(np.rec.array(a)), np.recarray)
+        assert_equal(np.rec.array(b).dtype.type, np.int64)
+        assert_equal(type(np.rec.array(b)), np.recarray)
+
+        #check that viewing as recarray does the same
+        assert_equal(a.view(np.recarray).dtype.type, np.record)
+        assert_equal(type(a.view(np.recarray)), np.recarray)
+        assert_equal(b.view(np.recarray).dtype.type, np.int64)
+        assert_equal(type(b.view(np.recarray)), np.recarray)
+
+        #check that view to non-structured dtype preserves type=np.recarray
+        r = np.rec.array(np.ones(4, dtype="f4,i4"))
+        rv = r.view('f8').view('f4,i4')
+        assert_equal(type(rv), np.recarray)
+        assert_equal(rv.dtype.type, np.record)
+
+        #check that getitem also preserves np.recarray and np.record
+        r = np.rec.array(np.ones(4, dtype=[('a', 'i4'), ('b', 'i4'), 
+                                           ('c', 'i4,i4')]))
+        assert_equal(r['c'].dtype.type, np.record)
+        assert_equal(type(r['c']), np.recarray)
+        assert_equal(r[['a', 'b']].dtype.type, np.record)
+        assert_equal(type(r[['a', 'b']]), np.recarray)
+
+        # check that accessing nested structures keep record type, but
+        # not for subarrays, non-void structures, non-structured voids
+        test_dtype = [('a', 'f4,f4'), ('b', 'V8'), ('c', ('f4',2)),
+                      ('d', ('i8', 'i4,i4'))]
+        r = np.rec.array([((1,1), b'11111111', [1,1], 1),
+                          ((1,1), b'11111111', [1,1], 1)], dtype=test_dtype)
+        assert_equal(r.a.dtype.type, np.record)
+        assert_equal(r.b.dtype.type, np.void)
+        assert_equal(r.c.dtype.type, np.float32)
+        assert_equal(r.d.dtype.type, np.int64)
+        # check the same, but for views
+        r = np.rec.array(np.ones(4, dtype='i4,i4'))
+        assert_equal(r.view('f4,f4').dtype.type, np.record)
+        assert_equal(r.view(('i4',2)).dtype.type, np.int32)
+        assert_equal(r.view('V8').dtype.type, np.void)
+        assert_equal(r.view(('i8', 'i4,i4')).dtype.type, np.int64)
+
+        #check that we can undo the view
+        arrs = [np.ones(4, dtype='f4,i4'), np.ones(4, dtype='f8')]
+        for arr in arrs:
+            rec = np.rec.array(arr)
+            # recommended way to view as an ndarray:
+            arr2 = rec.view(rec.dtype.fields or rec.dtype, np.ndarray)
+            assert_equal(arr2.dtype.type, arr.dtype.type)
+            assert_equal(type(arr2), type(arr))
+
+    def test_recarray_repr(self):
+        # make sure non-structured dtypes also show up as rec.array
+        a = np.array(np.ones(4, dtype='f8'))
+        assert_(repr(np.rec.array(a)).startswith('rec.array'))
+
+        # check that the 'np.record' part of the dtype isn't shown
+        a = np.rec.array(np.ones(3, dtype='i4,i4'))
+        assert_equal(repr(a).find('numpy.record'), -1)
+        a = np.rec.array(np.ones(3, dtype='i4'))
+        assert_(repr(a).find('dtype=int32') != -1)
 
     def test_recarray_from_names(self):
         ra = np.rec.array([
@@ -124,6 +212,41 @@ class TestFromrecords(TestCase):
         assert_equal(a.b, ['a', 'bbb'])
         assert_equal(a[-1].b, 'bbb')
 
+    def test_recarray_stringtypes(self):
+        # Issue #3993
+        a = np.array([('abc ', 1), ('abc', 2)],
+                     dtype=[('foo', 'S4'), ('bar', int)])
+        a = a.view(np.recarray)
+        assert_equal(a.foo[0] == a.foo[1], False)
+
+    def test_recarray_returntypes(self):
+        qux_fields = {'C': (np.dtype('S5'), 0), 'D': (np.dtype('S5'), 6)}
+        a = np.rec.array([('abc ', (1,1), 1, ('abcde', 'fgehi')),
+                          ('abc', (2,3), 1, ('abcde', 'jklmn'))],
+                         dtype=[('foo', 'S4'),
+                                ('bar', [('A', int), ('B', int)]),
+                                ('baz', int), ('qux', qux_fields)])
+        assert_equal(type(a.foo), np.ndarray)
+        assert_equal(type(a['foo']), np.ndarray)
+        assert_equal(type(a.bar), np.recarray)
+        assert_equal(type(a['bar']), np.recarray)
+        assert_equal(a.bar.dtype.type, np.record)
+        assert_equal(type(a['qux']), np.recarray)
+        assert_equal(a.qux.dtype.type, np.record)
+        assert_equal(dict(a.qux.dtype.fields), qux_fields)
+        assert_equal(type(a.baz), np.ndarray)
+        assert_equal(type(a['baz']), np.ndarray)
+        assert_equal(type(a[0].bar), np.record)
+        assert_equal(type(a[0]['bar']), np.record)
+        assert_equal(a[0].bar.A, 1)
+        assert_equal(a[0].bar['A'], 1)
+        assert_equal(a[0]['bar'].A, 1)
+        assert_equal(a[0]['bar']['A'], 1)
+        assert_equal(a[0].qux.D, asbytes('fgehi'))
+        assert_equal(a[0].qux['D'], asbytes('fgehi'))
+        assert_equal(a[0]['qux'].D, asbytes('fgehi'))
+        assert_equal(a[0]['qux']['D'], asbytes('fgehi'))
+
 
 class TestRecord(TestCase):
     def setUp(self):
@@ -146,8 +269,10 @@ class TestRecord(TestCase):
 
     def test_invalid_assignment(self):
         a = self.data
+
         def assign_invalid_column(x):
             x[0].col5 = 1
+
         self.assertRaises(AttributeError, assign_invalid_column, a)
 
     def test_out_of_order_fields(self):
@@ -167,6 +292,26 @@ class TestRecord(TestCase):
         assert_equal(a, pickle.loads(pickle.dumps(a)))
         assert_equal(a[0], pickle.loads(pickle.dumps(a[0])))
 
+    def test_objview_record(self):
+        # https://github.com/numpy/numpy/issues/2599
+        dt = np.dtype([('foo', 'i8'), ('bar', 'O')])
+        r = np.zeros((1,3), dtype=dt).view(np.recarray)
+        r.foo = np.array([1, 2, 3])  # TypeError?
+
+        # https://github.com/numpy/numpy/issues/3256
+        ra = np.recarray((2,), dtype=[('x', object), ('y', float), ('z', int)])
+        ra[['x','y']]  # TypeError?
+
+    def test_record_scalar_setitem(self):
+        # https://github.com/numpy/numpy/issues/3561
+        rec = np.recarray(1, dtype=[('x', float, 5)])
+        rec[0].x = 1
+        assert_equal(rec[0].x, np.ones(5))
+
+    def test_missing_field(self):
+        # https://github.com/numpy/numpy/issues/4806
+        arr = np.zeros((3,), dtype=[('x', int), ('y', int)])
+        assert_raises(ValueError, lambda: arr[['nofield']])
 
 def test_find_duplicate():
     l1 = [1, 2, 3, 4, 5, 6]

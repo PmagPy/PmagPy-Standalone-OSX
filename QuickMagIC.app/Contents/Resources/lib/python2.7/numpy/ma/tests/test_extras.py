@@ -9,26 +9,28 @@ Adapted from the original test_ma by Pierre Gerard-Marchant
 """
 from __future__ import division, absolute_import, print_function
 
-__author__ = "Pierre GF Gerard-Marchant ($Author: jarrod.millman $)"
-__version__ = '1.0'
-__revision__ = "$Revision: 3473 $"
-__date__ = '$Date: 2007-10-29 17:18:13 +0200 (Mon, 29 Oct 2007) $'
+import warnings
 
 import numpy as np
-from numpy.testing import TestCase, run_module_suite
-from numpy.ma.testutils import (rand, assert_, assert_array_equal,
-                                assert_equal, assert_almost_equal)
-from numpy.ma.core import (array, arange, masked, MaskedArray, masked_array,
-                           getmaskarray, shape, nomask, ones, zeros, count)
+from numpy.testing import (
+    TestCase, run_module_suite, assert_warns, clear_and_catch_warnings
+    )
+from numpy.ma.testutils import (
+    assert_, assert_array_equal, assert_equal, assert_almost_equal
+    )
+from numpy.ma.core import (
+    array, arange, masked, MaskedArray, masked_array, getmaskarray, shape,
+    nomask, ones, zeros, count
+    )
 from numpy.ma.extras import (
-    atleast_2d, mr_, dot, polyfit,
-    cov, corrcoef, median, average,
-    unique, setxor1d, setdiff1d, union1d, intersect1d, in1d, ediff1d,
-    apply_over_axes, apply_along_axis,
-    compress_rowcols, mask_rowcols,
-    clump_masked, clump_unmasked,
-    flatnotmasked_contiguous, notmasked_contiguous, notmasked_edges,
-    masked_all, masked_all_like)
+    atleast_1d, atleast_2d, atleast_3d, mr_, dot, polyfit, cov, corrcoef,
+    median, average, unique, setxor1d, setdiff1d, union1d, intersect1d, in1d,
+    ediff1d, apply_over_axes, apply_along_axis, compress_nd, compress_rowcols,
+    mask_rowcols, clump_masked, clump_unmasked, flatnotmasked_contiguous,
+    notmasked_contiguous, notmasked_edges, masked_all, masked_all_like,
+    diagflat
+    )
+import numpy.ma.extras as mae
 
 
 class TestGeneric(TestCase):
@@ -263,10 +265,10 @@ class TestConcatenator(TestCase):
 
     def test_2d(self):
         # Tests mr_ on 2D arrays.
-        a_1 = rand(5, 5)
-        a_2 = rand(5, 5)
-        m_1 = np.round_(rand(5, 5), 0)
-        m_2 = np.round_(rand(5, 5), 0)
+        a_1 = np.random.rand(5, 5)
+        a_2 = np.random.rand(5, 5)
+        m_1 = np.round_(np.random.rand(5, 5), 0)
+        m_2 = np.round_(np.random.rand(5, 5), 0)
         b_1 = masked_array(a_1, mask=m_1)
         b_2 = masked_array(a_2, mask=m_2)
         # append columns
@@ -343,10 +345,122 @@ class TestNotMasked(TestCase):
         assert_equal(tmp[2][-2], slice(0, 6, None))
 
 
-class Test2DFunctions(TestCase):
-    # Tests 2D functions
-    def test_compress2d(self):
-        # Tests compress2d
+class TestCompressFunctions(TestCase):
+
+    def test_compress_nd(self):
+        # Tests compress_nd
+        x = np.array(list(range(3*4*5))).reshape(3, 4, 5)
+        m = np.zeros((3,4,5)).astype(bool)
+        m[1,1,1] = True
+        x = array(x, mask=m)
+
+        # axis=None
+        a = compress_nd(x)
+        assert_equal(a, [[[ 0,  2,  3,  4],
+                          [10, 12, 13, 14],
+                          [15, 17, 18, 19]],
+                         [[40, 42, 43, 44],
+                          [50, 52, 53, 54],
+                          [55, 57, 58, 59]]])
+
+        # axis=0
+        a = compress_nd(x, 0)
+        assert_equal(a, [[[ 0,  1,  2,  3,  4],
+                          [ 5,  6,  7,  8,  9],
+                          [10, 11, 12, 13, 14],
+                          [15, 16, 17, 18, 19]],
+                         [[40, 41, 42, 43, 44],
+                          [45, 46, 47, 48, 49],
+                          [50, 51, 52, 53, 54],
+                          [55, 56, 57, 58, 59]]])
+
+        # axis=1
+        a = compress_nd(x, 1)
+        assert_equal(a, [[[ 0,  1,  2,  3,  4],
+                          [10, 11, 12, 13, 14],
+                          [15, 16, 17, 18, 19]],
+                         [[20, 21, 22, 23, 24],
+                          [30, 31, 32, 33, 34],
+                          [35, 36, 37, 38, 39]],
+                         [[40, 41, 42, 43, 44],
+                          [50, 51, 52, 53, 54],
+                          [55, 56, 57, 58, 59]]])
+
+        a2 = compress_nd(x, (1,))
+        a3 = compress_nd(x, -2)
+        a4 = compress_nd(x, (-2,))
+        assert_equal(a, a2)
+        assert_equal(a, a3)
+        assert_equal(a, a4)
+
+        # axis=2
+        a = compress_nd(x, 2)
+        assert_equal(a, [[[ 0, 2,  3,  4],
+                          [ 5, 7,  8,  9],
+                          [10, 12, 13, 14],
+                          [15, 17, 18, 19]],
+                         [[20, 22, 23, 24],
+                          [25, 27, 28, 29],
+                          [30, 32, 33, 34],
+                          [35, 37, 38, 39]],
+                         [[40, 42, 43, 44],
+                          [45, 47, 48, 49],
+                          [50, 52, 53, 54],
+                          [55, 57, 58, 59]]])
+
+        a2 = compress_nd(x, (2,))
+        a3 = compress_nd(x, -1)
+        a4 = compress_nd(x, (-1,))
+        assert_equal(a, a2)
+        assert_equal(a, a3)
+        assert_equal(a, a4)
+
+        # axis=(0, 1)
+        a = compress_nd(x, (0, 1))
+        assert_equal(a, [[[ 0,  1,  2,  3,  4],
+                          [10, 11, 12, 13, 14],
+                          [15, 16, 17, 18, 19]],
+                         [[40, 41, 42, 43, 44],
+                          [50, 51, 52, 53, 54],
+                          [55, 56, 57, 58, 59]]])
+        a2 = compress_nd(x, (0, -2))
+        assert_equal(a, a2)
+
+        # axis=(1, 2)
+        a = compress_nd(x, (1, 2))
+        assert_equal(a, [[[ 0,  2,  3,  4],
+                          [10, 12, 13, 14],
+                          [15, 17, 18, 19]],
+                         [[20, 22, 23, 24],
+                          [30, 32, 33, 34],
+                          [35, 37, 38, 39]],
+                         [[40, 42, 43, 44],
+                          [50, 52, 53, 54],
+                          [55, 57, 58, 59]]])
+
+        a2 = compress_nd(x, (-2, 2))
+        a3 = compress_nd(x, (1, -1))
+        a4 = compress_nd(x, (-2, -1))
+        assert_equal(a, a2)
+        assert_equal(a, a3)
+        assert_equal(a, a4)
+
+        # axis=(0, 2)
+        a = compress_nd(x, (0, 2))
+        assert_equal(a, [[[ 0,  2,  3,  4],
+                          [ 5,  7,  8,  9],
+                          [10, 12, 13, 14],
+                          [15, 17, 18, 19]],
+                         [[40, 42, 43, 44],
+                          [45, 47, 48, 49],
+                          [50, 52, 53, 54],
+                          [55, 57, 58, 59]]])
+
+        a2 = compress_nd(x, (0, -1))
+        assert_equal(a, a2)
+
+    def test_compress_rowcols(self):
+        # Tests compress_rowcols
         x = array(np.arange(9).reshape(3, 3),
                   mask=[[1, 0, 0], [0, 0, 0], [0, 0, 0]])
         assert_equal(compress_rowcols(x), [[4, 5], [7, 8]])
@@ -404,26 +518,26 @@ class Test2DFunctions(TestCase):
         m = [1, 0, 0, 0, 0, 0]
         a = masked_array(n, mask=m).reshape(2, 3)
         b = masked_array(n, mask=m).reshape(3, 2)
-        c = dot(a, b, True)
+        c = dot(a, b, strict=True)
         assert_equal(c.mask, [[1, 1], [1, 0]])
-        c = dot(b, a, True)
+        c = dot(b, a, strict=True)
         assert_equal(c.mask, [[1, 1, 1], [1, 0, 0], [1, 0, 0]])
-        c = dot(a, b, False)
+        c = dot(a, b, strict=False)
         assert_equal(c, np.dot(a.filled(0), b.filled(0)))
-        c = dot(b, a, False)
+        c = dot(b, a, strict=False)
         assert_equal(c, np.dot(b.filled(0), a.filled(0)))
         #
         m = [0, 0, 0, 0, 0, 1]
         a = masked_array(n, mask=m).reshape(2, 3)
         b = masked_array(n, mask=m).reshape(3, 2)
-        c = dot(a, b, True)
+        c = dot(a, b, strict=True)
         assert_equal(c.mask, [[0, 1], [1, 1]])
-        c = dot(b, a, True)
+        c = dot(b, a, strict=True)
         assert_equal(c.mask, [[0, 0, 1], [0, 0, 1], [1, 1, 1]])
-        c = dot(a, b, False)
+        c = dot(a, b, strict=False)
         assert_equal(c, np.dot(a.filled(0), b.filled(0)))
         assert_equal(c, dot(a, b))
-        c = dot(b, a, False)
+        c = dot(b, a, strict=False)
         assert_equal(c, np.dot(b.filled(0), a.filled(0)))
         #
         m = [0, 0, 0, 0, 0, 0]
@@ -436,36 +550,52 @@ class Test2DFunctions(TestCase):
         #
         a = masked_array(n, mask=[1, 0, 0, 0, 0, 0]).reshape(2, 3)
         b = masked_array(n, mask=[0, 0, 0, 0, 0, 0]).reshape(3, 2)
-        c = dot(a, b, True)
+        c = dot(a, b, strict=True)
         assert_equal(c.mask, [[1, 1], [0, 0]])
-        c = dot(a, b, False)
+        c = dot(a, b, strict=False)
         assert_equal(c, np.dot(a.filled(0), b.filled(0)))
-        c = dot(b, a, True)
+        c = dot(b, a, strict=True)
         assert_equal(c.mask, [[1, 0, 0], [1, 0, 0], [1, 0, 0]])
-        c = dot(b, a, False)
+        c = dot(b, a, strict=False)
         assert_equal(c, np.dot(b.filled(0), a.filled(0)))
         #
         a = masked_array(n, mask=[0, 0, 0, 0, 0, 1]).reshape(2, 3)
         b = masked_array(n, mask=[0, 0, 0, 0, 0, 0]).reshape(3, 2)
-        c = dot(a, b, True)
+        c = dot(a, b, strict=True)
         assert_equal(c.mask, [[0, 0], [1, 1]])
         c = dot(a, b)
         assert_equal(c, np.dot(a.filled(0), b.filled(0)))
-        c = dot(b, a, True)
+        c = dot(b, a, strict=True)
         assert_equal(c.mask, [[0, 0, 1], [0, 0, 1], [0, 0, 1]])
-        c = dot(b, a, False)
+        c = dot(b, a, strict=False)
         assert_equal(c, np.dot(b.filled(0), a.filled(0)))
         #
         a = masked_array(n, mask=[0, 0, 0, 0, 0, 1]).reshape(2, 3)
         b = masked_array(n, mask=[0, 0, 1, 0, 0, 0]).reshape(3, 2)
-        c = dot(a, b, True)
+        c = dot(a, b, strict=True)
         assert_equal(c.mask, [[1, 0], [1, 1]])
-        c = dot(a, b, False)
+        c = dot(a, b, strict=False)
         assert_equal(c, np.dot(a.filled(0), b.filled(0)))
-        c = dot(b, a, True)
+        c = dot(b, a, strict=True)
         assert_equal(c.mask, [[0, 0, 1], [1, 1, 1], [0, 0, 1]])
-        c = dot(b, a, False)
+        c = dot(b, a, strict=False)
         assert_equal(c, np.dot(b.filled(0), a.filled(0)))
+
+    def test_dot_returns_maskedarray(self):
+        # See gh-6611
+        a = np.eye(3)
+        b = array(a)
+        assert_(type(dot(a, a)) is MaskedArray)
+        assert_(type(dot(a, b)) is MaskedArray)
+        assert_(type(dot(b, a)) is MaskedArray)
+        assert_(type(dot(b, b)) is MaskedArray)
+
+    def test_dot_out(self):
+        a = array(np.eye(3))
+        out = array(np.zeros((3, 3)))
+        res = dot(a, a, out=out)
+        assert_(res is out)
+        assert_equal(a, res)
 
 
 class TestApplyAlongAxis(TestCase):
@@ -479,7 +609,7 @@ class TestApplyAlongAxis(TestCase):
         xa = apply_along_axis(myfunc, 2, a)
         assert_equal(xa, [[1, 4], [7, 10]])
 
-   # Tests kwargs functions
+    # Tests kwargs functions
     def test_3d_kwargs(self):
         a = arange(12).reshape(2, 2, 3)
 
@@ -507,6 +637,10 @@ class TestMedian(TestCase):
     def test_pytype(self):
         r = np.ma.median([[np.inf, np.inf], [np.inf, np.inf]], axis=-1)
         assert_equal(r, np.inf)
+
+    def test_non_masked(self):
+        assert_equal(np.ma.median(np.arange(9)), 4.)
+        assert_equal(np.ma.median(range(9)), 4)
 
     def test_2d(self):
         # Tests median w/ 2D
@@ -625,15 +759,46 @@ class TestCov(TestCase):
                              x.shape[0] / frac))
 
 
+class catch_warn_mae(clear_and_catch_warnings):
+    """ Context manager to catch, reset warnings in ma.extras module
+    """
+    class_modules = (mae,)
+
+
 class TestCorrcoef(TestCase):
 
     def setUp(self):
         self.data = array(np.random.rand(12))
+        self.data2 = array(np.random.rand(12))
 
     def test_ddof(self):
-        # Test ddof keyword
-        x = self.data
-        assert_almost_equal(np.corrcoef(x, ddof=0), corrcoef(x, ddof=0))
+        # ddof raises DeprecationWarning
+        x, y = self.data, self.data2
+        expected = np.corrcoef(x)
+        expected2 = np.corrcoef(x, y)
+        with catch_warn_mae():
+            warnings.simplefilter("always")
+            assert_warns(DeprecationWarning, corrcoef, x, ddof=-1)
+            warnings.simplefilter("ignore")
+            # ddof has no or negligible effect on the function
+            assert_almost_equal(np.corrcoef(x, ddof=0), corrcoef(x, ddof=0))
+            assert_almost_equal(corrcoef(x, ddof=-1), expected)
+            assert_almost_equal(corrcoef(x, y, ddof=-1), expected2)
+            assert_almost_equal(corrcoef(x, ddof=3), expected)
+            assert_almost_equal(corrcoef(x, y, ddof=3), expected2)
+
+    def test_bias(self):
+        x, y = self.data, self.data2
+        expected = np.corrcoef(x)
+        # bias raises DeprecationWarning
+        with catch_warn_mae():
+            warnings.simplefilter("always")
+            assert_warns(DeprecationWarning, corrcoef, x, y, True, False)
+            assert_warns(DeprecationWarning, corrcoef, x, y, True, True)
+            assert_warns(DeprecationWarning, corrcoef, x, bias=False)
+            warnings.simplefilter("ignore")
+            # bias has no or negligible effect on the function
+            assert_almost_equal(corrcoef(x, bias=1), expected)
 
     def test_1d_wo_missing(self):
         # Test cov on 1D variable w/o missing values
@@ -641,8 +806,10 @@ class TestCorrcoef(TestCase):
         assert_almost_equal(np.corrcoef(x), corrcoef(x))
         assert_almost_equal(np.corrcoef(x, rowvar=False),
                             corrcoef(x, rowvar=False))
-        assert_almost_equal(np.corrcoef(x, rowvar=False, bias=True),
-                            corrcoef(x, rowvar=False, bias=True))
+        with catch_warn_mae():
+            warnings.simplefilter("ignore")
+            assert_almost_equal(np.corrcoef(x, rowvar=False, bias=True),
+                                corrcoef(x, rowvar=False, bias=True))
 
     def test_2d_wo_missing(self):
         # Test corrcoef on 1 2D variable w/o missing values
@@ -650,8 +817,10 @@ class TestCorrcoef(TestCase):
         assert_almost_equal(np.corrcoef(x), corrcoef(x))
         assert_almost_equal(np.corrcoef(x, rowvar=False),
                             corrcoef(x, rowvar=False))
-        assert_almost_equal(np.corrcoef(x, rowvar=False, bias=True),
-                            corrcoef(x, rowvar=False, bias=True))
+        with catch_warn_mae():
+            warnings.simplefilter("ignore")
+            assert_almost_equal(np.corrcoef(x, rowvar=False, bias=True),
+                                corrcoef(x, rowvar=False, bias=True))
 
     def test_1d_w_missing(self):
         # Test corrcoef 1 1D variable w/missing values
@@ -662,21 +831,26 @@ class TestCorrcoef(TestCase):
         assert_almost_equal(np.corrcoef(nx), corrcoef(x))
         assert_almost_equal(np.corrcoef(nx, rowvar=False),
                             corrcoef(x, rowvar=False))
-        assert_almost_equal(np.corrcoef(nx, rowvar=False, bias=True),
-                            corrcoef(x, rowvar=False, bias=True))
-        #
+        with catch_warn_mae():
+            warnings.simplefilter("ignore")
+            assert_almost_equal(np.corrcoef(nx, rowvar=False, bias=True),
+                                corrcoef(x, rowvar=False, bias=True))
         try:
             corrcoef(x, allow_masked=False)
         except ValueError:
             pass
-        #
         # 2 1D variables w/ missing values
         nx = x[1:-1]
         assert_almost_equal(np.corrcoef(nx, nx[::-1]), corrcoef(x, x[::-1]))
         assert_almost_equal(np.corrcoef(nx, nx[::-1], rowvar=False),
                             corrcoef(x, x[::-1], rowvar=False))
-        assert_almost_equal(np.corrcoef(nx, nx[::-1], rowvar=False, bias=True),
-                            corrcoef(x, x[::-1], rowvar=False, bias=True))
+        with catch_warn_mae():
+            warnings.simplefilter("ignore")
+            # ddof and bias have no or negligible effect on the function
+            assert_almost_equal(np.corrcoef(nx, nx[::-1]),
+                                corrcoef(x, x[::-1], bias=1))
+            assert_almost_equal(np.corrcoef(nx, nx[::-1]),
+                                corrcoef(x, x[::-1], ddof=2))
 
     def test_2d_w_missing(self):
         # Test corrcoef on 2D variable w/ missing value
@@ -687,6 +861,15 @@ class TestCorrcoef(TestCase):
         test = corrcoef(x)
         control = np.corrcoef(x)
         assert_almost_equal(test[:-1, :-1], control[:-1, :-1])
+        with catch_warn_mae():
+            warnings.simplefilter("ignore")
+            # ddof and bias have no or negligible effect on the function
+            assert_almost_equal(corrcoef(x, ddof=-2)[:-1, :-1],
+                                control[:-1, :-1])
+            assert_almost_equal(corrcoef(x, ddof=3)[:-1, :-1],
+                                control[:-1, :-1])
+            assert_almost_equal(corrcoef(x, bias=1)[:-1, :-1],
+                                control[:-1, :-1])
 
 
 class TestPolynomial(TestCase):
@@ -727,6 +910,22 @@ class TestPolynomial(TestCase):
         (C, R, K, S, D) = polyfit(x, y, 3, full=True, w=w)
         (c, r, k, s, d) = np.polyfit(xs, ys, 3, full=True, w=ws)
         assert_equal(w, wo)
+        for (a, a_) in zip((C, R, K, S, D), (c, r, k, s, d)):
+            assert_almost_equal(a, a_)
+
+    def test_polyfit_with_masked_NaNs(self):
+        x = np.random.rand(10)
+        y = np.random.rand(20).reshape(-1, 2)
+
+        x[0] = np.nan
+        y[-1,-1] = np.nan
+        x = x.view(MaskedArray)
+        y = y.view(MaskedArray)
+        x[0] = masked
+        y[-1,-1] = masked
+
+        (C, R, K, S, D) = polyfit(x, y, 3, full=True)
+        (c, r, k, s, d) = np.polyfit(x[1:-1], y[1:-1,:], 3, full=True)
         for (a, a_) in zip((C, R, K, S, D), (c, r, k, s, d)):
             assert_almost_equal(a, a_)
 
@@ -924,6 +1123,8 @@ class TestArraySetOps(TestCase):
         a = arange(10)
         b = arange(8)
         assert_equal(setdiff1d(a, b), array([8, 9]))
+        a = array([], np.uint32, mask=[])
+        assert_equal(setdiff1d(a, []).dtype, np.uint32)
 
     def test_setdiff1d_char_array(self):
         # Test setdiff1d_charray
@@ -933,7 +1134,7 @@ class TestArraySetOps(TestCase):
 
 
 class TestShapeBase(TestCase):
-    #
+
     def test_atleast2d(self):
         # Test atleast_2d
         a = masked_array([0, 1, 2], mask=[0, 1, 0])
@@ -943,8 +1144,25 @@ class TestShapeBase(TestCase):
         assert_equal(a.shape, (3,))
         assert_equal(a.mask.shape, a.data.shape)
 
+    def test_shape_scalar(self):
+        # the atleast and diagflat function should work with scalars
+        # GitHub issue #3367
+        b = atleast_1d(1.0)
+        assert_equal(b.shape, (1, ))
+        assert_equal(b.mask.shape, b.data.shape)
 
-###############################################################################
-#------------------------------------------------------------------------------
+        b = atleast_2d(1.0)
+        assert_equal(b.shape, (1, 1))
+        assert_equal(b.mask.shape, b.data.shape)
+
+        b = atleast_3d(1.0)
+        assert_equal(b.shape, (1, 1, 1))
+        assert_equal(b.mask.shape, b.data.shape)
+
+        b = diagflat(1.0)
+        assert_equal(b.shape, (1, 1))
+        assert_equal(b.mask.shape, b.data.shape)
+
+
 if __name__ == "__main__":
     run_module_suite()
