@@ -22,8 +22,8 @@ found.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import cPickle as pickle
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import cPickle as pickle
 
 """
 KNOWN ISSUES
@@ -52,6 +52,7 @@ try:
     set
 except NameError:
     from sets import Set as set
+from collections import Iterable
 import matplotlib
 from matplotlib import afm
 from matplotlib import ft2font
@@ -142,7 +143,7 @@ OSXFontDirectories = [
     ""
 ]
 
-if not USE_FONTCONFIG:
+if not USE_FONTCONFIG and sys.platform != 'win32':
     home = os.environ.get('HOME')
     if home is not None:
         # user fonts on OSX
@@ -179,7 +180,7 @@ def win32FontDirectory():
     If the key is not found, $WINDIR/Fonts will be returned.
     """
     try:
-        from six.moves import winreg
+        from matplotlib.externals.six.moves import winreg
     except ImportError:
         pass # Fall through to default
     else:
@@ -204,7 +205,7 @@ def win32InstalledFonts(directory=None, fontext='ttf'):
     'afm'.
     """
 
-    from six.moves import winreg
+    from matplotlib.externals.six.moves import winreg
     if directory is None:
         directory = win32FontDirectory()
 
@@ -269,6 +270,7 @@ def get_fontconfig_fonts(fontext='ttf'):
 
     fontfiles = {}
     try:
+        warnings.warn('Matplotlib is building the font cache using fc-list. This may take a moment.')
         pipe = subprocess.Popen(['fc-list', '--format=%{file}\\n'],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
@@ -586,7 +588,7 @@ def createFontList(fontfiles, fontext='ttf'):
                 continue
             try:
                 prop = ttfFontProperty(font)
-            except KeyError:
+            except (KeyError, RuntimeError):
                 continue
 
         fontlist.append(prop)
@@ -822,7 +824,9 @@ class FontProperties(object):
         if family is None:
             family = rcParams['font.family']
         if is_string_like(family):
-            family = [family]
+            family = [six.text_type(family)]
+        elif (not is_string_like(family) and isinstance(family, Iterable)):
+            family = [six.text_type(f) for f in family]
         self._family = family
     set_name = set_family
 
@@ -864,6 +868,7 @@ class FontProperties(object):
         except ValueError:
             if weight not in weight_dict:
                 raise ValueError("weight is invalid")
+            weight = weight_dict[weight]
         self._weight = weight
 
     def set_stretch(self, stretch):
@@ -896,7 +901,9 @@ class FontProperties(object):
             size = float(size)
         except ValueError:
             if size is not None and size not in font_scalings:
-                raise ValueError("size is invalid")
+                raise ValueError(
+                    "Size is invalid. Valid font size are " + ", ".join(
+                        str(i) for i in font_scalings.keys()))
         self._size = size
 
     def set_file(self, file):
@@ -1093,15 +1100,18 @@ class FontManager(object):
         Returns a match score between the list of font families in
         *families* and the font family name *family2*.
 
-        An exact match anywhere in the list returns 0.0.
+        An exact match at the head of the list returns 0.0.
 
-        A match by generic font name will return 0.1.
+        A match further down the list will return between 0 and 1.
 
         No match will return 1.0.
         """
         if not isinstance(families, (list, tuple)):
             families = [families]
+        elif len(families) == 0:
+            return 1.0
         family2 = family2.lower()
+        step = 1 / len(families)
         for i, family1 in enumerate(families):
             family1 = family1.lower()
             if family1 in font_family_aliases:
@@ -1111,12 +1121,11 @@ class FontManager(object):
                 options = [x.lower() for x in options]
                 if family2 in options:
                     idx = options.index(family2)
-                    return ((0.1 * (idx / len(options))) *
-                            ((i + 1) / len(families)))
+                    return (i + (idx / len(options))) * step
             elif family1 == family2:
                 # The score should be weighted by where in the
                 # list the font was found.
-                return i / len(families)
+                return i * step
         return 1.0
 
     def score_style(self, style1, style2):

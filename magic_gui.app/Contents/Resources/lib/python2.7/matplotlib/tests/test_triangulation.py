@@ -1,16 +1,16 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
-from nose.tools import assert_equal, assert_raises
+from nose.tools import assert_equal, assert_raises, assert_true, assert_false
 from numpy.testing import assert_array_equal, assert_array_almost_equal,\
     assert_array_less
 import numpy.ma.testutils as matest
-from matplotlib.testing.decorators import image_comparison
+from matplotlib.testing.decorators import cleanup, image_comparison
 import matplotlib.cm as cm
 from matplotlib.path import Path
 
@@ -960,6 +960,75 @@ def test_triplot_return():
         triangles=[[0, 1, 3], [3, 2, 0]])
     if ax.triplot(triang, "b-") is None:
         raise AssertionError("triplot should return the artist it adds")
+
+
+def test_trirefiner_fortran_contiguous_triangles():
+    # github issue 4180.  Test requires two arrays of triangles that are
+    # identical except that one is C-contiguous and one is fortran-contiguous.
+    triangles1 = np.array([[2, 0, 3], [2, 1, 0]])
+    assert_false(np.isfortran(triangles1))
+
+    triangles2 = np.array(triangles1, copy=True, order='F')
+    assert_true(np.isfortran(triangles2))
+
+    x = np.array([0.39, 0.59, 0.43, 0.32])
+    y = np.array([33.99, 34.01, 34.19, 34.18])
+    triang1 = mtri.Triangulation(x, y, triangles1)
+    triang2 = mtri.Triangulation(x, y, triangles2)
+
+    refiner1 = mtri.UniformTriRefiner(triang1)
+    refiner2 = mtri.UniformTriRefiner(triang2)
+
+    fine_triang1 = refiner1.refine_triangulation(subdiv=1)
+    fine_triang2 = refiner2.refine_triangulation(subdiv=1)
+
+    assert_array_equal(fine_triang1.triangles, fine_triang2.triangles)
+
+
+def test_qhull_triangle_orientation():
+    # github issue 4437.
+    xi = np.linspace(-2, 2, 100)
+    x, y = map(np.ravel, np.meshgrid(xi, xi))
+    w = np.logical_and(x > y - 1, np.logical_and(x < -1.95, y > -1.2))
+    x, y = x[w], y[w]
+    theta = np.radians(25)
+    x1 = x*np.cos(theta) - y*np.sin(theta)
+    y1 = x*np.sin(theta) + y*np.cos(theta)
+
+    # Calculate Delaunay triangulation using Qhull.
+    triang = mtri.Triangulation(x1, y1)
+
+    # Neighbors returned by Qhull.
+    qhull_neighbors = triang.neighbors
+
+    # Obtain neighbors using own C++ calculation.
+    triang._neighbors = None
+    own_neighbors = triang.neighbors
+
+    assert_array_equal(qhull_neighbors, own_neighbors)
+
+
+def test_trianalyzer_mismatched_indices():
+    # github issue 4999.
+    x = np.array([0., 1., 0.5, 0., 2.])
+    y = np.array([0., 0., 0.5*np.sqrt(3.), -1., 1.])
+    triangles = np.array([[0, 1, 2], [0, 1, 3], [1, 2, 4]], dtype=np.int32)
+    mask = np.array([False, False, True], dtype=np.bool)
+    triang = mtri.Triangulation(x, y, triangles, mask=mask)
+    analyser = mtri.TriAnalyzer(triang)
+    # numpy >= 1.10 raises a VisibleDeprecationWarning in the following line
+    # prior to the fix.
+    triang2 = analyser._get_compressed_triangulation()
+
+
+@cleanup
+def test_tricontourf_decreasing_levels():
+    # github issue 5477.
+    x = [0.0, 1.0, 1.0]
+    y = [0.0, 0.0, 1.0]
+    z = [0.2, 0.4, 0.6]
+    plt.figure()
+    assert_raises(ValueError, plt.tricontourf, x, y, z, [1.0, 0.0])
 
 
 if __name__ == '__main__':

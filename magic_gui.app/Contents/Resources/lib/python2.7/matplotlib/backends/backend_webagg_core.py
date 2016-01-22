@@ -13,14 +13,16 @@ Displays Agg images in the browser, with interactivity
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import io
 import json
 import os
 import time
+import warnings
 
 import numpy as np
+import tornado
 
 from matplotlib.backends import backend_agg
 from matplotlib.figure import Figure
@@ -44,6 +46,96 @@ def new_figure_manager_given_figure(num, figure):
     canvas = FigureCanvasWebAggCore(figure)
     manager = FigureManagerWebAgg(canvas, num)
     return manager
+
+
+# http://www.cambiaresearch.com/articles/15/javascript-char-codes-key-codes
+_SHIFT_LUT = {59: ':',
+              61: '+',
+              173: '_',
+              186: ':',
+              187: '+',
+              188: '<',
+              189: '_',
+              190: '>',
+              191: '?',
+              192: '~',
+              219: '{',
+              220: '|',
+              221: '}',
+              222: '"'}
+
+_LUT = {8: 'backspace',
+        9: 'tab',
+        13: 'enter',
+        16: 'shift',
+        17: 'control',
+        18: 'alt',
+        19: 'pause',
+        20: 'caps',
+        27: 'escape',
+        32: ' ',
+        33: 'pageup',
+        34: 'pagedown',
+        35: 'end',
+        36: 'home',
+        37: 'left',
+        38: 'up',
+        39: 'right',
+        40: 'down',
+        45: 'insert',
+        46: 'delete',
+        91: 'super',
+        92: 'super',
+        93: 'select',
+        106: '*',
+        107: '+',
+        109: '-',
+        110: '.',
+        111: '/',
+        144: 'num_lock',
+        145: 'scroll_lock',
+        186: ':',
+        187: '=',
+        188: ',',
+        189: '-',
+        190: '.',
+        191: '/',
+        192: '`',
+        219: '[',
+        220: '\\',
+        221: ']',
+        222: "'"}
+
+
+def _handle_key(key):
+    """Handle key codes"""
+    code = int(key[key.index('k') + 1:])
+    value = chr(code)
+    # letter keys
+    if code >= 65 and code <= 90:
+        if 'shift+' in key:
+            key = key.replace('shift+', '')
+        else:
+            value = value.lower()
+    # number keys
+    elif code >= 48 and code <= 57:
+        if 'shift+' in key:
+            value = ')!@#$%^&*('[int(value)]
+            key = key.replace('shift+', '')
+    # function keys
+    elif code >= 112 and code <= 123:
+        value = 'f%s' % (code - 111)
+    # number pad keys
+    elif code >= 96 and code <= 105:
+        value = '%s' % (code - 96)
+    # keys with shift alternatives
+    elif code in _SHIFT_LUT and 'shift+' in key:
+        key = key.replace('shift+', '')
+        value = _SHIFT_LUT[code]
+    elif code in _LUT:
+        value = _LUT[code]
+    key = key[:key.index('k')] + value
+    return key
 
 
 class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
@@ -143,8 +235,7 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
             # TODO: We should write a new version of write_png that
             # handles the differencing inline
             _png.write_png(
-                output.tostring(),
-                output.shape[1], output.shape[0],
+                output.view(dtype=np.uint8).reshape(output.shape + (4,)),
                 self._png_buffer)
 
             # Swap the renderer frames
@@ -159,6 +250,7 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
         # so that we can do things such as produce a diff image
         # in get_diff_image
         _, _, w, h = self.figure.bbox.bounds
+        w, h = int(w), int(h)
         key = w, h, self.figure.dpi
         try:
             self._lastKey, self._renderer
@@ -181,6 +273,8 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
 
     def handle_event(self, event):
         e_type = event['type']
+        guiEvent = event.get('guiEvent', None)
+
         if e_type == 'ack':
             # Network latency tends to decrease if traffic is flowing
             # in both directions.  Therefore, the browser sends back
@@ -191,7 +285,8 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
             pass
         elif e_type == 'draw':
             self.draw()
-        elif e_type in ('button_press', 'button_release', 'motion_notify'):
+        elif e_type in ('button_press', 'button_release', 'motion_notify',
+                        'figure_enter', 'figure_leave', 'scroll'):
             x = event['x']
             y = event['y']
             y = self.get_renderer().height - y
@@ -203,23 +298,29 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
             # The right mouse button pops up a context menu, which
             # doesn't work very well, so use the middle mouse button
             # instead.  It doesn't seem that it's possible to disable
-            # the context menu in recent versions of Chrome.
+            # the context menu in recent versions of Chrome.  If this
+            # is resolved, please also adjust the docstring in MouseEvent.
             if button == 2:
                 button = 3
 
             if e_type == 'button_press':
-                self.button_press_event(x, y, button)
+                self.button_press_event(x, y, button, guiEvent=guiEvent)
             elif e_type == 'button_release':
-                self.button_release_event(x, y, button)
+                self.button_release_event(x, y, button, guiEvent=guiEvent)
             elif e_type == 'motion_notify':
-                self.motion_notify_event(x, y)
+                self.motion_notify_event(x, y, guiEvent=guiEvent)
+            elif e_type == 'figure_enter':
+                self.enter_notify_event(xy=(x, y), guiEvent=guiEvent)
+            elif e_type == 'figure_leave':
+                self.leave_notify_event()
+            elif e_type == 'scroll':
+                self.scroll_event(x, y, event['step'], guiEvent=guiEvent)
         elif e_type in ('key_press', 'key_release'):
-            key = event['key']
-
+            key = _handle_key(event['key'])
             if e_type == 'key_press':
-                self.key_press_event(key)
+                self.key_press_event(key, guiEvent=guiEvent)
             elif e_type == 'key_release':
-                self.key_release_event(key)
+                self.key_release_event(key, guiEvent=guiEvent)
         elif e_type == 'toolbar_button':
             # TODO: Be more suspicious of the input
             getattr(self.toolbar, event['name'])()
@@ -230,11 +331,12 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
             self.send_event('figure_label', label=figure_label)
             self._force_full = True
             self.draw_idle()
+
         else:
-            handler = getattr(self, 'handle_{}'.format(e_type), None)
+            handler = getattr(self, 'handle_{0}'.format(e_type), None)
             if handler is None:
                 import warnings
-                warnings.warn('Unhandled message type {}. {}'.format(
+                warnings.warn('Unhandled message type {0}. {1}'.format(
                                                         e_type, event))
             else:
                 return handler(event)
@@ -252,6 +354,7 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
         # identical or within a pixel or so).
         self._png_is_old = True
         self.manager.resize(w, h)
+        self.resize_event()
 
     def handle_send_image_mode(self, event):
         # The client requests notification of what the current image mode is.
@@ -318,6 +421,10 @@ class NavigationToolbar2WebAgg(backend_bases.NavigationToolbar2):
         backend_bases.NavigationToolbar2.release_zoom(self, event)
         self.canvas.send_event(
             "rubberband", x0=-1, y0=-1, x1=-1, y1=-1)
+
+    def save_figure(self, *args):
+        """Save the current figure"""
+        self.canvas.send_event('save')
 
 
 class FigureManagerWebAgg(backend_bases.FigureManagerBase):
@@ -393,7 +500,8 @@ class FigureManagerWebAgg(backend_bases.FigureManagerBase):
         for filetype, ext in sorted(FigureCanvasWebAggCore.
                                     get_supported_filetypes_grouped().
                                     items()):
-            extensions.append(ext[0])
+            if not ext[0] == 'pgf':  # pgf does not support BytesIO
+                extensions.append(ext[0])
         output.write("mpl.extensions = {0};\n\n".format(
             json.dumps(extensions)))
 
@@ -412,3 +520,35 @@ class FigureManagerWebAgg(backend_bases.FigureManagerBase):
         payload.update(kwargs)
         for s in self.web_sockets:
             s.send_json(payload)
+
+
+class TimerTornado(backend_bases.TimerBase):
+    def _timer_start(self):
+        self._timer_stop()
+        if self._single:
+            ioloop = tornado.ioloop.IOLoop.instance()
+            self._timer = ioloop.add_timeout(
+                datetime.timedelta(milliseconds=self.interval),
+                self._on_timer)
+        else:
+            self._timer = tornado.ioloop.PeriodicCallback(
+                self._on_timer,
+                self.interval)
+            self._timer.start()
+
+    def _timer_stop(self):
+        if self._timer is None:
+            return
+        elif self._single:
+            ioloop = tornado.ioloop.IOLoop.instance()
+            ioloop.remove_timeout(self._timer)
+        else:
+            self._timer.stop()
+
+        self._timer = None
+
+    def _timer_set_interval(self):
+        # Only stop and restart it if the timer has already been started
+        if self._timer is not None:
+            self._timer_stop()
+            self._timer_start()

@@ -1,26 +1,32 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-
-import numpy as np
-
-from matplotlib.testing.decorators import image_comparison, knownfailureif, cleanup
-from matplotlib.image import BboxImage, imread
-from matplotlib.transforms import Bbox
-from matplotlib import rcParams
-import matplotlib.pyplot as plt
-from nose.tools import assert_raises
-from numpy.testing import assert_array_equal, assert_array_almost_equal
-
+from matplotlib.externals import six
+import sys
 import io
 import os
 
+import numpy as np
+
+from matplotlib.testing.decorators import (image_comparison,
+                                           knownfailureif, cleanup)
+from matplotlib.image import BboxImage, imread, NonUniformImage
+from matplotlib.transforms import Bbox
+from matplotlib import rcParams
+import matplotlib.pyplot as plt
+
+from numpy.testing import assert_array_equal
+
+
+import nose
+
 try:
     from PIL import Image
+    del Image
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
+
 
 @image_comparison(baseline_images=['image_interps'])
 def test_image_interps():
@@ -157,6 +163,76 @@ def test_imsave_color_alpha():
         data[data[:, :, 3] == 0, j] = 1
 
     assert_array_equal(data, arr_buf)
+
+
+@cleanup
+def test_cursor_data():
+    from matplotlib.backend_bases import MouseEvent
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(np.arange(100).reshape(10, 10), origin='upper')
+
+    x, y = 4, 4
+    xdisp, ydisp = ax.transData.transform_point([x, y])
+
+    event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    z = im.get_cursor_data(event)
+    assert z == 44, "Did not get 44, got %d" % z
+
+    # Now try for a point outside the image
+    # Tests issue #4957
+    x, y = 10.1, 4
+    xdisp, ydisp = ax.transData.transform_point([x, y])
+
+    event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    z = im.get_cursor_data(event)
+    assert z is None, "Did not get None, got %d" % z
+
+    # Hmm, something is wrong here... I get 0, not None...
+    # But, this works further down in the tests with extents flipped
+    #x, y = 0.1, -0.1
+    #xdisp, ydisp = ax.transData.transform_point([x, y])
+    #event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    #z = im.get_cursor_data(event)
+    #assert z is None, "Did not get None, got %d" % z
+
+    ax.clear()
+    # Now try with the extents flipped.
+    im = ax.imshow(np.arange(100).reshape(10, 10), origin='lower')
+
+    x, y = 4, 4
+    xdisp, ydisp = ax.transData.transform_point([x, y])
+
+    event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    z = im.get_cursor_data(event)
+    assert z == 44, "Did not get 44, got %d" % z
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(np.arange(100).reshape(10, 10), extent=[0, 0.5, 0, 0.5])
+
+    x, y = 0.25, 0.25
+    xdisp, ydisp = ax.transData.transform_point([x, y])
+
+    event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    z = im.get_cursor_data(event)
+    assert z == 55, "Did not get 55, got %d" % z
+
+    # Now try for a point outside the image
+    # Tests issue #4957
+    x, y = 0.75, 0.25
+    xdisp, ydisp = ax.transData.transform_point([x, y])
+
+    event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    z = im.get_cursor_data(event)
+    assert z is None, "Did not get None, got %d" % z
+
+    x, y = 0.01, -0.01
+    xdisp, ydisp = ax.transData.transform_point([x, y])
+
+    event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    z = im.get_cursor_data(event)
+    assert z is None, "Did not get None, got %d" % z
+
 
 @image_comparison(baseline_images=['image_clip'])
 def test_image_clip():
@@ -333,6 +409,94 @@ def test_bbox_image_inverted():
     bbox_im = BboxImage(Bbox([[100, 100], [0, 0]]))
     bbox_im.set_data(image)
     axes.add_artist(bbox_im)
+
+
+@cleanup
+def test_get_window_extent_for_AxisImage():
+    # Create a figure of known size (1000x1000 pixels), place an image
+    # object at a given location and check that get_window_extent()
+    # returns the correct bounding box values (in pixels).
+
+    im = np.array([[0.25, 0.75, 1.0, 0.75], [0.1, 0.65, 0.5, 0.4], \
+        [0.6, 0.3, 0.0, 0.2], [0.7, 0.9, 0.4, 0.6]])
+    fig = plt.figure(figsize=(10, 10), dpi=100)
+    ax = plt.subplot()
+    ax.set_position([0, 0, 1, 1])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    im_obj = ax.imshow(im, extent=[0.4, 0.7, 0.2, 0.9], interpolation='nearest')
+
+    fig.canvas.draw()
+    renderer = fig.canvas.renderer
+    im_bbox = im_obj.get_window_extent(renderer)
+
+    assert_array_equal(im_bbox.get_points(), [[400, 200], [700, 900]])
+
+
+@image_comparison(baseline_images=['zoom_and_clip_upper_origin'],
+                  remove_text=True,
+                  extensions=['png'])
+def test_zoom_and_clip_upper_origin():
+    image = np.arange(100)
+    image = image.reshape((10, 10))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.imshow(image)
+    ax.set_ylim(2.0, -0.5)
+    ax.set_xlim(-0.5, 2.0)
+
+
+@cleanup
+def test_nonuniformimage_setcmap():
+    ax = plt.gca()
+    im = NonUniformImage(ax)
+    im.set_cmap('Blues')
+
+
+@cleanup
+def test_nonuniformimage_setnorm():
+    ax = plt.gca()
+    im = NonUniformImage(ax)
+    im.set_norm(plt.Normalize())
+
+
+@cleanup
+def test_minimized_rasterized():
+    # This ensures that the rasterized content in the colorbars is
+    # only as thick as the colorbar, and doesn't extend to other parts
+    # of the image.  See #5814.  While the original bug exists only
+    # in Postscript, the best way to detect it is to generate SVG
+    # and then parse the output to make sure the two colorbar images
+    # are the same size.
+    if sys.version_info[:2] < (2, 7):
+        raise nose.SkipTest("xml.etree.ElementTree.Element.iter "
+                            "added in py 2.7")
+
+    from xml.etree import ElementTree
+
+    np.random.seed(0)
+    data = np.random.rand(10, 10)
+
+    fig, ax = plt.subplots(1, 2)
+    p1 = ax[0].pcolormesh(data)
+    p2 = ax[1].pcolormesh(data)
+
+    plt.colorbar(p1, ax=ax[0])
+    plt.colorbar(p2, ax=ax[1])
+
+    buff = io.BytesIO()
+    plt.savefig(buff, format='svg')
+
+    buff = io.BytesIO(buff.getvalue())
+    tree = ElementTree.parse(buff)
+    width = None
+    for image in tree.iter('image'):
+        if width is None:
+            width = image['width']
+        else:
+            if image['width'] != width:
+                assert False
 
 
 if __name__=='__main__':

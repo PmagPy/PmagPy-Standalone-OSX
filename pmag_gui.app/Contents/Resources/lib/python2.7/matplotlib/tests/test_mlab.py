@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import tempfile
 
@@ -283,6 +283,24 @@ class stride_testcase(CleanupTestCase):
         assert_equal(y.shape, x1.shape)
         assert_array_equal(y, x1)
 
+    def test_stride_ensure_integer_type(self):
+        N = 100
+        x = np.empty(N + 20, dtype='>f4')
+        x.fill(np.NaN)
+        y = x[10:-10]
+        y.fill(0.3)
+        # previous to #3845 lead to corrupt access
+        y_strided = mlab.stride_windows(y, n=33, noverlap=0.6)
+        assert_array_equal(y_strided, 0.3)
+        # previous to #3845 lead to corrupt access
+        y_strided = mlab.stride_windows(y, n=33.3, noverlap=0)
+        assert_array_equal(y_strided, 0.3)
+        # even previous to #3845 could not find any problematic
+        # configuration however, let's be sure it's not accidentally
+        # introduced
+        y_strided = mlab.stride_repeat(y, n=33.815)
+        assert_array_equal(y_strided, 0.3)
+
 
 class csv_testcase(CleanupTestCase):
     def setUp(self):
@@ -320,6 +338,13 @@ class csv_testcase(CleanupTestCase):
 
         # the bad recarray should trigger a ValueError for having ndim > 1.
         assert_raises(ValueError, mlab.rec2csv, bad, self.fd)
+
+    def test_csv2rec_names_with_comments(self):
+        self.fd.write('# comment\n1,2,3\n4,5,6\n')
+        self.fd.seek(0)
+        array = mlab.csv2rec(self.fd, names='a,b,c')
+        assert len(array) == 2
+        assert len(array.dtype) == 3
 
 
 class window_testcase(CleanupTestCase):
@@ -1780,18 +1805,22 @@ class spectral_testcase_nosig_real_onesided(CleanupTestCase):
 
     def test_psd_windowarray_scale_by_freq(self):
         freqs = self.freqs_density
+        win = mlab.window_hanning(np.ones(self.NFFT_density_real))
+
         spec, fsp = mlab.psd(x=self.y,
                              NFFT=self.NFFT_density,
                              Fs=self.Fs,
                              noverlap=self.nover_density,
                              pad_to=self.pad_to_density,
-                             sides=self.sides)
+                             sides=self.sides,
+                             window=mlab.window_hanning)
         spec_s, fsp_s = mlab.psd(x=self.y,
                                  NFFT=self.NFFT_density,
                                  Fs=self.Fs,
                                  noverlap=self.nover_density,
                                  pad_to=self.pad_to_density,
                                  sides=self.sides,
+                                 window=mlab.window_hanning,
                                  scale_by_freq=True)
         spec_n, fsp_n = mlab.psd(x=self.y,
                                  NFFT=self.NFFT_density,
@@ -1799,12 +1828,14 @@ class spectral_testcase_nosig_real_onesided(CleanupTestCase):
                                  noverlap=self.nover_density,
                                  pad_to=self.pad_to_density,
                                  sides=self.sides,
+                                 window=mlab.window_hanning,
                                  scale_by_freq=False)
-
         assert_array_equal(fsp, fsp_s)
         assert_array_equal(fsp, fsp_n)
         assert_array_equal(spec, spec_s)
-        assert_allclose(spec_s, spec_n/self.Fs, atol=1e-08)
+        assert_allclose(spec_s*(win**2).sum(),
+                        spec_n/self.Fs*win.sum()**2,
+                        atol=1e-08)
 
     def test_complex_spectrum(self):
         freqs = self.freqs_spectrum
@@ -2737,7 +2768,7 @@ def test_griddata_nn():
                   [-0.1000099, 0.4999943, 1.0999964, 1.6999979],
                   [-0.3000128, 0.2999894, 0.8999913, 1.4999933]]
     zi = mlab.griddata(x, y, z, xi, yi, interp='nn')
-    np.testing.assert_array_almost_equal(zi, correct_zi)
+    np.testing.assert_array_almost_equal(zi, correct_zi, 5)
 
     # Decreasing xi or yi should raise ValueError.
     assert_raises(ValueError, mlab.griddata, x, y, z, xi[::-1], yi,
@@ -2748,7 +2779,7 @@ def test_griddata_nn():
     # Passing 2D xi and yi arrays to griddata.
     xi, yi = np.meshgrid(xi, yi)
     zi = mlab.griddata(x, y, z, xi, yi, interp='nn')
-    np.testing.assert_array_almost_equal(zi, correct_zi)
+    np.testing.assert_array_almost_equal(zi, correct_zi, 5)
 
     # Masking z array.
     z_masked = np.ma.array(z, mask=[False, False, False, True, False])
@@ -2868,7 +2899,9 @@ class gaussian_kde_custom_tests(object):
         np.random.seed(8765678)
         n_basesample = 50
         multidim_data = [np.random.randn(n_basesample) for i in range(5)]
-        callable_fun = lambda x: 0.55
+
+        def callable_fun(x):
+            return 0.55
         kde = mlab.GaussianKDE(multidim_data, bw_method=callable_fun)
         assert_equal(kde.covariance_factor(), 0.55)
 
@@ -2906,7 +2939,7 @@ class gaussian_kde_evaluate_tests(object):
         np.testing.assert_array_almost_equal(y, y_expected, 7)
 
     def test_evaluate_inv_dim(self):
-        """ Invert the dimensions. ie, Give the dataset a dimension of
+        """ Invert the dimensions. i.e., Give the dataset a dimension of
         1 [3,2,4], and the points will have a dimension of 3 [[3],[2],[4]].
         ValueError should be raised"""
         np.random.seed(8765678)
@@ -2942,8 +2975,40 @@ class gaussian_kde_evaluate_tests(object):
         np.testing.assert_array_almost_equal(y, y_expected, 7)
 
 
-#*****************************************************************
-#*****************************************************************
+def test_contiguous_regions():
+    a, b, c = 3, 4, 5
+    # Starts and ends with True
+    mask = [True]*a + [False]*b + [True]*c
+    expected = [(0, a), (a+b, a+b+c)]
+    assert_equal(mlab.contiguous_regions(mask), expected)
+    d, e = 6, 7
+    # Starts with True ends with False
+    mask = mask + [False]*e
+    assert_equal(mlab.contiguous_regions(mask), expected)
+    # Starts with False ends with True
+    mask = [False]*d + mask[:-e]
+    expected = [(d, d+a), (d+a+b, d+a+b+c)]
+    assert_equal(mlab.contiguous_regions(mask), expected)
+    # Starts and ends with False
+    mask = mask + [False]*e
+    assert_equal(mlab.contiguous_regions(mask), expected)
+    # No True in mask
+    assert_equal(mlab.contiguous_regions([False]*5), [])
+    # Empty mask
+    assert_equal(mlab.contiguous_regions([]), [])
+
+
+def test_psd_onesided_norm():
+    u = np.array([0, 1, 2, 3, 1, 2, 1])
+    dt = 1.0
+    Su = np.abs(np.fft.fft(u) * dt)**2 / float(dt * u.size)
+    P, f = mlab.psd(u, NFFT=u.size, Fs=1/dt, window=mlab.window_none,
+                    detrend=mlab.detrend_none, noverlap=0, pad_to=None,
+                    scale_by_freq=None,
+                    sides='onesided')
+    Su_1side = np.append([Su[0]], Su[1:4] + Su[4:][::-1])
+    assert_allclose(P, Su_1side, atol=1e-06)
+
 
 if __name__ == '__main__':
     import nose

@@ -1,8 +1,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import map
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import map
 
 import datetime
 import warnings
@@ -159,6 +159,55 @@ def test_DateFormatter():
     fig.autofmt_xdate()
 
 
+def test_date_formatter_strftime():
+    """
+    Tests that DateFormatter matches datetime.strftime,
+    check microseconds for years before 1900 for bug #3179
+    as well as a few related issues for years before 1900.
+    """
+    def test_strftime_fields(dt):
+        """For datetime object dt, check DateFormatter fields"""
+        # Note: the last couple of %%s are to check multiple %s are handled
+        # properly; %% should get replaced by %.
+        formatter = mdates.DateFormatter("%w %d %m %y %Y %H %I %M %S %%%f %%x")
+        # Compute date fields without using datetime.strftime,
+        # since datetime.strftime does not work before year 1900
+        formatted_date_str = (
+            "{weekday} {day:02d} {month:02d} {year:02d} {full_year:04d} "
+            "{hour24:02d} {hour12:02d} {minute:02d} {second:02d} "
+            "%{microsecond:06d} %x"
+            .format(
+            # weeknum=dt.isocalendar()[1],  # %U/%W {weeknum:02d}
+            # %w Sunday=0, weekday() Monday=0
+            weekday=str((dt.weekday() + 1) % 7),
+            day=dt.day,
+            month=dt.month,
+            year=dt.year % 100,
+            full_year=dt.year,
+            hour24=dt.hour,
+            hour12=((dt.hour-1) % 12) + 1,
+            minute=dt.minute,
+            second=dt.second,
+            microsecond=dt.microsecond))
+        assert_equal(formatter.strftime(dt), formatted_date_str)
+
+        try:
+            # Test strftime("%x") with the current locale.
+            import locale  # Might not exist on some platforms, such as Windows
+            locale_formatter = mdates.DateFormatter("%x")
+            locale_d_fmt = locale.nl_langinfo(locale.D_FMT)
+            expanded_formatter = mdates.DateFormatter(locale_d_fmt)
+            assert_equal(locale_formatter.strftime(dt),
+                         expanded_formatter.strftime(dt))
+        except (ImportError, AttributeError):
+            pass
+
+    for year in range(1, 3000, 71):
+        # Iterate through random set of years
+        test_strftime_fields(datetime.datetime(year, 1, 1))
+        test_strftime_fields(datetime.datetime(year, 2, 3, 4, 5, 6, 12345))
+
+
 def test_date_formatter_callable():
     scale = -11
     locator = mock.Mock(_get_unit=mock.Mock(return_value=scale))
@@ -243,11 +292,11 @@ def test_auto_date_locator():
                  '1990-09-01 00:00:00+00:00', '1990-10-01 00:00:00+00:00',
                  '1990-11-01 00:00:00+00:00', '1990-12-01 00:00:00+00:00']
                 ],
-               [datetime.timedelta(days=140),
-                ['1990-01-06 00:00:00+00:00', '1990-01-27 00:00:00+00:00',
-                 '1990-02-17 00:00:00+00:00', '1990-03-10 00:00:00+00:00',
-                 '1990-03-31 00:00:00+00:00', '1990-04-21 00:00:00+00:00',
-                 '1990-05-12 00:00:00+00:00']
+               [datetime.timedelta(days=141),
+                ['1990-01-05 00:00:00+00:00', '1990-01-26 00:00:00+00:00',
+                 '1990-02-16 00:00:00+00:00', '1990-03-09 00:00:00+00:00',
+                 '1990-03-30 00:00:00+00:00', '1990-04-20 00:00:00+00:00',
+                 '1990-05-11 00:00:00+00:00']
                 ],
                [datetime.timedelta(days=40),
                 ['1990-01-03 00:00:00+00:00', '1990-01-10 00:00:00+00:00',

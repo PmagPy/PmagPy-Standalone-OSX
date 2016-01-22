@@ -2,8 +2,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import warnings
-import six
-from six.moves import xrange
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import xrange
 
 import numpy
 import matplotlib.pyplot as plt
@@ -113,8 +113,7 @@ def test_exceptions():
                                 message='.*sharex\ argument\ to\ subplots',
                                 category=UserWarning)
         assert_raises(ValueError, plt.subplots, 2, 2, -1)
-        # uncomment this for 1.5
-        # assert_raises(ValueError, plt.subplots, 2, 2, 0)
+        assert_raises(ValueError, plt.subplots, 2, 2, 0)
         assert_raises(ValueError, plt.subplots, 2, 2, 5)
 
 

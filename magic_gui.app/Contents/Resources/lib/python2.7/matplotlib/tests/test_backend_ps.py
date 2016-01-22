@@ -5,11 +5,12 @@ from __future__ import (absolute_import, division, print_function,
 
 import io
 import re
-
-import six
+import numpy as np
+from matplotlib.externals import six
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import patheffects
 from matplotlib.testing.decorators import cleanup, knownfailureif
 
 
@@ -23,17 +24,20 @@ needs_tex = knownfailureif(
     "This test needs a TeX installation")
 
 
-def _test_savefig_to_stringio(format='ps'):
+def _test_savefig_to_stringio(format='ps', use_log=False):
+    fig, ax = plt.subplots()
     buffers = [
         six.moves.StringIO(),
         io.StringIO(),
         io.BytesIO()]
 
-    plt.figure()
-    plt.plot([0, 1], [0, 1])
-    plt.title("Déjà vu")
+    if use_log:
+        ax.set_yscale('log')
+
+    ax.plot([1, 2], [1, 2])
+    ax.set_title("Déjà vu")
     for buffer in buffers:
-        plt.savefig(buffer, format=format)
+        fig.savefig(buffer, format=format)
 
     values = [x.getvalue() for x in buffers]
 
@@ -79,11 +83,53 @@ def test_savefig_to_stringio_eps():
 
 
 @cleanup
+def test_savefig_to_stringio_eps_afm():
+    matplotlib.rcParams['ps.useafm'] = True
+    _test_savefig_to_stringio(format='eps', use_log=True)
+
+
+@cleanup
 @needs_tex
 def test_savefig_to_stringio_with_usetex_eps():
     matplotlib.rcParams['text.latex.unicode'] = True
     matplotlib.rcParams['text.usetex'] = True
     _test_savefig_to_stringio(format='eps')
+
+
+@cleanup
+def test_composite_image():
+    # Test that figures can be saved with and without combining multiple images
+    # (on a single set of axes) into a single composite image.
+    X, Y = np.meshgrid(np.arange(-5, 5, 1), np.arange(-5, 5, 1))
+    Z = np.sin(Y ** 2)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xlim(0, 3)
+    ax.imshow(Z, extent=[0, 1, 0, 1])
+    ax.imshow(Z[::-1], extent=[2, 3, 0, 1])
+    plt.rcParams['image.composite_image'] = True
+    with io.BytesIO() as ps:
+        fig.savefig(ps, format="ps")
+        ps.seek(0)
+        buff = ps.read()
+        assert buff.count(six.b(' colorimage')) == 1
+    plt.rcParams['image.composite_image'] = False
+    with io.BytesIO() as ps:
+        fig.savefig(ps, format="ps")
+        ps.seek(0)
+        buff = ps.read()
+        assert buff.count(six.b(' colorimage')) == 2
+
+
+@cleanup
+def test_patheffects():
+    with matplotlib.rc_context():
+        matplotlib.rcParams['path.effects'] = [
+            patheffects.withStroke(linewidth=4, foreground='w')]
+        fig, ax = plt.subplots()
+        ax.plot([1, 2, 3])
+        with io.BytesIO() as ps:
+            fig.savefig(ps, format='ps')
 
 
 if __name__ == '__main__':

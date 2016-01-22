@@ -1,16 +1,18 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
+
+import io
 
 import numpy as np
 import matplotlib
-from matplotlib.testing.decorators import image_comparison, knownfailureif
+from matplotlib.testing.decorators import image_comparison, knownfailureif, cleanup
 import matplotlib.pyplot as plt
 from matplotlib import mathtext
 
 math_tests = [
-    r'$a+b+\dots+\dot{s}+\ldots$',
+    r'$a+b+\dot s+\dot{s}+\ldots$',
     r'$x \doteq y$',
     r'\$100.00 $\alpha \_$',
     r'$\frac{\$100.00}{y}$',
@@ -90,7 +92,19 @@ math_tests = [
     r"$\left(2 \, a=b\right)$", # Sage bug #8125
     r"$? ! &$", # github issue #466
     r'$\operatorname{cos} x$', # github issue #553
-    r'$\sum _{\genfrac{}{}{0}{}{0\leq i\leq m}{0<j<n}}P\left(i,j\right)$'
+    r'$\sum _{\genfrac{}{}{0}{}{0\leq i\leq m}{0<j<n}}P\left(i,j\right)$',
+    r"$\left\Vert a \right\Vert \left\vert b \right\vert \left| a \right| \left\| b\right\| \Vert a \Vert \vert b \vert$",
+    r'$\mathring{A}  \stackrel{\circ}{A}  \AA$',
+    r'$M \, M \thinspace M \/ M \> M \: M \; M \ M \enspace M \quad M \qquad M \! M$',
+    r'$\Cup$ $\Cap$ $\leftharpoonup$ $\barwedge$ $\rightharpoonup$',
+    r'$\dotplus$ $\doteq$ $\doteqdot$ $\ddots$',
+    r'$xyz^kx_kx^py^{p-2} d_i^jb_jc_kd x^j_i E^0 E^0_u$', # github issue #4873
+    r'${xyz}^k{x}_{k}{x}^{p}{y}^{p-2} {d}_{i}^{j}{b}_{j}{c}_{k}{d} {x}^{j}_{i}{E}^{0}{E}^0_u$',
+    r'${\int}_x^x x\oint_x^x x\int_{X}^{X}x\int_x x \int^x x \int_{x} x\int^{x}{\int}_{x} x{\int}^{x}_{x}x$',
+    r'testing$^{123}$',
+    ' '.join('$\\' + p + '$' for p in sorted(mathtext.Parser._snowflake)),
+    r'$6-2$; $-2$; $ -2$; ${-2}$; ${  -2}$; $20^{+3}_{-2}$',
+    r'$\overline{\omega}^x \frac{1}{2}_0^x$', # github issue #5444
 ]
 
 digits = "0123456789"
@@ -206,10 +220,25 @@ def test_mathtext_exceptions():
             parser.parse(math)
         except ValueError as e:
             exc = str(e).split('\n')
-            print(e)
             assert exc[3].startswith(msg)
         else:
             assert False, "Expected '%s', but didn't get it" % msg
+
+@cleanup
+def test_single_minus_sign():
+    plt.figure(figsize=(0.3, 0.3))
+    plt.text(0.5, 0.5, '$-$')
+    for spine in plt.gca().spines.values():
+        spine.set_visible(False)
+    plt.gca().set_xticks([])
+    plt.gca().set_yticks([])
+
+    buff = io.BytesIO()
+    plt.savefig(buff, format="rgba", dpi=1000)
+    array = np.fromstring(buff.getvalue(), dtype=np.uint8)
+
+    # If this fails, it would be all white
+    assert not np.all(array == 0xff)
 
 
 if __name__ == '__main__':

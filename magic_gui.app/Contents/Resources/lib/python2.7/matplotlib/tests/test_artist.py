@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
-import six
+import warnings
+from matplotlib.externals import six
 
 import io
 
@@ -9,10 +9,13 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 import matplotlib.path as mpath
 import matplotlib.transforms as mtrans
 import matplotlib.collections as mcollections
 from matplotlib.testing.decorators import image_comparison, cleanup
+
+from nose.tools import (assert_true, assert_false)
 
 
 @cleanup
@@ -142,6 +145,46 @@ def test_cull_markers():
     svg = io.BytesIO()
     fig.savefig(svg, format="svg")
     assert len(svg.getvalue()) < 20000
+
+
+@cleanup
+def test_remove():
+    fig, ax = plt.subplots()
+    im = ax.imshow(np.arange(36).reshape(6, 6))
+    ln, = ax.plot(range(5))
+
+    assert_true(fig.stale)
+    assert_true(ax.stale)
+
+    fig.canvas.draw()
+    assert_false(fig.stale)
+    assert_false(ax.stale)
+    assert_false(ln.stale)
+
+    assert_true(im in ax.mouseover_set)
+    assert_true(ln not in ax.mouseover_set)
+    assert_true(im.axes is ax)
+
+    im.remove()
+    ln.remove()
+
+    for art in [im, ln]:
+        assert_true(art.axes is None)
+        assert_true(art.figure is None)
+
+    assert_true(im not in ax.mouseover_set)
+    assert_true(fig.stale)
+    assert_true(ax.stale)
+
+
+@cleanup
+def test_properties():
+    ln = mlines.Line2D([], [])
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        ln.properties()
+        assert len(w) == 0
 
 
 if __name__ == '__main__':

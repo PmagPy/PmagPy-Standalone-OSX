@@ -9,9 +9,10 @@ it imports matplotlib only at runtime.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import xrange, zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import xrange, zip
 from itertools import repeat
+import collections
 
 import datetime
 import errno
@@ -23,7 +24,6 @@ import locale
 import os
 import re
 import sys
-import threading
 import time
 import traceback
 import types
@@ -361,9 +361,14 @@ class _BoundMethodProxy(object):
     Minor bugfixes by Michael Droettboom
     '''
     def __init__(self, cb):
+        self._hash = hash(cb)
+        self._destroy_callbacks = []
         try:
             try:
-                self.inst = ref(cb.im_self)
+                if six.PY3:
+                    self.inst = ref(cb.__self__, self._destroy)
+                else:
+                    self.inst = ref(cb.im_self, self._destroy)
             except TypeError:
                 self.inst = None
             if six.PY3:
@@ -376,6 +381,16 @@ class _BoundMethodProxy(object):
             self.inst = None
             self.func = cb
             self.klass = None
+
+    def add_destroy_callback(self, callback):
+        self._destroy_callbacks.append(_BoundMethodProxy(callback))
+
+    def _destroy(self, wk):
+        for callback in self._destroy_callbacks:
+            try:
+                callback(self)
+            except ReferenceError:
+                pass
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -433,8 +448,11 @@ class _BoundMethodProxy(object):
         '''
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return self._hash
 
-class CallbackRegistry:
+
+class CallbackRegistry(object):
     """
     Handle registering and disconnecting for a set of signals and
     callbacks:
@@ -472,13 +490,7 @@ class CallbackRegistry:
     `"Mindtrove" blog
     <http://mindtrove.info/articles/python-weak-references/>`_.
     """
-    def __init__(self, *args):
-        if len(args):
-            warn_deprecated(
-                '1.3',
-                message="CallbackRegistry no longer requires a list of "
-                        "callback types. Ignoring arguments. *args will "
-                        "be removed in 1.5")
+    def __init__(self):
         self.callbacks = dict()
         self._cid = 0
         self._func_cid_map = {}
@@ -498,16 +510,30 @@ class CallbackRegistry:
         func will be called
         """
         self._func_cid_map.setdefault(s, WeakKeyDictionary())
-        if func in self._func_cid_map[s]:
-            return self._func_cid_map[s][func]
+        # Note proxy not needed in python 3.
+        # TODO rewrite this when support for python2.x gets dropped.
+        proxy = _BoundMethodProxy(func)
+        if proxy in self._func_cid_map[s]:
+            return self._func_cid_map[s][proxy]
 
+        proxy.add_destroy_callback(self._remove_proxy)
         self._cid += 1
         cid = self._cid
-        self._func_cid_map[s][func] = cid
+        self._func_cid_map[s][proxy] = cid
         self.callbacks.setdefault(s, dict())
-        proxy = _BoundMethodProxy(func)
         self.callbacks[s][cid] = proxy
         return cid
+
+    def _remove_proxy(self, proxy):
+        for signal, proxies in list(six.iteritems(self._func_cid_map)):
+            try:
+                del self.callbacks[signal][proxies[proxy]]
+            except KeyError:
+                pass
+
+            if len(self.callbacks[signal]) == 0:
+                del self.callbacks[signal]
+                del self._func_cid_map[signal]
 
     def disconnect(self, cid):
         """
@@ -519,7 +545,7 @@ class CallbackRegistry:
             except KeyError:
                 continue
             else:
-                for category, functions in list(
+                for signal, functions in list(
                         six.iteritems(self._func_cid_map)):
                     for function, value in list(six.iteritems(functions)):
                         if value == cid:
@@ -533,77 +559,10 @@ class CallbackRegistry:
         """
         if s in self.callbacks:
             for cid, proxy in list(six.iteritems(self.callbacks[s])):
-                # Clean out dead references
-                if proxy.inst is not None and proxy.inst() is None:
-                    del self.callbacks[s][cid]
-                else:
+                try:
                     proxy(*args, **kwargs)
-
-
-class Scheduler(threading.Thread):
-    """
-    Base class for timeout and idle scheduling
-    """
-    idlelock = threading.Lock()
-    id = 0
-
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.id = Scheduler.id
-        self._stopped = False
-        Scheduler.id += 1
-        self._stopevent = threading.Event()
-
-    def stop(self):
-        if self._stopped:
-            return
-        self._stopevent.set()
-        self.join()
-        self._stopped = True
-
-
-class Timeout(Scheduler):
-    """
-    Schedule recurring events with a wait time in seconds
-    """
-    def __init__(self, wait, func):
-        Scheduler.__init__(self)
-        self.wait = wait
-        self.func = func
-
-    def run(self):
-
-        while not self._stopevent.isSet():
-            self._stopevent.wait(self.wait)
-            Scheduler.idlelock.acquire()
-            b = self.func(self)
-            Scheduler.idlelock.release()
-            if not b:
-                break
-
-
-class Idle(Scheduler):
-    """
-    Schedule callbacks when scheduler is idle
-    """
-    # the prototype impl is a bit of a poor man's idle handler.  It
-    # just implements a short wait time.  But it will provide a
-    # placeholder for a proper impl ater
-    waittime = 0.05
-
-    def __init__(self, func):
-        Scheduler.__init__(self)
-        self.func = func
-
-    def run(self):
-
-        while not self._stopevent.isSet():
-            self._stopevent.wait(Idle.waittime)
-            Scheduler.idlelock.acquire()
-            b = self.func(self)
-            Scheduler.idlelock.release()
-            if not b:
-                break
+                except ReferenceError:
+                    self._remove_proxy(proxy)
 
 
 class silent_list(list):
@@ -632,6 +591,62 @@ class silent_list(list):
         self.extend(state['seq'])
 
 
+class IgnoredKeywordWarning(UserWarning):
+    """
+    A class for issuing warnings about keyword arguments that will be ignored
+    by matplotlib
+    """
+    pass
+
+
+def local_over_kwdict(local_var, kwargs, *keys):
+    """
+    Enforces the priority of a local variable over potentially conflicting
+    argument(s) from a kwargs dict. The following possible output values are
+    considered in order of priority:
+
+        local_var > kwargs[keys[0]] > ... > kwargs[keys[-1]]
+
+    The first of these whose value is not None will be returned. If all are
+    None then None will be returned. Each key in keys will be removed from the
+    kwargs dict in place.
+
+    Parameters
+    ------------
+        local_var: any object
+            The local variable (highest priority)
+
+        kwargs: dict
+            Dictionary of keyword arguments; modified in place
+
+        keys: str(s)
+            Name(s) of keyword arguments to process, in descending order of
+            priority
+
+    Returns
+    ---------
+        out: any object
+            Either local_var or one of kwargs[key] for key in keys
+
+    Raises
+    --------
+        IgnoredKeywordWarning
+            For each key in keys that is removed from kwargs but not used as
+            the output value
+
+    """
+    out = local_var
+    for key in keys:
+        kwarg_val = kwargs.pop(key, None)
+        if kwarg_val is not None:
+            if out is None:
+                out = kwarg_val
+            else:
+                warnings.warn('"%s" keyword argument will be ignored' % key,
+                              IgnoredKeywordWarning)
+    return out
+
+
 def strip_math(s):
     'remove latex formatting from mathtext'
     remove = (r'\mathdefault', r'\rm', r'\cal', r'\tt', r'\it', '\\', '{', '}')
@@ -641,7 +656,7 @@ def strip_math(s):
     return s
 
 
-class Bunch:
+class Bunch(object):
     """
     Often we want to just collect a bunch of stuff together, naming each
     item of the bunch; a dictionary's OK for that, but a small do- nothing
@@ -701,8 +716,12 @@ def is_sequence_of_strings(obj):
     """
     if not iterable(obj):
         return False
-    if is_string_like(obj):
-        return False
+    if is_string_like(obj) and not isinstance(obj, np.ndarray):
+        try:
+            obj = obj.values
+        except AttributeError:
+            # not pandas
+            return False
     for o in obj:
         if not is_string_like(o):
             return False
@@ -847,7 +866,7 @@ def flatten(seq, scalarp=is_scalar_or_string):
                 yield subitem
 
 
-class Sorter:
+class Sorter(object):
     """
     Sort by attribute or item
 
@@ -955,7 +974,7 @@ def soundex(name, len=4):
     return (sndx + (len * '0'))[:len]
 
 
-class Null:
+class Null(object):
     """ Null objects always and reliably "do nothing." """
 
     def __init__(self, *args, **kwargs):
@@ -994,21 +1013,18 @@ def mkdirs(newdir, mode=0o777):
         > mkdir -p NEWDIR
         > chmod MODE NEWDIR
     """
-    try:
-        if not os.path.exists(newdir):
-            parts = os.path.split(newdir)
-            for i in range(1, len(parts) + 1):
-                thispart = os.path.join(*parts[:i])
-                if not os.path.exists(thispart):
-                    os.makedirs(thispart, mode)
+    # this functionality is now in core python as of 3.2
+    # LPY DROP
+    if six.PY3:
+        os.makedirs(newdir, mode=mode, exist_ok=True)
+    else:
+        try:
+            os.makedirs(newdir, mode=mode)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
 
-    except OSError as err:
-        # Reraise the error unless it's about an already existing directory
-        if err.errno != errno.EEXIST or not os.path.isdir(newdir):
-            raise
-
-
-class GetRealpathAndStat:
+class GetRealpathAndStat(object):
     def __init__(self):
         self._cache = {}
 
@@ -1036,7 +1052,7 @@ def dict_delall(d, keys):
             pass
 
 
-class RingBuffer:
+class RingBuffer(object):
     """ class that implements a not-yet-full buffer """
     def __init__(self, size_max):
         self.max = size_max
@@ -1499,7 +1515,7 @@ def safe_masked_invalid(x):
     return xm
 
 
-class MemoryMonitor:
+class MemoryMonitor(object):
     def __init__(self, nmax=20000):
         self._nmax = nmax
         self._mem = np.zeros((self._nmax,), np.int32)
@@ -1654,7 +1670,7 @@ class Grouper(object):
         False
 
     """
-    def __init__(self, init=[]):
+    def __init__(self, init=()):
         mapping = self._mapping = {}
         for x in init:
             mapping[ref(x)] = [ref(x)]
@@ -1705,6 +1721,14 @@ class Grouper(object):
             return mapping[ref(a)] is mapping[ref(b)]
         except KeyError:
             return False
+
+    def remove(self, a):
+        self.clean()
+
+        mapping = self._mapping
+        seta = mapping.pop(ref(a), None)
+        if seta is not None:
+            seta.remove(ref(a))
 
     def __iter__(self):
         """
@@ -1901,7 +1925,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None):
         q1         first quartile (25th percentile)
         q3         third quartile (75th percentile)
         cilo       lower notch around the median
-        ciho       upper notch around the median
+        cihi       upper notch around the median
         whislo     end of the lower whisker
         whishi     end of the upper whisker
         fliers     outliers
@@ -1983,7 +2007,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None):
             stats['q1'] = np.nan
             stats['q3'] = np.nan
             stats['cilo'] = np.nan
-            stats['ciho'] = np.nan
+            stats['cihi'] = np.nan
             stats['whislo'] = np.nan
             stats['whishi'] = np.nan
             stats['med'] = np.nan
@@ -2108,7 +2132,10 @@ _linestyles = [('-', 'solid'),
                (':', 'dotted')]
 
 ls_mapper = dict(_linestyles)
-ls_mapper.update([(ls[1], ls[0]) for ls in _linestyles])
+# The ls_mapper maps short codes for line style to their full name used
+# by backends
+# The reverse mapper is for mapping full names to short ones
+ls_mapper_r = dict([(ls[1], ls[0]) for ls in _linestyles])
 
 
 def align_iterators(func, *iterables):
@@ -2169,6 +2196,21 @@ def is_math_text(s):
     even_dollars = (dollar_count > 0 and dollar_count % 2 == 0)
 
     return even_dollars
+
+
+def _check_1d(x):
+    '''
+    Converts a sequence of less than 1 dimension, to an array of 1
+    dimension; leaves everything else untouched.
+    '''
+    if not hasattr(x, 'shape') or len(x.shape) < 1:
+        return np.atleast_1d(x)
+    else:
+        try:
+            x[:, None]
+            return x
+        except (IndexError, TypeError):
+            return np.atleast_1d(x)
 
 
 def _reshape_2D(X):
@@ -2316,6 +2358,197 @@ class _InstanceMethodPickler(object):
     def get_instancemethod(self):
         return getattr(self.parent_obj, self.instancemethod_name)
 
+
+def _step_validation(x, *args):
+    """
+    Helper function of `pts_to_*step` functions
+
+    This function does all of the normalization required to the
+    input and generate the template for output
+
+
+    """
+    args = tuple(np.asanyarray(y) for y in args)
+    x = np.asanyarray(x)
+    if x.ndim != 1:
+        raise ValueError("x must be 1 dimenional")
+    if len(args) == 0:
+        raise ValueError("At least one Y value must be passed")
+
+    return np.vstack((x, ) + args)
+
+
+def pts_to_prestep(x, *args):
+    """
+    Covert continuous line to pre-steps
+
+    Given a set of N points convert to 2 N -1 points
+    which when connected linearly give a step function
+    which changes values at the begining the intervals.
+
+    Parameters
+    ----------
+    x : array
+        The x location of the steps
+
+    y1, y2, ... : array
+        Any number of y arrays to be turned into steps.
+        All must be the same length as ``x``
+
+    Returns
+    -------
+    x, y1, y2, .. : array
+        The x and y values converted to steps in the same order
+        as the input.  If the input is length ``N``, each of these arrays
+        will be length ``2N + 1``
+
+
+    Examples
+    --------
+    >> x_s, y1_s, y2_s = pts_to_prestep(x, y1, y2)
+    """
+    # do normalization
+    vertices = _step_validation(x, *args)
+    # create the output array
+    steps = np.zeros((vertices.shape[0], 2 * len(x) - 1), np.float)
+    # do the to step conversion logic
+    steps[0, 0::2], steps[0, 1::2] = vertices[0, :], vertices[0, :-1]
+    steps[1:, 0::2], steps[1:, 1:-1:2] = vertices[1:, :], vertices[1:, 1:]
+    # convert 2D array back to tuple
+    return tuple(steps)
+
+
+def pts_to_poststep(x, *args):
+    """
+    Covert continuous line to pre-steps
+
+    Given a set of N points convert to 2 N -1 points
+    which when connected linearly give a step function
+    which changes values at the begining the intervals.
+
+    Parameters
+    ----------
+    x : array
+        The x location of the steps
+
+    y1, y2, ... : array
+        Any number of y arrays to be turned into steps.
+        All must be the same length as ``x``
+
+    Returns
+    -------
+    x, y1, y2, .. : array
+        The x and y values converted to steps in the same order
+        as the input.  If the input is length ``N``, each of these arrays
+        will be length ``2N + 1``
+
+
+    Examples
+    --------
+    >> x_s, y1_s, y2_s = pts_to_prestep(x, y1, y2)
+    """
+    # do normalization
+    vertices = _step_validation(x, *args)
+    # create the output array
+    steps = ma.zeros((vertices.shape[0], 2 * len(x) - 1), np.float)
+    # do the to step conversion logic
+    steps[0, ::2], steps[0, 1:-1:2] = vertices[0, :], vertices[0, 1:]
+    steps[1:, 0::2], steps[1:, 1::2] = vertices[1:, :], vertices[1:, :-1]
+
+    # convert 2D array back to tuple
+    return tuple(steps)
+
+
+def pts_to_midstep(x, *args):
+    """
+    Covert continuous line to pre-steps
+
+    Given a set of N points convert to 2 N -1 points
+    which when connected linearly give a step function
+    which changes values at the begining the intervals.
+
+    Parameters
+    ----------
+    x : array
+        The x location of the steps
+
+    y1, y2, ... : array
+        Any number of y arrays to be turned into steps.
+        All must be the same length as ``x``
+
+    Returns
+    -------
+    x, y1, y2, .. : array
+        The x and y values converted to steps in the same order
+        as the input.  If the input is length ``N``, each of these arrays
+        will be length ``2N + 1``
+
+
+    Examples
+    --------
+    >> x_s, y1_s, y2_s = pts_to_prestep(x, y1, y2)
+    """
+    # do normalization
+    vertices = _step_validation(x, *args)
+    # create the output array
+    steps = ma.zeros((vertices.shape[0], 2 * len(x)), np.float)
+    steps[0, 1:-1:2] = 0.5 * (vertices[0, :-1] + vertices[0, 1:])
+    steps[0, 2::2] = 0.5 * (vertices[0, :-1] + vertices[0, 1:])
+    steps[0, 0] = vertices[0, 0]
+    steps[0, -1] = vertices[0, -1]
+    steps[1:, 0::2], steps[1:, 1::2] = vertices[1:, :], vertices[1:, :]
+
+    # convert 2D array back to tuple
+    return tuple(steps)
+
+STEP_LOOKUP_MAP = {'pre': pts_to_prestep,
+                   'post': pts_to_poststep,
+                   'mid': pts_to_midstep,
+                   'step-pre': pts_to_prestep,
+                   'step-post': pts_to_poststep,
+                   'step-mid': pts_to_midstep}
+
+
+def index_of(y):
+    """
+    A helper function to get the index of an input to plot
+    against if x values are not explicitly given.
+
+    Tries to get `y.index` (works if this is a pd.Series), if that
+    fails, return np.arange(y.shape[0]).
+
+    This will be extended in the future to deal with more types of
+    labeled data.
+
+    Parameters
+    ----------
+    y : scalar or array-like
+        The proposed y-value
+
+    Returns
+    -------
+    x, y : ndarray
+       The x and y values to plot.
+    """
+    try:
+        return y.index.values, y.values
+    except AttributeError:
+        y = np.atleast_1d(y)
+        return np.arange(y.shape[0], dtype=float), y
+
+
+def safe_first_element(obj):
+    if isinstance(obj, collections.Iterator):
+        raise RuntimeError("matplotlib does not support generators "
+                           "as input")
+    return next(iter(obj))
+
+
+def get_label(y, default_name):
+    try:
+        return y.name
+    except AttributeError:
+        return default_name
 
 # Numpy > 1.6.x deprecates putmask in favor of the new copyto.
 # So long as we support versions 1.6.x and less, we need the

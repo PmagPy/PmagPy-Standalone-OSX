@@ -40,11 +40,12 @@ mpl.figure = function(figure_id, websocket, ondownload, parent_element) {
     this.rubberband_context = undefined;
     this.format_dropdown = undefined;
 
-    this.focus_on_mousover = false;
     this.image_mode = 'full';
 
     this.root = $('<div/>');
+    this._root_extra_style(this.root)
     this.root.attr('style', 'display: inline-block');
+
     $(parent_element).append(this.root);
 
     this._init_header(this);
@@ -69,7 +70,6 @@ mpl.figure = function(figure_id, websocket, ondownload, parent_element) {
                 fig.context.clearRect(0, 0, fig.canvas.width, fig.canvas.height);
             }
             fig.context.drawImage(fig.imageObj, 0, 0);
-            fig.waiting = false;
         };
 
     this.imageObj.onunload = function() {
@@ -93,43 +93,85 @@ mpl.figure.prototype._init_header = function() {
     this.header = titletext[0];
 }
 
+
+
+mpl.figure.prototype._canvas_extra_style = function(canvas_div) {
+
+}
+
+
+mpl.figure.prototype._root_extra_style = function(canvas_div) {
+
+}
+
 mpl.figure.prototype._init_canvas = function() {
     var fig = this;
 
     var canvas_div = $('<div/>');
-    canvas_div.resizable({ resize: mpl.debounce_resize(
-        function(event, ui) { fig.request_resize(ui.size.width, ui.size.height); }
-        , 50)});
 
-    canvas_div.attr('style', 'position: relative; clear: both;');
-    this.root.append(canvas_div);
-
-    var canvas = $('<canvas/>');
-    canvas.addClass('mpl-canvas');
-    canvas.attr('style', "left: 0; top: 0; z-index: 0;")
+    canvas_div.attr('style', 'position: relative; clear: both; outline: 0');
 
     function canvas_keyboard_event(event) {
         return fig.key_event(event, event['data']);
     }
+
+    canvas_div.keydown('key_press', canvas_keyboard_event);
+    canvas_div.keyup('key_release', canvas_keyboard_event);
+    this.canvas_div = canvas_div
+    this._canvas_extra_style(canvas_div)
+    this.root.append(canvas_div);
+
+    var canvas = $('<canvas/>');
+    canvas.addClass('mpl-canvas');
+    canvas.attr('style', "left: 0; top: 0; z-index: 0; outline: 0")
 
     this.canvas = canvas[0];
     this.context = canvas[0].getContext("2d");
 
     var rubberband = $('<canvas/>');
     rubberband.attr('style', "position: absolute; left: 0; top: 0; z-index: 1;")
+
+    var pass_mouse_events = true;
+
+    canvas_div.resizable({
+        start: function(event, ui) {
+            pass_mouse_events = false;
+        },
+        resize: function(event, ui) {
+            fig.request_resize(ui.size.width, ui.size.height);
+        },
+        stop: function(event, ui) {
+            pass_mouse_events = true;
+            fig.request_resize(ui.size.width, ui.size.height);
+        },
+    });
+
     function mouse_event_fn(event) {
-        return fig.mouse_event(event, event['data']);
+        if (pass_mouse_events)
+            return fig.mouse_event(event, event['data']);
     }
+
     rubberband.mousedown('button_press', mouse_event_fn);
     rubberband.mouseup('button_release', mouse_event_fn);
     // Throttle sequential mouse events to 1 every 20ms.
     rubberband.mousemove('motion_notify', mouse_event_fn);
 
+    rubberband.mouseenter('figure_enter', mouse_event_fn);
+    rubberband.mouseleave('figure_leave', mouse_event_fn);
+
+    canvas_div.on("wheel", function (event) {
+        event = event.originalEvent;
+        event['data'] = 'scroll'
+        if (event.deltaY < 0) {
+            event.step = 1;
+        } else {
+            event.step = -1;
+        }
+        mouse_event_fn(event);
+    });
+
     canvas_div.append(canvas);
     canvas_div.append(rubberband);
-
-    canvas_div.keydown('key_press', canvas_keyboard_event);
-    canvas_div.keydown('key_release', canvas_keyboard_event);
 
     this.rubberband = rubberband;
     this.rubberband_canvas = rubberband[0];
@@ -152,6 +194,18 @@ mpl.figure.prototype._init_canvas = function() {
     // Set the figure to an initial 600x600px, this will subsequently be updated
     // upon first draw.
     this._resize_canvas(600, 600);
+
+    // Disable right mouse context menu.
+    $(this.rubberband_canvas).bind("contextmenu",function(e){
+        return false;
+    });
+
+    function set_focus () {
+        canvas.focus();
+        canvas_div.focus();
+    }
+
+    window.setTimeout(set_focus, 100);
 }
 
 mpl.figure.prototype._init_toolbar = function() {
@@ -169,7 +223,7 @@ mpl.figure.prototype._init_toolbar = function() {
         return fig.toolbar_button_onmouseover(event['data']);
     }
 
-    for(var toolbar_ind in mpl.toolbar_items){
+    for(var toolbar_ind in mpl.toolbar_items) {
         var name = mpl.toolbar_items[toolbar_ind][0];
         var tooltip = mpl.toolbar_items[toolbar_ind][1];
         var image = mpl.toolbar_items[toolbar_ind][2];
@@ -246,6 +300,14 @@ mpl.figure.prototype.send_draw_message = function() {
         this.ws.send(JSON.stringify({type: "draw", figure_id: this.id}));
     }
 }
+
+
+mpl.figure.prototype.handle_save = function(fig, msg) {
+    var format_dropdown = fig.format_dropdown;
+    var format = format_dropdown.options[format_dropdown.selectedIndex].value;
+    fig.ondownload(fig, format);
+}
+
 
 mpl.figure.prototype.handle_resize = function(fig, msg) {
     var size = msg['size'];
@@ -338,11 +400,13 @@ mpl.figure.prototype._make_on_message_function = function(fig) {
             fig.imageObj.src = (window.URL || window.webkitURL).createObjectURL(
                 evt.data);
             fig.updated_canvas_event();
+            fig.waiting = false;
             return;
         }
         else if (typeof evt.data === 'string' && evt.data.slice(0, 21) == "data:image/png;base64") {
             fig.imageObj.src = evt.data;
             fig.updated_canvas_event();
+            fig.waiting = false;
             return;
         }
 
@@ -391,18 +455,34 @@ mpl.findpos = function(e) {
     return {"x": x, "y": y};
 };
 
+/*
+ * return a copy of an object with only non-object keys
+ * we need this to avoid circular references
+ * http://stackoverflow.com/a/24161582/3208463
+ */
+function simpleKeys (original) {
+  return Object.keys(original).reduce(function (obj, key) {
+    if (typeof original[key] !== 'object')
+        obj[key] = original[key]
+    return obj;
+  }, {});
+}
+
 mpl.figure.prototype.mouse_event = function(event, name) {
     var canvas_pos = mpl.findpos(event)
 
-    if (this.focus_on_mouseover && name === 'motion_notify')
+    if (name === 'button_press')
     {
         this.canvas.focus();
+        this.canvas_div.focus();
     }
 
     var x = canvas_pos.x;
     var y = canvas_pos.y;
 
-    this.send_message(name, {x: x, y: y, button: event.button});
+    this.send_message(name, {x: x, y: y, button: event.button,
+                             step: event.step,
+                             guiEvent: simpleKeys(event)});
 
     /* This prevents the web browser from automatically changing to
      * the text insertion cursor when the button is pressed.  We want
@@ -412,30 +492,44 @@ mpl.figure.prototype.mouse_event = function(event, name) {
     return false;
 }
 
+mpl.figure.prototype._key_event_extra = function(event, name) {
+    // Handle any extra behaviour associated with a key event
+}
+
 mpl.figure.prototype.key_event = function(event, name) {
-    /* Don't fire events just when a modifier is changed.  Modifiers are
-       sent along with other keys. */
-    if (event.keyCode >= 16 && event.keyCode <= 20) {
-        return;
-    }
 
-    value = '';
-    if (event.ctrlKey) {
+    // Prevent repeat events
+    if (name == 'key_press')
+    {
+        if (event.which === this._key)
+            return;
+        else
+            this._key = event.which;
+    }
+    if (name == 'key_release')
+        this._key = null;
+
+    var value = '';
+    if (event.ctrlKey && event.which != 17)
         value += "ctrl+";
-    }
-    if (event.altKey) {
+    if (event.altKey && event.which != 18)
         value += "alt+";
-    }
-    value += String.fromCharCode(event.keyCode).toLowerCase();
+    if (event.shiftKey && event.which != 16)
+        value += "shift+";
 
-    this.send_message(name, {key: value});
+    value += 'k';
+    value += event.which.toString();
+
+    this._key_event_extra(event, name);
+
+    this.send_message(name, {key: value,
+                             guiEvent: simpleKeys(event)});
+    return false;
 }
 
 mpl.figure.prototype.toolbar_button_onclick = function(name) {
     if (name == 'download') {
-        var format_dropdown = this.format_dropdown;
-        var format = format_dropdown.options[format_dropdown.selectedIndex].value;
-        this.ondownload(this, format);
+        this.handle_save(this, null);
     } else {
         this.send_message("toolbar_button", {name: name});
     }
@@ -444,19 +538,3 @@ mpl.figure.prototype.toolbar_button_onclick = function(name) {
 mpl.figure.prototype.toolbar_button_onmouseover = function(tooltip) {
     this.message.textContent = tooltip;
 };
-
-mpl.debounce_event = function(func, time){
-    var timer;
-    return function(event){
-        clearTimeout(timer);
-        timer = setTimeout(function(){ func(event); }, time);
-    };
-}
-
-mpl.debounce_resize = function(func, time){
-    var timer;
-    return function(event, ui){
-        clearTimeout(timer);
-        timer = setTimeout(function(){ func(event, ui); }, time);
-    };
-}

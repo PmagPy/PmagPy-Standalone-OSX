@@ -5,8 +5,8 @@ A PostScript backend, which can produce both PostScript .ps and .eps
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import StringIO
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import StringIO
 
 import glob, math, os, shutil, sys, time
 def _fn_name(): return sys._getframe(1).f_code.co_name
@@ -26,7 +26,6 @@ from matplotlib.backend_bases import RendererBase, GraphicsContextBase,\
 
 from matplotlib.cbook import is_string_like, get_realpath_and_stat, \
     is_writable_file_like, maxdict, file_requires_unicode
-from matplotlib.mlab import quad2cubic
 from matplotlib.figure import Figure
 
 from matplotlib.font_manager import findfont, is_opentype_cff_font
@@ -36,6 +35,7 @@ from matplotlib.mathtext import MathTextParser
 from matplotlib._mathtext_data import uni2type1
 from matplotlib.text import Text
 from matplotlib.path import Path
+from matplotlib import _path
 from matplotlib.transforms import Affine2D
 
 from matplotlib.backends.backend_mixed import MixedModeRenderer
@@ -259,6 +259,7 @@ class RendererPS(RendererBase):
             if store: self.color = (r,g,b)
 
     def set_linewidth(self, linewidth, store=1):
+        linewidth = float(linewidth)
         if linewidth != self.linewidth:
             self._pswriter.write("%1.3f setlinewidth\n"%linewidth)
             if store: self.linewidth = linewidth
@@ -414,13 +415,14 @@ class RendererPS(RendererBase):
 
         rgba = np.fromstring(s, np.uint8)
         rgba.shape = (h, w, 4)
-        rgb = rgba[:,:,:3]
+        rgb = rgba[::-1,:,:3]
         return h, w, rgb.tostring()
 
     def _gray(self, im, rc=0.3, gc=0.59, bc=0.11):
         rgbat = im.as_rgba_str()
         rgba = np.fromstring(rgbat[2], np.uint8)
         rgba.shape = (rgbat[0], rgbat[1], 4)
+        rgba = rgba[::-1]
         rgba_f = rgba.astype(np.float32)
         r = rgba_f[:,:,0]
         g = rgba_f[:,:,1]
@@ -451,6 +453,13 @@ class RendererPS(RendererBase):
         """
         return True
 
+    def option_image_nocomposite(self):
+        """
+        return whether to generate a composite image from multiple images on
+        a set of axes
+        """
+        return not rcParams['image.composite_image']
+
     def _get_image_h_w_bits_command(self, im):
         if im.is_grayscale:
             h, w, bits = self._gray(im)
@@ -471,8 +480,6 @@ class RendererPS(RendererBase):
         (which must be an affine transform) is given, x, y, dx, dy are
         interpreted as the coordinate of the transform.
         """
-
-        im.flipud_out()
 
         h, w, bits, imagecmd = self._get_image_h_w_bits_command(im)
         hexlines = b'\n'.join(self._hex_lines(bits)).decode('ascii')
@@ -524,9 +531,6 @@ grestore
 """ % locals()
         self._pswriter.write(ps)
 
-        # unflip
-        im.flipud_out()
-
     def _convert_path(self, path, transform, clip=False, simplify=None):
         ps = []
         last_points = None
@@ -535,27 +539,9 @@ grestore
                     self.height * 72.0)
         else:
             clip = None
-        for points, code in path.iter_segments(transform, clip=clip,
-                                               simplify=simplify):
-            if code == Path.MOVETO:
-                ps.append("%g %g m" % tuple(points))
-            elif code == Path.CLOSEPOLY:
-                ps.append("cl")
-            elif last_points is None:
-                # The other operations require a previous point
-                raise ValueError('Path lacks initial MOVETO')
-            elif code == Path.LINETO:
-                ps.append("%g %g l" % tuple(points))
-            elif code == Path.CURVE3:
-                points = quad2cubic(*(list(last_points[-2:]) + list(points)))
-                ps.append("%g %g %g %g %g %g c" %
-                          tuple(points[2:]))
-            elif code == Path.CURVE4:
-                ps.append("%g %g %g %g %g %g c" % tuple(points))
-            last_points = points
-
-        ps = "\n".join(ps)
-        return ps
+        return _path.convert_to_string(
+            path, transform, clip, simplify, None,
+            6, [b'm', b'l', b'', b'c', b'cl'], True).decode('ascii')
 
     def _get_clip_path(self, clippath, clippath_transform):
         key = (clippath, id(clippath_transform))
@@ -637,6 +623,23 @@ grestore
                              offsets, offsetTrans, facecolors, edgecolors,
                              linewidths, linestyles, antialiaseds, urls,
                              offset_position):
+        # Is the optimization worth it? Rough calculation:
+        # cost of emitting a path in-line is
+        #     (len_path + 2) * uses_per_path
+        # cost of definition+use is
+        #     (len_path + 3) + 3 * uses_per_path
+        len_path = len(paths[0].vertices) if len(paths) > 0 else 0
+        uses_per_path = self._iter_collection_uses_per_path(
+            paths, all_transforms, offsets, facecolors, edgecolors)
+        should_do_optimization = \
+            len_path + 3 * uses_per_path + 3 < (len_path + 2) * uses_per_path
+        if not should_do_optimization:
+            return RendererBase.draw_path_collection(
+                self, gc, master_transform, paths, all_transforms,
+                offsets, offsetTrans, facecolors, edgecolors,
+                linewidths, linestyles, antialiaseds, urls,
+                offset_position)
+
         write = self._pswriter.write
 
         path_codes = []
@@ -1176,6 +1179,8 @@ class FigureCanvasPS(FigureCanvasBase):
             print("%s translate"%_nums_to_str(xo, yo), file=fh)
             if rotation: print("%d rotate"%rotation, file=fh)
             print("%s clipbox"%_nums_to_str(width*72, height*72, 0, 0), file=fh)
+            # Disable any sort of miter limit
+            print("%s setmiterlimit" % 100000, file=fh)
 
             # write the figure
             content = self._pswriter.getvalue()
@@ -1325,6 +1330,8 @@ class FigureCanvasPS(FigureCanvasBase):
             #print >>fh, "gsave"
             print("%s translate"%_nums_to_str(xo, yo), file=fh)
             print("%s clipbox"%_nums_to_str(width*72, height*72, 0, 0), file=fh)
+            # Disable any sort of miter limit
+            print("%d setmiterlimit" % 100000, file=fh)
 
             # write the figure
             print(self._pswriter.getvalue(), file=fh)
@@ -1574,6 +1581,7 @@ def xpdf_distill(tmpfile, eps=False, ptype='letter', bbox=None, rotated=False):
     else: paper_option = "-sPAPERSIZE=%s" % ptype
 
     command = 'ps2pdf -dAutoFilterColorImages=false \
+-dAutoFilterGrayImages=false -sGrayImageFilter=FlateEncode \
 -sColorImageFilter=FlateEncode %s "%s" "%s" > "%s"'% \
 (paper_option, tmpfile, pdffile, outfile)
     if sys.platform == 'win32': command = command.replace('=', '#')
@@ -1724,6 +1732,7 @@ def pstoeps(tmpfile, bbox=None, rotated=False):
                     write(b'countdictstack\n')
                     write(b'exch sub { end } repeat\n')
                     write(b'restore\n')
+                    write(b'showpage\n')
                     write(b'%%EOF\n')
                 elif line.startswith(b'%%PageBoundingBox'):
                     pass

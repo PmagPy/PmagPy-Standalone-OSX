@@ -1,24 +1,33 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
+import io
 import os
 import sys
 import warnings
 
+from cycler import cycler, Cycler
+
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from matplotlib.tests import assert_str_equal
 from matplotlib.testing.decorators import cleanup, knownfailureif
+import matplotlib.colors as mcolors
 from nose.tools import assert_true, assert_raises, assert_equal
+from nose.plugins.skip import SkipTest
 import nose
 from itertools import chain
 import numpy as np
 from matplotlib.rcsetup import (validate_bool_maybe_none,
                                 validate_stringlist,
+                                validate_colorlist,
                                 validate_bool,
                                 validate_nseq_int,
-                                validate_nseq_float)
+                                validate_nseq_float,
+                                validate_cycler,
+                                validate_hatch)
 
 
 mpl.rc('text', usetex=False)
@@ -104,8 +113,6 @@ font.weight: normal""".lstrip()
     assert ['font.family'] == list(six.iterkeys(rc.find_all('family')))
 
 
-# remove know failure + warnings after merging to master
-@knownfailureif(not (sys.version_info[:2] < (2, 7)))
 def test_rcparams_update():
     if sys.version_info[:2] < (2, 7):
         raise nose.SkipTest("assert_raises as context manager "
@@ -122,8 +129,6 @@ def test_rcparams_update():
             rc.update(bad_dict)
 
 
-# remove know failure + warnings after merging to master
-@knownfailureif(not (sys.version_info[:2] < (2, 7)))
 def test_rcparams_init():
     if sys.version_info[:2] < (2, 7):
         raise nose.SkipTest("assert_raises as context manager "
@@ -182,13 +187,72 @@ def test_Bug_2543_newer_python():
         with mpl.rc_context():
             mpl.rcParams['svg.fonttype'] = True
 
-if __name__ == '__main__':
-    nose.runmodule(argv=['-s', '--with-doctest'], exit=False)
+
+@cleanup
+def _legend_rcparam_helper(param_dict, target, get_func):
+    with mpl.rc_context(param_dict):
+        _, ax = plt.subplots()
+        ax.plot(range(3), label='test')
+        leg = ax.legend()
+        assert_equal(getattr(leg.legendPatch, get_func)(), target)
+
+
+def test_legend_facecolor():
+    get_func = 'get_facecolor'
+    rcparam = 'legend.facecolor'
+    test_values = [({rcparam: 'r'},
+                    mcolors.colorConverter.to_rgba('r')),
+                   ({rcparam: 'inherit',
+                     'axes.facecolor': 'r'
+                     },
+                    mcolors.colorConverter.to_rgba('r')),
+                   ({rcparam: 'g',
+                     'axes.facecolor': 'r'},
+                   mcolors.colorConverter.to_rgba('g'))
+                   ]
+    for rc_dict, target in test_values:
+        yield _legend_rcparam_helper, rc_dict, target, get_func
+
+
+def test_legend_edgecolor():
+    get_func = 'get_edgecolor'
+    rcparam = 'legend.edgecolor'
+    test_values = [({rcparam: 'r'},
+                    mcolors.colorConverter.to_rgba('r')),
+                   ({rcparam: 'inherit',
+                     'axes.edgecolor': 'r'
+                     },
+                    mcolors.colorConverter.to_rgba('r')),
+                   ({rcparam: 'g',
+                     'axes.facecolor': 'r'},
+                   mcolors.colorConverter.to_rgba('g'))
+                   ]
+    for rc_dict, target in test_values:
+        yield _legend_rcparam_helper, rc_dict, target, get_func
+
+
+def test_Issue_1713():
+    utf32_be = os.path.join(os.path.dirname(__file__),
+                           'test_utf32_be_rcparams.rc')
+    old_lang = os.environ.get('LANG', None)
+    os.environ['LANG'] = 'en_US.UTF-32-BE'
+    rc = mpl.rc_params_from_file(utf32_be, True)
+    if old_lang:
+        os.environ['LANG'] = old_lang
+    else:
+        del os.environ['LANG']
+    assert rc.get('timezone') == 'UTC'
 
 
 def _validation_test_helper(validator, arg, target):
     res = validator(arg)
-    assert_equal(res, target)
+    if isinstance(target, np.ndarray):
+        assert_true(np.all(res == target))
+    elif not isinstance(target, Cycler):
+        assert_equal(res, target)
+    else:
+        # Cyclers can't simply be asserted equal. They don't implement __eq__
+        assert_equal(list(res), list(target))
 
 
 def _validation_fail_helper(validator, arg, exception_type):
@@ -216,10 +280,15 @@ def test_validators():
                      ('aardvark, ,', ['aardvark']),
                      (['a', 'b'], ['a', 'b']),
                      (('a', 'b'), ['a', 'b']),
-                     ((1, 2), ['1', '2'])),
-            'fail': ((dict(), AssertionError),
-                     (1, AssertionError),)
-            },
+                     (iter(['a', 'b']), ['a', 'b']),
+                     (np.array(['a', 'b']), ['a', 'b']),
+                     ((1, 2), ['1', '2']),
+                     (np.array([1, 2]), ['1', '2']),
+                    ),
+         'fail': ((dict(), ValueError),
+                  (1, ValueError),
+                 )
+        },
         {'validator': validate_nseq_int(2),
          'success': ((_, [1, 2])
                      for _ in ('1, 2', [1.5, 2.5], [1, 2],
@@ -237,8 +306,64 @@ def test_validators():
                   for _ in ('aardvark', ('a', 1),
                             (1, 2, 3)
                             ))
+        },
+        {'validator': validate_cycler,
+         'success': (('cycler("color", "rgb")',
+                      cycler("color", 'rgb')),
+                     (cycler('linestyle', ['-', '--']),
+                      cycler('linestyle', ['-', '--'])),
+                     ("""(cycler("color", ["r", "g", "b"]) +
+                          cycler("mew", [2, 3, 5]))""",
+                      (cycler("color", 'rgb') +
+                          cycler("markeredgewidth", [2, 3, 5]))),
+                     ("cycler(c='rgb', lw=[1, 2, 3])",
+                      cycler('color', 'rgb') + cycler('linewidth', [1, 2, 3])),
+                     ("cycler('c', 'rgb') * cycler('linestyle', ['-', '--'])",
+                      (cycler('color', 'rgb') *
+                          cycler('linestyle', ['-', '--']))),
+                    ),
+         # This is *so* incredibly important: validate_cycler() eval's
+         # an arbitrary string! I think I have it locked down enough,
+         # and that is what this is testing.
+         # TODO: Note that these tests are actually insufficient, as it may
+         # be that they raised errors, but still did an action prior to
+         # raising the exception. We should devise some additional tests
+         # for that...
+         'fail': ((4, ValueError),  # Gotta be a string or Cycler object
+                  ('cycler("bleh, [])', ValueError),  # syntax error
+                  ('Cycler("linewidth", [1, 2, 3])',
+                      ValueError),  # only 'cycler()' function is allowed
+                  ('1 + 2', ValueError),  # doesn't produce a Cycler object
+                  ('os.system("echo Gotcha")', ValueError),  # os not available
+                  ('import os', ValueError),  # should not be able to import
+                  ('def badjuju(a): return a; badjuju(cycler("color", "rgb"))',
+                      ValueError),  # Should not be able to define anything
+                                    # even if it does return a cycler
+                  ('cycler("waka", [1, 2, 3])', ValueError),  # not a property
+                  ('cycler(c=[1, 2, 3])', ValueError),  # invalid values
+                  ("cycler(lw=['a', 'b', 'c'])", ValueError),  # invalid values
+                 )
+        },
+        {'validator': validate_hatch,
+         'success': (('--|', '--|'), ('\\oO', '\\oO'),
+                     ('/+*/.x', '/+*/.x'), ('', '')),
+         'fail': (('--_', ValueError),
+                  (8, ValueError),
+                  ('X', ValueError)),
+        },
+        {'validator': validate_colorlist,
+         'success': (('r,g,b', ['r', 'g', 'b']),
+                     (['r', 'g', 'b'], ['r', 'g', 'b']),
+                     ('r, ,', ['r']),
+                     (['', 'g', 'blue'], ['g', 'blue']),
+                     ([np.array([1, 0, 0]), np.array([0, 1, 0])],
+                         np.array([[1, 0, 0], [0, 1, 0]])),
+                     (np.array([[1, 0, 0], [0, 1, 0]]),
+                         np.array([[1, 0, 0], [0, 1, 0]])),
+                    ),
+         'fail': (('fish', ValueError),
+                 ),
         }
-
     )
 
     for validator_dict in validation_tests:
@@ -253,3 +378,29 @@ def test_keymaps():
     key_list = [k for k in mpl.rcParams if 'keymap' in k]
     for k in key_list:
         assert(isinstance(mpl.rcParams[k], list))
+
+
+def test_rcparams_reset_after_fail():
+
+    # There was previously a bug that meant that if rc_context failed and
+    # raised an exception due to issues in the supplied rc parameters, the
+    # global rc parameters were left in a modified state.
+
+    if sys.version_info[:2] >= (2, 7):
+        from collections import OrderedDict
+    else:
+        raise SkipTest("Test can only be run in Python >= 2.7 as it requires OrderedDict")
+
+    with mpl.rc_context(rc={'text.usetex': False}):
+
+        assert mpl.rcParams['text.usetex'] is False
+
+        with assert_raises(KeyError):
+            with mpl.rc_context(rc=OrderedDict([('text.usetex', True),('test.blah', True)])):
+                pass
+
+        assert mpl.rcParams['text.usetex'] is False
+
+
+if __name__ == '__main__':
+    nose.runmodule(argv=['-s', '--with-doctest'], exit=False)

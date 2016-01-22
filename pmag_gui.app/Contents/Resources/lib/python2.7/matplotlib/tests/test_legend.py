@@ -1,8 +1,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import xrange
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import xrange
 try:
     # mock in python 3.3+
     from unittest import mock
@@ -62,6 +62,45 @@ def test_various_labels():
     ax.plot(np.linspace(4, 4.1), 'o', label='D\xe9velopp\xe9s')
     ax.plot(list(xrange(4, 1, -1)), 'o', label='__nolegend__')
     ax.legend(numpoints=1, loc=0)
+
+
+@image_comparison(baseline_images=['legend_labels_first'], extensions=['png'],
+                  remove_text=True)
+def test_labels_first():
+    # test labels to left of markers
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(np.arange(10), '-o', label=1)
+    ax.plot(np.ones(10)*5, ':x', label="x")
+    ax.plot(np.arange(20, 10, -1), 'd', label="diamond")
+    ax.legend(loc=0, markerfirst=False)
+
+
+@image_comparison(baseline_images=['rgba_alpha'],
+                  extensions=['png'], remove_text=True)
+def test_alpha_rgba():
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(10), lw=5)
+    leg = plt.legend(['Longlabel that will go away'], loc=10)
+    leg.legendPatch.set_facecolor([1, 0, 0, 0.5])
+
+
+@image_comparison(baseline_images=['rcparam_alpha'],
+                  extensions=['png'], remove_text=True)
+def test_alpha_rcparam():
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(10), lw=5)
+    with mpl.rc_context(rc={'legend.framealpha': .75}):
+        leg = plt.legend(['Longlabel that will go away'], loc=10)
+        # this alpha is going to be over-ridden by the rcparam whith
+        # sets the alpha of the patch to be non-None which causes the alpha
+        # value of the face color to be discarded.  This behavior may not be
+        # ideal, but it is what it is and we should keep track of it changing
+        leg.legendPatch.set_facecolor([1, 0, 0, 0.5])
 
 
 @image_comparison(baseline_images=['fancy'], remove_text=True)
@@ -131,62 +170,6 @@ def test_legend_remove():
 
 class TestLegendFunction(object):
     # Tests the legend function on the Axes and pyplot.
-
-    deprecation_message = ('The "loc" positional argument '
-                           'to legend is deprecated. Please use '
-                           'the "loc" keyword instead.')
-
-    @cleanup
-    def test_legend_label_loc_args(self):
-        # Check the deprecated warning is created and that the appropriate
-        # call to Legend is made. This wouldn't actually create a valid
-        # legend as there is no artist to legendify, but that doesn't matter.
-        with mock.patch('matplotlib.cbook.warn_deprecated') as deprecation:
-            with mock.patch('matplotlib.legend.Legend') as Legend:
-                plt.legend(['hello world'], 1)
-
-        deprecation.assert_called_with('1.4', self.deprecation_message)
-        Legend.assert_called_with(plt.gca(), [], ['hello world'], loc=1)
-
-    @cleanup
-    def test_old_legend_handler_interface(self):
-        # Check the deprecated warning is created and that the appropriate
-        # call to the legend handler is made.
-        class AnyObject(object):
-            pass
-
-        class AnyObjectHandler(object):
-            def __call__(self, legend, orig_handle, fontsize, handlebox):
-                x0, y0 = handlebox.xdescent, handlebox.ydescent
-                width, height = handlebox.width, handlebox.height
-                patch = mpatches.Rectangle([x0, y0], width, height, facecolor='red',
-                                           edgecolor='black', hatch='xx', lw=3,
-                                           transform=handlebox.get_transform())
-                handlebox.add_artist(patch)
-                return patch
-
-        with mock.patch('warnings.warn') as warn:
-            plt.legend([None], ['My first handler'],
-                       handler_map={None: AnyObjectHandler()})
-
-        warn.assert_called_with('Legend handers must now implement a '
-                                '"legend_artist" method rather than '
-                                'being a callable.',
-                                MatplotlibDeprecationWarning,
-                                stacklevel=1)
-
-    @cleanup
-    def test_legend_handle_label_loc_args(self):
-        # Check the deprecated warning is created and that the appropriate
-        # call to Legend is made.
-        lines = plt.plot(range(10))
-        with mock.patch('matplotlib.cbook.warn_deprecated') as deprecation:
-            with mock.patch('matplotlib.legend.Legend') as Legend:
-                plt.legend(lines, ['hello world'], 1)
-
-        deprecation.assert_called_with('1.4', self.deprecation_message)
-        Legend.assert_called_with(plt.gca(), lines, ['hello world'], loc=1)
-
     @cleanup
     def test_legend_handle_label(self):
         lines = plt.plot(range(10))
@@ -216,6 +199,66 @@ class TestLegendFunction(object):
             handles_labels.return_value = lines, ['hello world']
             plt.legend(handler_map={'1': 2})
         handles_labels.assert_called_with({'1': 2})
+
+    @cleanup
+    def test_kwargs(self):
+        fig, ax = plt.subplots(1, 1)
+        th = np.linspace(0, 2*np.pi, 1024)
+        lns, = ax.plot(th, np.sin(th), label='sin', lw=5)
+        lnc, = ax.plot(th, np.cos(th), label='cos', lw=5)
+        with mock.patch('matplotlib.legend.Legend') as Legend:
+            ax.legend(handles=(lnc, lns), labels=('a', 'b'))
+        Legend.assert_called_with(ax, (lnc, lns), ('a', 'b'))
+
+    @cleanup
+    def test_warn_args_kwargs(self):
+        fig, ax = plt.subplots(1, 1)
+        th = np.linspace(0, 2*np.pi, 1024)
+        lns, = ax.plot(th, np.sin(th), label='sin', lw=5)
+        lnc, = ax.plot(th, np.cos(th), label='cos', lw=5)
+        with mock.patch('warnings.warn') as warn:
+            ax.legend((lnc, lns), labels=('a', 'b'))
+
+        warn.assert_called_with("You have mixed positional and keyword "
+                          "arguments, some input will be "
+                          "discarded.")
+
+
+@image_comparison(baseline_images=['legend_stackplot'], extensions=['png'])
+def test_legend_stackplot():
+    '''test legend for PolyCollection using stackplot'''
+    # related to #1341, #1943, and PR #3303
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    x = np.linspace(0, 10, 10)
+    y1 = 1.0 * x
+    y2 = 2.0 * x + 1
+    y3 = 3.0 * x + 2
+    ax.stackplot(x, y1, y2, y3, labels=['y1', 'y2', 'y3'])
+    ax.set_xlim((0, 10))
+    ax.set_ylim((0, 70))
+    ax.legend(loc=0)
+
+
+@cleanup
+def test_nanscatter():
+    fig, ax = plt.subplots()
+
+    h = ax.scatter([np.nan], [np.nan], marker="o",
+                   facecolor="r", edgecolor="r", s=3)
+
+    ax.legend([h], ["scatter"])
+
+    fig, ax = plt.subplots()
+    for color in ['red', 'green', 'blue']:
+        n = 750
+        x, y = np.random.rand(2, n)
+        scale = 200.0 * np.random.rand(n)
+        ax.scatter(x, y, c=color, s=scale, label=color,
+                   alpha=0.3, edgecolors='none')
+
+    ax.legend()
+    ax.grid(True)
 
 
 if __name__ == '__main__':

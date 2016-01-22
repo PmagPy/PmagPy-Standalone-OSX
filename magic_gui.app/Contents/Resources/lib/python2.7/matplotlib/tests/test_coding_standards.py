@@ -1,14 +1,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-
 from fnmatch import fnmatch
 import os
-import sys
 
 from nose.tools import assert_equal
 from nose.plugins.skip import SkipTest
+from matplotlib.testing.noseclasses import KnownFailureTest
 
 try:
     import pep8
@@ -20,27 +18,10 @@ else:
 import matplotlib
 
 
-EXTRA_EXCLUDE_FILE = os.path.join(os.path.dirname(__file__),
-                                  '.pep8_test_exclude.txt')
-EXCLUDE_FILES = ['_delaunay.py',
-                 '_image.py',
-                 '_tri.py',
-                 '_backend_agg.py',
-                 '_tkagg.py',
-                 'ft2font.py',
-                 '_cntr.py',
-                 '_png.py',
-                 '_path.py',
-                 'ttconv.py',
-                 '_gtkagg.py',
-                 '_backend_gdk.py',
-                 'pyparsing*',
-                 '_qhull.py',
-                 '_macosx.py']
-
 PEP8_ADDITIONAL_IGNORE = ['E111',
-                          'E112',
-                          'E113',
+                          'E114',
+                          'E115',
+                          'E116',
                           'E121',
                           'E122',
                           'E123',
@@ -51,103 +32,18 @@ PEP8_ADDITIONAL_IGNORE = ['E111',
                           'E128',
                           'E129',
                           'E131',
-                          'E265']
+                          'E265',
+                          'E266',
+                          'W503']
 
-EXPECTED_BAD_FILES = ['*/matplotlib/__init__.py',
-                      '*/matplotlib/_cm.py',
-                      '*/matplotlib/_mathtext_data.py',
-                      '*/matplotlib/_pylab_helpers.py',
-                      '*/matplotlib/afm.py',
-                      '*/matplotlib/artist.py',
-                      '*/matplotlib/axis.py',
-                      '*/matplotlib/backend_bases.py',
-                      '*/matplotlib/bezier.py',
-                      '*/matplotlib/cbook.py',
-                      '*/matplotlib/collections.py',
-                      '*/matplotlib/dviread.py',
-                      '*/matplotlib/font_manager.py',
-                      '*/matplotlib/fontconfig_pattern.py',
-                      '*/matplotlib/gridspec.py',
-                      '*/matplotlib/legend.py',
-                      '*/matplotlib/legend_handler.py',
-                      '*/matplotlib/mathtext.py',
-                      '*/matplotlib/mlab.py',
-                      '*/matplotlib/path.py',
-                      '*/matplotlib/patheffects.py',
-                      '*/matplotlib/pylab.py',
-                      '*/matplotlib/pyplot.py',
-                      '*/matplotlib/rcsetup.py',
-                      '*/matplotlib/stackplot.py',
-                      '*/matplotlib/texmanager.py',
-                      '*/matplotlib/transforms.py',
-                      '*/matplotlib/type1font.py',
-                      '*/matplotlib/widgets.py',
-                      '*/matplotlib/testing/decorators.py',
-                      '*/matplotlib/testing/image_util.py',
-                      '*/matplotlib/testing/noseclasses.py',
-                      '*/matplotlib/testing/jpl_units/Duration.py',
-                      '*/matplotlib/testing/jpl_units/Epoch.py',
-                      '*/matplotlib/testing/jpl_units/EpochConverter.py',
-                      '*/matplotlib/testing/jpl_units/StrConverter.py',
-                      '*/matplotlib/testing/jpl_units/UnitDbl.py',
-                      '*/matplotlib/testing/jpl_units/UnitDblConverter.py',
-                      '*/matplotlib/testing/jpl_units/UnitDblFormatter.py',
-                      '*/matplotlib/testing/jpl_units/__init__.py',
-                      '*/matplotlib/tri/triinterpolate.py',
-                      '*/matplotlib/tests/test_axes.py',
-                      '*/matplotlib/tests/test_bbox_tight.py',
-                      '*/matplotlib/tests/test_delaunay.py',
-                      '*/matplotlib/tests/test_dviread.py',
-                      '*/matplotlib/tests/test_image.py',
-                      '*/matplotlib/tests/test_legend.py',
-                      '*/matplotlib/tests/test_lines.py',
-                      '*/matplotlib/tests/test_mathtext.py',
-                      '*/matplotlib/tests/test_rcparams.py',
-                      '*/matplotlib/tests/test_simplification.py',
-                      '*/matplotlib/tests/test_spines.py',
-                      '*/matplotlib/tests/test_streamplot.py',
-                      '*/matplotlib/tests/test_subplots.py',
-                      '*/matplotlib/tests/test_text.py',
-                      '*/matplotlib/tests/test_tightlayout.py',
-                      '*/matplotlib/tests/test_transforms.py',
-                      '*/matplotlib/tests/test_triangulation.py',
-                      '*/matplotlib/compat/subprocess.py',
-                      '*/matplotlib/backends/__init__.py',
-                      '*/matplotlib/backends/backend_agg.py',
-                      '*/matplotlib/backends/backend_cairo.py',
-                      '*/matplotlib/backends/backend_cocoaagg.py',
-                      '*/matplotlib/backends/backend_gdk.py',
-                      '*/matplotlib/backends/backend_gtk.py',
-                      '*/matplotlib/backends/backend_gtk3.py',
-                      '*/matplotlib/backends/backend_gtk3cairo.py',
-                      '*/matplotlib/backends/backend_gtkagg.py',
-                      '*/matplotlib/backends/backend_gtkcairo.py',
-                      '*/matplotlib/backends/backend_macosx.py',
-                      '*/matplotlib/backends/backend_mixed.py',
-                      '*/matplotlib/backends/backend_pgf.py',
-                      '*/matplotlib/backends/backend_ps.py',
-                      '*/matplotlib/backends/backend_svg.py',
-                      '*/matplotlib/backends/backend_template.py',
-                      '*/matplotlib/backends/backend_tkagg.py',
-                      '*/matplotlib/backends/backend_wx.py',
-                      '*/matplotlib/backends/backend_wxagg.py',
-                      '*/matplotlib/backends/tkagg.py',
-                      '*/matplotlib/backends/windowing.py',
-                      '*/matplotlib/backends/qt_editor/formlayout.py',
-                      '*/matplotlib/sphinxext/ipython_console_highlighting.py',
-                      '*/matplotlib/sphinxext/ipython_directive.py',
-                      '*/matplotlib/sphinxext/mathmpl.py',
-                      '*/matplotlib/sphinxext/only_directives.py',
-                      '*/matplotlib/sphinxext/plot_directive.py',
-                      '*/matplotlib/projections/__init__.py',
-                      '*/matplotlib/projections/geo.py',
-                      '*/matplotlib/projections/polar.py']
+EXTRA_EXCLUDE_FILE = os.path.join(os.path.dirname(__file__),
+                                  '.pep8_test_exclude.txt')
 
 
 if HAS_PEP8:
     class StandardReportWithExclusions(pep8.StandardReport):
-        #; A class attribute to store the exception exclusion file patterns.
-        expected_bad_files = EXPECTED_BAD_FILES
+        #: A class attribute to store the exception exclusion file patterns.
+        expected_bad_files = []
 
         #: A class attribute to store the lines of failing tests.
         _global_deferred_print = []
@@ -190,9 +86,11 @@ if HAS_PEP8:
             return self.file_errors
 
 
-def assert_pep8_conformance(module=matplotlib, exclude_files=EXCLUDE_FILES,
+def assert_pep8_conformance(module=matplotlib, exclude_files=None,
                             extra_exclude_file=EXTRA_EXCLUDE_FILE,
-                            pep8_additional_ignore=PEP8_ADDITIONAL_IGNORE):
+                            pep8_additional_ignore=PEP8_ADDITIONAL_IGNORE,
+                            dirname=None, expected_bad_files=None,
+                            extra_exclude_directories=None):
     """
     Tests the matplotlib codebase against the "pep8" tool.
 
@@ -212,6 +110,9 @@ def assert_pep8_conformance(module=matplotlib, exclude_files=EXCLUDE_FILES,
                                 reporter=StandardReportWithExclusions)
     reporter = pep8style.options.reporter
 
+    if expected_bad_files is not None:
+        reporter.expected_bad_files = expected_bad_files
+
     # Extend the number of PEP8 guidelines which are not checked.
     pep8style.options.ignore = (pep8style.options.ignore +
                                 tuple(pep8_additional_ignore))
@@ -219,7 +120,8 @@ def assert_pep8_conformance(module=matplotlib, exclude_files=EXCLUDE_FILES,
     # Support for egg shared object wrappers, which are not PEP8 compliant,
     # nor part of the matplotlib repository.
     # DO NOT ADD FILES *IN* THE REPOSITORY TO THIS LIST.
-    pep8style.options.exclude.extend(exclude_files)
+    if exclude_files is not None:
+        pep8style.options.exclude.extend(exclude_files)
 
     # Allow users to add their own exclude list.
     if extra_exclude_file is not None and os.path.exists(extra_exclude_file):
@@ -227,7 +129,12 @@ def assert_pep8_conformance(module=matplotlib, exclude_files=EXCLUDE_FILES,
             extra_exclude = [line.strip() for line in fh if line.strip()]
         pep8style.options.exclude.extend(extra_exclude)
 
-    result = pep8style.check_files([os.path.dirname(module.__file__)])
+    if extra_exclude_directories:
+        pep8style.options.exclude.extend(extra_exclude_directories)
+
+    if dirname is None:
+        dirname = os.path.dirname(module.__file__)
+    result = pep8style.check_files([dirname])
     if reporter is StandardReportWithExclusions:
         msg = ("Found code syntax errors (and warnings):\n"
                "{0}".format('\n'.join(reporter._global_deferred_print)))
@@ -245,11 +152,133 @@ def assert_pep8_conformance(module=matplotlib, exclude_files=EXCLUDE_FILES,
             raise ValueError('Some exclude patterns were unnecessary as the '
                              'files they pointed to either passed the PEP8 '
                              'tests or do not point to a file:\n  '
-                             '{}'.format('\n  '.join(unexpectedly_good)))
+                             '{0}'.format('\n  '.join(unexpectedly_good)))
 
 
-def test_pep8_conformance():
-    assert_pep8_conformance()
+def test_pep8_conformance_installed_files():
+    exclude_files = ['_delaunay.py',
+                     '_image.py',
+                     '_tri.py',
+                     '_backend_agg.py',
+                     '_tkagg.py',
+                     'ft2font.py',
+                     '_cntr.py',
+                     '_contour.py',
+                     '_png.py',
+                     '_path.py',
+                     'ttconv.py',
+                     '_gtkagg.py',
+                     '_backend_gdk.py',
+                     'pyparsing*',
+                     '_qhull.py',
+                     '_macosx.py']
+
+    expected_bad_files = ['_cm.py',
+                          '_mathtext_data.py',
+                          'backend_bases.py',
+                          'cbook.py',
+                          'collections.py',
+                          'dviread.py',
+                          'font_manager.py',
+                          'fontconfig_pattern.py',
+                          'gridspec.py',
+                          'legend_handler.py',
+                          'mathtext.py',
+                          'patheffects.py',
+                          'pylab.py',
+                          'pyplot.py',
+                          'rcsetup.py',
+                          'stackplot.py',
+                          'texmanager.py',
+                          'transforms.py',
+                          'type1font.py',
+                          'widgets.py',
+                          'testing/decorators.py',
+                          'testing/jpl_units/Duration.py',
+                          'testing/jpl_units/Epoch.py',
+                          'testing/jpl_units/EpochConverter.py',
+                          'testing/jpl_units/StrConverter.py',
+                          'testing/jpl_units/UnitDbl.py',
+                          'testing/jpl_units/UnitDblConverter.py',
+                          'testing/jpl_units/UnitDblFormatter.py',
+                          'testing/jpl_units/__init__.py',
+                          'tri/triinterpolate.py',
+                          'tests/test_axes.py',
+                          'tests/test_bbox_tight.py',
+                          'tests/test_delaunay.py',
+                          'tests/test_dviread.py',
+                          'tests/test_image.py',
+                          'tests/test_legend.py',
+                          'tests/test_lines.py',
+                          'tests/test_mathtext.py',
+                          'tests/test_rcparams.py',
+                          'tests/test_simplification.py',
+                          'tests/test_streamplot.py',
+                          'tests/test_subplots.py',
+                          'tests/test_tightlayout.py',
+                          'tests/test_triangulation.py',
+                          'compat/subprocess.py',
+                          'backends/__init__.py',
+                          'backends/backend_agg.py',
+                          'backends/backend_cairo.py',
+                          'backends/backend_cocoaagg.py',
+                          'backends/backend_gdk.py',
+                          'backends/backend_gtk.py',
+                          'backends/backend_gtk3.py',
+                          'backends/backend_gtk3cairo.py',
+                          'backends/backend_gtkagg.py',
+                          'backends/backend_gtkcairo.py',
+                          'backends/backend_macosx.py',
+                          'backends/backend_mixed.py',
+                          'backends/backend_pgf.py',
+                          'backends/backend_ps.py',
+                          'backends/backend_svg.py',
+                          'backends/backend_template.py',
+                          'backends/backend_tkagg.py',
+                          'backends/tkagg.py',
+                          'backends/windowing.py',
+                          'backends/qt_editor/formlayout.py',
+                          'sphinxext/mathmpl.py',
+                          'sphinxext/only_directives.py',
+                          'sphinxext/plot_directive.py',
+                          'projections/__init__.py',
+                          'projections/geo.py',
+                          'projections/polar.py',
+                          'externals/six.py']
+    expected_bad_files = ['*/matplotlib/' + s for s in expected_bad_files]
+    assert_pep8_conformance(module=matplotlib,
+                            exclude_files=exclude_files,
+                            expected_bad_files=expected_bad_files)
+
+
+def test_pep8_conformance_examples():
+    mpldir = os.environ.get('MPL_REPO_DIR', None)
+    if mpldir is None:
+        # try and guess!
+        fp = os.getcwd()
+        while len(fp) > 2:
+            if os.path.isdir(os.path.join(fp, 'examples')):
+                mpldir = fp
+                break
+            fp, tail = os.path.split(fp)
+
+    if mpldir is None:
+        raise KnownFailureTest("can not find the examples, set env "
+                               "MPL_REPO_DIR to point to the top-level path "
+                               "of the source tree")
+
+    exdir = os.path.join(mpldir, 'examples')
+    blacklist = ()
+    expected_bad_files = ['*/pylab_examples/table_demo.py',
+                          '*/pylab_examples/tricontour_demo.py',
+                          '*/pylab_examples/tripcolor_demo.py',
+                          '*/pylab_examples/triplot_demo.py',
+                          '*/shapes_and_collections/artist_reference.py']
+    assert_pep8_conformance(dirname=exdir,
+                            extra_exclude_directories=blacklist,
+                            pep8_additional_ignore=PEP8_ADDITIONAL_IGNORE +
+                            ['E116', 'E501', 'E402'],
+                            expected_bad_files=expected_bad_files)
 
 
 if __name__ == '__main__':

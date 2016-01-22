@@ -1,12 +1,13 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six import unichr
+from matplotlib.externals import six
+from matplotlib.externals.six import unichr
 from matplotlib import pyplot as plt
-from matplotlib.testing.decorators import cleanup
+from matplotlib.testing.decorators import cleanup, switch_backend
 from matplotlib.testing.decorators import knownfailureif
 from matplotlib._pylab_helpers import Gcf
+import matplotlib.style as mstyle
 import copy
 
 try:
@@ -16,7 +17,9 @@ except ImportError:
     import mock
 
 try:
-    from matplotlib.backends.qt_compat import QtCore
+    with mstyle.context({'backend': 'Qt4Agg'}):
+        from matplotlib.backends.qt_compat import QtCore
+
     from matplotlib.backends.backend_qt4 import (MODIFIER_KEYS,
                                                  SUPER, ALT, CTRL, SHIFT)
 
@@ -24,18 +27,23 @@ try:
     _, AltModifier, AltKey = MODIFIER_KEYS[ALT]
     _, SuperModifier, SuperKey = MODIFIER_KEYS[SUPER]
     _, ShiftModifier, ShiftKey = MODIFIER_KEYS[SHIFT]
-    HAS_QT = True
+
+    try:
+        py_qt_ver = int(QtCore.PYQT_VERSION_STR.split('.')[0])
+    except AttributeError:
+        py_qt_ver = QtCore.__version_info__[0]
+    print(py_qt_ver)
+    HAS_QT = py_qt_ver == 4
+
 except ImportError:
     HAS_QT = False
 
 
 @cleanup
 @knownfailureif(not HAS_QT)
+@switch_backend('Qt4Agg')
 def test_fig_close():
-    # force switch to the Qt4 backend
-    plt.switch_backend('Qt4Agg')
-
-    #save the state of Gcf.figs
+    # save the state of Gcf.figs
     init_figs = copy.copy(Gcf.figs)
 
     # make a figure using pyplot interface
@@ -50,6 +58,7 @@ def test_fig_close():
     assert(init_figs == Gcf.figs)
 
 
+@switch_backend('Qt4Agg')
 def assert_correct_key(qt_key, qt_mods, answer):
     """
     Make a figure
@@ -57,7 +66,6 @@ def assert_correct_key(qt_key, qt_mods, answer):
     Catch the event
     Assert sent and caught keys are the same
     """
-    plt.switch_backend('Qt4Agg')
     qt_canvas = plt.figure().canvas
 
     event = mock.Mock()

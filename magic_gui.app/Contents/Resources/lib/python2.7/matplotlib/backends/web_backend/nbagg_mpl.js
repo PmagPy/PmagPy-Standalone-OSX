@@ -30,8 +30,12 @@ mpl.mpl_figure_comm = function(comm, msg) {
     var element = $("#" + id);
     var ws_proxy = comm_websocket_adapter(comm)
 
+    function ondownload(figure, format) {
+        window.open(figure.imageObj.src);
+    }
+
     var fig = new mpl.figure(id, ws_proxy,
-                           function() { },
+                           ondownload,
                            element.get(0));
 
     // Call onopen now - mpl needs it, as it is assuming we've passed it a real
@@ -40,18 +44,19 @@ mpl.mpl_figure_comm = function(comm, msg) {
 
     fig.parent_element = element.get(0);
     fig.cell_info = mpl.find_output_cell("<div id='" + id + "'></div>");
+    if (!fig.cell_info) {
+        console.error("Failed to find cell for figure", id, fig);
+        return;
+    }
 
     var output_index = fig.cell_info[2]
     var cell = fig.cell_info[0];
 
-    // Disable right mouse context menu.
-    $(fig.rubberband_canvas).bind("contextmenu",function(e){
-        return false;
-    });
-
 };
 
 mpl.figure.prototype.handle_close = function(fig, msg) {
+    fig.root.unbind('remove')
+
     // Update the output cell to use the data from the current canvas.
     fig.push_to_output();
     var dataURL = fig.canvas.toDataURL();
@@ -59,8 +64,12 @@ mpl.figure.prototype.handle_close = function(fig, msg) {
     // the notebook keyboard shortcuts fail.
     IPython.keyboard_manager.enable()
     $(fig.parent_element).html('<img src="' + dataURL + '">');
-    fig.send_message('closing', {});
-    fig.ws.close()
+    fig.close_ws(fig, msg);
+}
+
+mpl.figure.prototype.close_ws = function(fig, msg){
+    fig.send_message('closing', msg);
+    // fig.ws.close()
 }
 
 mpl.figure.prototype.push_to_output = function(remove_interactive) {
@@ -115,13 +124,59 @@ mpl.figure.prototype._init_toolbar = function() {
 
     // Add the close button to the window.
     var buttongrp = $('<div class="btn-group inline pull-right"></div>');
-    var button = $('<button class="btn btn-mini btn-danger" href="#" title="Close figure"><i class="fa fa-times icon-remove icon-large"></i></button>');
+    var button = $('<button class="btn btn-mini btn-primary" href="#" title="Stop Interaction"><i class="fa fa-power-off icon-remove icon-large"></i></button>');
     button.click(function (evt) { fig.handle_close(fig, {}); } );
-    button.mouseover('Close figure', toolbar_mouse_event);
+    button.mouseover('Stop Interaction', toolbar_mouse_event);
     buttongrp.append(button);
     var titlebar = this.root.find($('.ui-dialog-titlebar'));
     titlebar.prepend(buttongrp);
 }
+
+mpl.figure.prototype._root_extra_style = function(el){
+    var fig = this
+    el.on("remove", function(){
+	fig.close_ws(fig, {});
+    });
+}
+
+mpl.figure.prototype._canvas_extra_style = function(el){
+    // this is important to make the div 'focusable
+    el.attr('tabindex', 0)
+    // reach out to IPython and tell the keyboard manager to turn it's self
+    // off when our div gets focus
+
+    // location in version 3
+    if (IPython.notebook.keyboard_manager) {
+        IPython.notebook.keyboard_manager.register_events(el);
+    }
+    else {
+        // location in version 2
+        IPython.keyboard_manager.register_events(el);
+    }
+
+}
+
+mpl.figure.prototype._key_event_extra = function(event, name) {
+    var manager = IPython.notebook.keyboard_manager;
+    if (!manager)
+        manager = IPython.keyboard_manager;
+
+    // Check for shift+enter
+    if (event.shiftKey && event.which == 13) {
+        this.canvas_div.blur();
+        event.shiftKey = false;
+        // Send a "J" for go to next cell
+        event.which = 74;
+        event.keyCode = 74;
+        manager.command_mode();
+        manager.handle_keydown(event);
+    }
+}
+
+mpl.figure.prototype.handle_save = function(fig, msg) {
+    fig.ondownload(fig, null);
+}
+
 
 mpl.find_output_cell = function(html_output) {
     // Return the cell and output element which can be found *uniquely* in the notebook.
@@ -132,12 +187,15 @@ mpl.find_output_cell = function(html_output) {
     var ncells = cells.length;
     for (var i=0; i<ncells; i++) {
         var cell = cells[i];
-        if (cell.cell_type == 'code'){
+        if (cell.cell_type === 'code'){
             for (var j=0; j<cell.output_area.outputs.length; j++) {
                 var data = cell.output_area.outputs[j];
-                if (cell.output_area.outputs[j]['text/html'] == html_output) {
-                    var output = cell.output_area.outputs[j];
-                    return [cell, output, j];
+                if (data.data) {
+                    // IPython >= 3 moved mimebundle to data attribute of output
+                    data = data.data;
+                }
+                if (data['text/html'] == html_output) {
+                    return [cell, data, j];
                 }
             }
         }

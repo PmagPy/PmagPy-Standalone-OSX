@@ -5,7 +5,7 @@ Provides a collection of utilities for comparing (image) results.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import hashlib
 import os
@@ -15,7 +15,7 @@ import numpy as np
 
 import matplotlib
 from matplotlib.compat import subprocess
-from matplotlib.testing.noseclasses import ImageComparisonFailure
+from matplotlib.testing.exceptions import ImageComparisonFailure
 from matplotlib import _png
 from matplotlib import _get_cachedir
 from matplotlib import cbook
@@ -123,15 +123,15 @@ def make_external_conversion_command(cmd):
 def _update_converter():
     gs, gs_v = matplotlib.checkdep_ghostscript()
     if gs_v is not None:
-        cmd = lambda old, new: \
-            [gs, '-q', '-sDEVICE=png16m', '-dNOPAUSE', '-dBATCH',
+        def cmd(old, new):
+            return [gs, '-q', '-sDEVICE=png16m', '-dNOPAUSE', '-dBATCH',
              '-sOutputFile=' + new, old]
         converter['pdf'] = make_external_conversion_command(cmd)
         converter['eps'] = make_external_conversion_command(cmd)
 
     if matplotlib.checkdep_inkscape() is not None:
-        cmd = lambda old, new: \
-            ['inkscape', '-z', old, '--export-png', new]
+        def cmd(old, new):
+            return ['inkscape', '-z', old, '--export-png', new]
         converter['svg'] = make_external_conversion_command(cmd)
 
 
@@ -375,4 +375,4 @@ def save_diff_image(expected, actual, output):
     # Hard-code the alpha channel to fully solid
     save_image_np[:, :, 3] = 255
 
-    _png.write_png(save_image_np.tostring(), width, height, output)
+    _png.write_png(save_image_np, output)

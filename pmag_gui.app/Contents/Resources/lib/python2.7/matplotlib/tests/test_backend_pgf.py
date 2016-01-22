@@ -2,7 +2,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import os
 import shutil
@@ -15,7 +15,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.compat import subprocess
 from matplotlib.testing.compare import compare_images, ImageComparisonFailure
-from matplotlib.testing.decorators import _image_directories
+from matplotlib.testing.decorators import _image_directories, switch_backend
 
 
 baseline_dir, result_dir = _image_directories(lambda: 'dummy func')
@@ -41,23 +41,6 @@ def check_for(texsystem):
     return latex.returncode == 0
 
 
-def switch_backend(backend):
-
-    def switch_backend_decorator(func):
-        def backend_switcher(*args, **kwargs):
-            try:
-                prev_backend = mpl.get_backend()
-                mpl.rcdefaults()
-                plt.switch_backend(backend)
-                result = func(*args, **kwargs)
-            finally:
-                plt.switch_backend(prev_backend)
-            return result
-
-        return nose.tools.make_decorator(func)(backend_switcher)
-    return switch_backend_decorator
-
-
 def compare_figure(fname, savefig_kwargs={}):
     actual = os.path.join(result_dir, fname)
     plt.savefig(actual, **savefig_kwargs)
@@ -73,15 +56,27 @@ def compare_figure(fname, savefig_kwargs={}):
 def create_figure():
     plt.figure()
     x = np.linspace(0, 1, 15)
+
+    # line plot
     plt.plot(x, x ** 2, "b-")
+
+    # marker
+    plt.plot(x, 1 - x**2, "g>")
+
+    # filled paths and patterns
     plt.fill_between([0., .4], [.4, 0.], hatch='//', facecolor="lightgray",
                      edgecolor="red")
-    plt.plot(x, 1 - x**2, "g>")
+    plt.fill([3, 3, .8, .8, 3], [2, -2, -2, 0, 2], "b")
+
+    # text and typesetting
     plt.plot([0.9], [0.5], "ro", markersize=3)
     plt.text(0.9, 0.5, 'unicode (ü, °, µ) and math ($\\mu_i = x_i^2$)',
              ha='right', fontsize=20)
-    plt.ylabel('sans-serif with math $\\frac{\\sqrt{x}}{y^2}$..',
-               family='sans-serif')
+    plt.ylabel('sans-serif, blue, $\\frac{\\sqrt{x}}{y^2}$..',
+               family='sans-serif', color='blue')
+
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
 
 
 # test compiling a figure to pdf with xelatex

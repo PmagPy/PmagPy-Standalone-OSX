@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import datetime
 
@@ -9,6 +9,8 @@ import numpy as np
 from matplotlib import mlab
 from matplotlib.testing.decorators import cleanup, image_comparison
 from matplotlib import pyplot as plt
+from nose.tools import assert_equal, assert_raises
+import warnings
 
 import re
 
@@ -164,6 +166,19 @@ def test_contour_manual_labels():
     plt.clabel(cs, manual=pts)
 
 
+@image_comparison(baseline_images=['contour_labels_size_color'],
+                  extensions=['png'], remove_text=True)
+def test_contour_manual_labels():
+
+    x, y = np.meshgrid(np.arange(0, 10), np.arange(0, 10))
+    z = np.max(np.dstack([abs(x), abs(y)]), 2)
+
+    plt.figure(figsize=(6, 2))
+    cs = plt.contour(x, y, z)
+    pts = np.array([(1.5, 3.0), (1.5, 4.4), (1.5, 6.0)])
+    plt.clabel(cs, manual=pts, fontsize='small', colors=('r', 'g'))
+
+
 @image_comparison(baseline_images=['contour_manual_colors_and_levels'],
                   extensions=['png'], remove_text=True)
 def test_given_colors_levels_and_extends():
@@ -244,6 +259,37 @@ def test_labels():
 
     for x, y in disp_units:
         CS.add_label_near(x, y, inline=True, transform=False)
+
+
+@image_comparison(baseline_images=['contour_corner_mask_False',
+                                   'contour_corner_mask_True'],
+                  extensions=['png'], remove_text=True)
+def test_corner_mask():
+    n = 60
+    mask_level = 0.95
+    noise_amp = 1.0
+    np.random.seed([1])
+    x, y = np.meshgrid(np.linspace(0, 2.0, n), np.linspace(0, 2.0, n))
+    z = np.cos(7*x)*np.sin(8*y) + noise_amp*np.random.rand(n, n)
+    mask = np.where(np.random.rand(n, n) >= mask_level, True, False)
+    z = np.ma.array(z, mask=mask)
+
+    for corner_mask in [False, True]:
+        fig = plt.figure()
+        plt.contourf(z, corner_mask=corner_mask)
+
+
+@cleanup
+def test_contourf_decreasing_levels():
+    # github issue 5477.
+    z = [[0.1, 0.3], [0.5, 0.7]]
+    plt.figure()
+    assert_raises(ValueError, plt.contourf, z, [1.0, 0.0])
+    # Legacy contouring algorithm gives a warning rather than raising an error,
+    # plus a DeprecationWarning.
+    with warnings.catch_warnings(record=True) as w:
+        plt.contourf(z, [1.0, 0.0], corner_mask='legacy')
+    assert_equal(len(w), 2)
 
 
 if __name__ == '__main__':
