@@ -1,0 +1,22 @@
+{
+  "extra_link_args": [], 
+  "define_macros": [
+    [
+      "HAVE_SYS_UN_H", 
+      1
+    ]
+  ], 
+  "runtime_library_dirs": [], 
+  "libraries": [
+    "zmq"
+  ], 
+  "library_dirs": [
+    "/Users/vagrant/src/buildsystem-git/build/master-env/Resources/Python.app/Contents/MacOS/../../../../lib"
+  ], 
+  "include_dirs": [
+    "/Users/vagrant/src/buildsystem-git/build/master-env/Resources/Python.app/Contents/MacOS/../../../../include", 
+    "zmq/utils", 
+    "zmq/backend/cython", 
+    "zmq/devices"
+  ]
+}

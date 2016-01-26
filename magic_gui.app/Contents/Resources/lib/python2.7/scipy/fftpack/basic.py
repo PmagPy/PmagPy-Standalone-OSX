@@ -55,10 +55,17 @@ def _is_safe_size(n):
     Composite numbers of 2, 3, and 5 are accepted, as FFTPACK has those
     """
     n = int(n)
-    for c in (2, 3, 5):
+
+    if n == 0:
+        return True
+
+    # Divide by 3 until you can't, then by 5 until you can't
+    for c in (3, 5):
         while n % c == 0:
-            n /= c
-    return (n <= 1)
+            n //= c
+
+    # Return True if the remainder is a power of 2
+    return not n & (n-1)
 
 
 def _fake_crfft(x, n, *a, **kw):
@@ -123,7 +130,7 @@ def _asfarray(x):
         # We cannot use asfarray directly because it converts sequences of
         # complex to sequence of real
         ret = numpy.asarray(x)
-        if not ret.dtype.char in numpy.typecodes["AllFloat"]:
+        if ret.dtype.char not in numpy.typecodes["AllFloat"]:
             return numpy.asfarray(x)
         return ret
 
@@ -383,6 +390,7 @@ def rfft(x, n=None, axis=-1, overwrite_x=False):
 
     Examples
     --------
+    >>> from scipy.fftpack import fft, rfft
     >>> a = [9, -9, 1, 3]
     >>> fft(a)
     array([  4. +0.j,   8.+12.j,  16. +0.j,   8.-12.j])
@@ -576,6 +584,7 @@ def fftn(x, shape=None, axes=None, overwrite_x=False):
 
     Examples
     --------
+    >>> from scipy.fftpack import fftn, ifftn
     >>> y = (-np.arange(16), 8 - np.arange(16), np.arange(16))
     >>> np.allclose(y, fftn(ifftn(y)))
     True

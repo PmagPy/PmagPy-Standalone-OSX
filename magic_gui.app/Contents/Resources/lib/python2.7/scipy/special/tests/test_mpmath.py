@@ -5,17 +5,17 @@ Test Scipy functions versus mpmath, if available.
 from __future__ import division, print_function, absolute_import
 
 import sys
-import os
 import time
 
 from distutils.version import LooseVersion
 
 import numpy as np
-from numpy.testing import dec
+from numpy.testing import dec, run_module_suite
 from numpy import pi
 
 import scipy.special as sc
-from scipy.lib.six import reraise, with_metaclass
+from scipy._lib.six import reraise, with_metaclass
+from scipy._lib._testutils import knownfailure_overridable
 from scipy.special._testutils import FuncData, assert_func_equal
 
 try:
@@ -496,21 +496,6 @@ def nonfunctional_tooslow(func):
     return dec.skipif(True, "    Test not yet functional (too slow), needs more work.")(func)
 
 
-def knownfailure_overridable(msg=None):
-    if not msg:
-        msg = "Undiagnosed issues (corner cases, wrong comparison values, or otherwise)"
-    msg = msg + " [Set environment variable SCIPY_XFAIL=1 to run this test nevertheless.]"
-
-    def deco(func):
-        try:
-            if bool(os.environ['SCIPY_XFAIL']):
-                return func
-        except (ValueError, KeyError):
-            pass
-        return dec.knownfailureif(True, msg)(func)
-    return deco
-
-
 class _SystematicMeta(type):
     """
     Metaclass which decorates all of the test_* methods with
@@ -979,13 +964,27 @@ class TestSystematic(with_metaclass(_SystematicMeta, object)):
     def test_ellipe(self):
         assert_mpmath_equal(sc.ellipe,
                             mpmath.ellipe,
-                            [Arg()])
+                            [Arg(b=1.0)])
 
-    @knownfailure_overridable("insufficient accuracy from Cephes at phi < 0, or for extremely large m")
+    def test_ellipeinc(self):
+        assert_mpmath_equal(sc.ellipeinc,
+                            mpmath.ellipe,
+                            [Arg(-1e3, 1e3), Arg(b=1.0)])
+
+    def test_ellipeinc_largephi(self):
+        assert_mpmath_equal(sc.ellipeinc,
+                            mpmath.ellipe,
+                            [Arg(), Arg()])
+
     def test_ellipf(self):
         assert_mpmath_equal(sc.ellipkinc,
                             mpmath.ellipf,
-                            [Arg(), Arg(b=1.0)])
+                            [Arg(-1e3, 1e3), Arg()])
+
+    def test_ellipf_largephi(self):
+        assert_mpmath_equal(sc.ellipkinc,
+                            mpmath.ellipf,
+                            [Arg(), Arg()])
 
     def test_ellipk(self):
         assert_mpmath_equal(sc.ellipk,
@@ -995,6 +994,22 @@ class TestSystematic(with_metaclass(_SystematicMeta, object)):
                             lambda m: mpmath.ellipk(1 - m),
                             [Arg(a=0.0)],
                             dps=400)
+
+    def test_ellipkinc(self):
+        def ellipkinc(phi, m):
+            return mpmath.ellippi(0, phi, m)
+        assert_mpmath_equal(sc.ellipkinc,
+                            ellipkinc,
+                            [Arg(-1e3, 1e3), Arg(b=1.0)],
+                            ignore_inf_sign=True)
+
+    def test_ellipkinc_largephi(self):
+        def ellipkinc(phi, m):
+            return mpmath.ellippi(0, phi, m)
+        assert_mpmath_equal(sc.ellipkinc,
+                            ellipkinc,
+                            [Arg(), Arg(b=1.0)],
+                            ignore_inf_sign=True)
 
     def test_ellipfun_sn(self):
         # Oscillating function --- limit range of first argument; the
@@ -1606,3 +1621,7 @@ class TestSystematic(with_metaclass(_SystematicMeta, object)):
                             n=200,
                             dps=60,
                             rtol=1e-13)
+
+
+if __name__ == "__main__":
+    run_module_suite()

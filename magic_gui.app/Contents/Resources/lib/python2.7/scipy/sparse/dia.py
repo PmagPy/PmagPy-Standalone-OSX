@@ -10,7 +10,7 @@ import numpy as np
 
 from .base import isspmatrix, _formats
 from .data import _data_matrix
-from .sputils import isshape, upcast, upcast_char, getdtype, get_index_dtype
+from .sputils import isshape, upcast_char, getdtype, get_index_dtype
 from ._sparsetools import dia_matvec
 
 
@@ -56,20 +56,20 @@ class dia_matrix(_data_matrix):
     Examples
     --------
 
-    >>> from scipy.sparse import *
-    >>> from scipy import *
-    >>> dia_matrix( (3,4), dtype=int8).todense()
-    matrix([[0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]], dtype=int8)
+    >>> import numpy as np
+    >>> from scipy.sparse import dia_matrix
+    >>> dia_matrix((3, 4), dtype=np.int8).toarray()
+    array([[0, 0, 0, 0],
+           [0, 0, 0, 0],
+           [0, 0, 0, 0]], dtype=int8)
 
-    >>> data = array([[1,2,3,4]]).repeat(3,axis=0)
-    >>> offsets = array([0,-1,2])
-    >>> dia_matrix( (data,offsets), shape=(4,4)).todense()
-    matrix([[1, 0, 3, 0],
-            [1, 2, 0, 4],
-            [0, 2, 3, 0],
-            [0, 0, 3, 4]])
+    >>> data = np.array([[1, 2, 3, 4]]).repeat(3, axis=0)
+    >>> offsets = np.array([0, -1, 2])
+    >>> dia_matrix((data, offsets), shape=(4, 4)).toarray()
+    array([[1, 0, 3, 0],
+           [1, 2, 0, 4],
+           [0, 2, 3, 0],
+           [0, 0, 3, 4]])
 
     """
 
@@ -184,12 +184,8 @@ class dia_matrix(_data_matrix):
     def _mul_multimatrix(self, other):
         return np.hstack([self._mul_vector(col).reshape(-1,1) for col in other.T])
 
-    def setdiag(self, values, k=0):
+    def _setdiag(self, values, k=0):
         M, N = self.shape
-        if k <= -M or k >= N:
-            raise ValueError('k exceeds matrix dimensions')
-
-        values = np.asarray(values)
 
         if values.ndim == 0:
             # broadcast
@@ -220,13 +216,25 @@ class dia_matrix(_data_matrix):
             data[-1, min_index:max_index] = values
             self.data = data
 
-    setdiag.__doc__ = _data_matrix.setdiag.__doc__
-
     def todia(self,copy=False):
         if copy:
             return self.copy()
         else:
             return self
+
+    def transpose(self):
+        num_rows, num_cols = self.shape
+        max_dim = max(self.shape)
+        # flip diagonal offsets
+        offsets = -self.offsets
+        # re-align the data matrix
+        r = np.arange(len(offsets), dtype=np.intc)[:,None]
+        c = np.arange(num_rows, dtype=np.intc) - (offsets % max_dim)[:,None]
+        pad_amount = max(0, max_dim-self.data.shape[1])
+        data = np.hstack((self.data, np.zeros((self.data.shape[0], pad_amount),
+                                              dtype=self.data.dtype)))
+        data = data[r,c]
+        return dia_matrix((data, offsets), shape=(num_cols,num_rows))
 
     def tocsr(self):
         #this could be faster
@@ -237,22 +245,18 @@ class dia_matrix(_data_matrix):
         return self.tocoo().tocsc()
 
     def tocoo(self):
-        num_data = len(self.data)
-        len_data = self.data.shape[1]
+        num_rows, num_cols = self.shape
+        num_offsets, offset_len = self.data.shape
+        offset_inds = np.arange(offset_len)
 
-        row = np.arange(len_data).reshape(1,-1).repeat(num_data,axis=0)
-        col = row.copy()
-
-        for i,k in enumerate(self.offsets):
-            row[i,:] -= k
-
-        row,col,data = row.ravel(),col.ravel(),self.data.ravel()
-
+        row = offset_inds - self.offsets[:,None]
         mask = (row >= 0)
-        mask &= (row < self.shape[0])
-        mask &= (col < self.shape[1])
-        mask &= data != 0
-        row,col,data = row[mask],col[mask],data[mask]
+        mask &= (row < num_rows)
+        mask &= (offset_inds < num_cols)
+        mask &= (self.data != 0)
+        row = row[mask]
+        col = np.tile(offset_inds, num_offsets)[mask.ravel()]
+        data = self.data[mask]
 
         from .coo import coo_matrix
         return coo_matrix((data,(row,col)), shape=self.shape)

@@ -17,9 +17,6 @@ from scipy.sparse.linalg import onenormest
 import scipy.special
 
 
-__all__ = ['logm', 'fractional_matrix_power']
-
-
 class LogmRankWarning(UserWarning):
     pass
 
@@ -40,11 +37,6 @@ class FractionalMatrixPowerError(np.linalg.LinAlgError):
     pass
 
 
-def _count_nonzero(x):
-    """np.count_nonzero not available in numpy 1.5.x"""
-    return np.sum(x != 0)
-
-
 #TODO renovate or move this class when scipy operators are more mature
 class _MatrixM1PowerOperator(LinearOperator):
     """
@@ -61,23 +53,22 @@ class _MatrixM1PowerOperator(LinearOperator):
         self.ndim = A.ndim
         self.shape = A.shape
 
-    def matvec(self, x):
+    def _matvec(self, x):
         for i in range(self._p):
             x = self._A.dot(x) - x
         return x
 
-    def rmatvec(self, x):
+    def _rmatvec(self, x):
         for i in range(self._p):
             x = x.dot(self._A) - x
         return x
 
-    def matmat(self, X):
+    def _matmat(self, X):
         for i in range(self._p):
             X = self._A.dot(X) - X
         return X
 
-    @property
-    def T(self):
+    def _adjoint(self):
         return _MatrixM1PowerOperator(self._A.T, self._p)
 
 
@@ -378,7 +369,7 @@ def _inverse_squaring_helper(T0, theta):
     # this search will not terminate if any diagonal entry of T is zero.
     s0 = 0
     tmp_diag = np.diag(T)
-    if _count_nonzero(tmp_diag) != n:
+    if np.count_nonzero(tmp_diag) != n:
         raise Exception('internal inconsistency')
     while np.max(np.absolute(tmp_diag - 1)) > theta[7]:
         tmp_diag = np.sqrt(tmp_diag)
@@ -660,7 +651,7 @@ def _remainder_matrix_power(A, t):
     # Zeros on the diagonal of the triangular matrix are forbidden,
     # because the inverse scaling and squaring cannot deal with it.
     T_diag = np.diag(T)
-    if _count_nonzero(T_diag) != n:
+    if np.count_nonzero(T_diag) != n:
         raise FractionalMatrixPowerError(
                 'cannot use inverse scaling and squaring to find '
                 'the fractional matrix power of a singular matrix')
@@ -680,30 +671,11 @@ def _remainder_matrix_power(A, t):
         return U
 
 
-def fractional_matrix_power(A, p):
+def _fractional_matrix_power(A, p):
     """
     Compute the fractional power of a matrix.
 
-    Proceeds according to the discussion in section (6) of [1]_.
-
-    Parameters
-    ----------
-    A : (N, N) array_like
-        Matrix whose fractional power to evaluate.
-    p : float
-        Fractional power.
-
-    Returns
-    -------
-    X : (N, N) array_like
-        The fractional power of the matrix.
-
-    References
-    ----------
-    .. [1] Nicholas J. Higham and Lijing lin (2011)
-           "A Schur-Pade Algorithm for Fractional Powers of a Matrix."
-           SIAM Journal on Matrix Analysis and Applications,
-           32 (3). pp. 1056-1078. ISSN 0895-4798
+    See the fractional_matrix_power docstring in matfuncs.py for more info.
 
     """
     A = np.asarray(A)
@@ -868,49 +840,23 @@ def _logm_force_nonsingular_triangular_matrix(T, inplace=False):
     return T
 
 
-def logm(A):
+def _logm(A):
     """
-    Compute matrix logarithm.
+    Compute the matrix logarithm.
 
-    The matrix logarithm is the inverse of
-    expm: expm(logm(`A`)) == `A`
+    See the logm docstring in matfuncs.py for more info.
 
-    Parameters
-    ----------
-    A : (N, N) array_like
-        Matrix whose logarithm to evaluate
-
-    Returns
-    -------
-    logm : (N, N) ndarray
-        Matrix logarithm of `A`
-
-    References
-    ----------
-    .. [1] Awad H. Al-Mohy and Nicholas J. Higham (2012)
-           "Improved Inverse Scaling and Squaring Algorithms
-           for the Matrix Logarithm."
-           SIAM Journal on Scientific Computing, 34 (4). C152-C169.
-           ISSN 1095-7197
-
-    .. [2] Nicholas J. Higham (2008)
-           "Functions of Matrices: Theory and Computation"
-           ISBN 978-0-898716-46-7
-
-    .. [3] Nicholas J. Higham and Lijing lin (2011)
-           "A Schur-Pade Algorithm for Fractional Powers of a Matrix."
-           SIAM Journal on Matrix Analysis and Applications,
-           32 (3). pp. 1056-1078. ISSN 0895-4798
+    Notes
+    -----
+    In this function we look at triangular matrices that are similar
+    to the input matrix.  If any diagonal entry of such a triangular matrix
+    is exactly zero then the original matrix is singular.
+    The matrix logarithm does not exist for such matrices,
+    but in such cases we will pretend that the diagonal entries that are zero
+    are actually slightly positive by an ad-hoc amount, in the interest
+    of returning something more useful than NaN.  This will cause a warning.
 
     """
-    # In this function we look at triangular matrices that are similar
-    # to the input matrix.  If any diagonal entry of such a triangular matrix
-    # is exactly zero then the original matrix is singular.
-    # The matrix logarithm does not exist for such matrices,
-    # but in such cases we will pretend that the diagonal entries that are zero
-    # are actually slightly positive by an ad-hoc amount, in the interest
-    # of returning something more useful than NaN.  This will cause a warning.
-
     A = np.asarray(A)
     if len(A.shape) != 2 or A.shape[0] != A.shape[1]:
         raise ValueError('expected a square matrix')
@@ -942,4 +888,3 @@ def logm(A):
         X = np.empty_like(A)
         X.fill(np.nan)
         return X
-

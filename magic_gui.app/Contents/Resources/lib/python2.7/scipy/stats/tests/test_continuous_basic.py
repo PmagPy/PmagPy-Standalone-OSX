@@ -10,7 +10,7 @@ from scipy import stats
 from common_tests import (check_normalization, check_moment, check_mean_expect,
         check_var_expect, check_skew_expect, check_kurt_expect,
         check_entropy, check_private_entropy, NUMPY_BELOW_1_7,
-        check_edge_support, check_named_args)
+        check_edge_support, check_named_args, check_random_state_property)
 
 from scipy.stats._distr_params import distcont
 
@@ -24,6 +24,9 @@ distributions so that we can perform further testing of class methods.
 These tests currently check only/mostly for serious errors and exceptions,
 not for numerically exact results.
 """
+
+## Note that you need to add new distributions you want tested
+## to _distr_params
 
 DECIMAL = 5  # specify the precision of the tests  # increased from 0 to 5
 
@@ -65,7 +68,7 @@ distmissing = ['wald', 'gausshyper', 'genexpon', 'rv_continuous',
     'loglaplace', 'rdist', 'semicircular', 'invweibull', 'ksone',
     'cosine', 'kstwobign', 'truncnorm', 'mielke', 'recipinvgauss', 'levy',
     'johnsonsu', 'levy_l', 'powernorm', 'wrapcauchy',
-    'johnsonsb', 'truncexpon', 'rice', 'invgauss', 'invgamma',
+    'johnsonsb', 'truncexpon', 'invgauss', 'invgamma',
     'powerlognorm']
 
 distmiss = [[dist,args] for dist,args in distcont if dist in distmissing]
@@ -125,6 +128,7 @@ def test_cont_basic():
                       'pareto': 1.5, 'tukeylambda': 0.3}
             x = spec_x.get(distname, 0.5)
             yield check_named_args, distfn, x, arg, locscale_defaults, meths
+            yield check_random_state_property, distfn, arg
 
             # Entropy
             skp = npt.dec.skipif
@@ -140,6 +144,7 @@ def test_cont_basic():
             knf = npt.dec.knownfailureif
             yield knf(distname == 'truncnorm')(check_ppf_private), distfn, \
                       arg, distname
+
 
 @npt.dec.slow
 def test_cont_basic_slow():
@@ -181,6 +186,7 @@ def test_cont_basic_slow():
             elif distname == 'ksone':
                 arg = (3,)
             yield check_named_args, distfn, x, arg, locscale_defaults, meths
+            yield check_random_state_property, distfn, arg
 
             # Entropy
             skp = npt.dec.skipif
@@ -332,6 +338,7 @@ def check_distribution_rvs(dist, args, alpha, rvs):
 
 def check_vecentropy(distfn, args):
     npt.assert_equal(distfn.vecentropy(*args), distfn._entropy(*args))
+
 
 @npt.dec.skipif(NUMPY_BELOW_1_7)
 def check_loc_scale(distfn, arg, m, v, msg):

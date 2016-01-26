@@ -5,21 +5,22 @@ import warnings
 import numpy as np
 from numpy import array, finfo, arange, eye, all, unique, ones, dot, matrix
 import numpy.random as random
-from numpy.testing import TestCase, run_module_suite, assert_array_almost_equal, \
-    assert_raises, assert_almost_equal, assert_equal, assert_array_equal, assert_, \
-    assert_allclose
+from numpy.testing import (TestCase, run_module_suite,
+        assert_array_almost_equal, assert_raises, assert_almost_equal,
+        assert_equal, assert_array_equal, assert_, assert_allclose)
 
 import scipy.linalg
 from scipy.linalg import norm, inv
-from scipy.sparse import spdiags, SparseEfficiencyWarning, csc_matrix, csr_matrix, \
-     isspmatrix, dok_matrix, lil_matrix, bsr_matrix
-from scipy.sparse.linalg.dsolve import spsolve, use_solver, splu, spilu, \
-     MatrixRankWarning, _superlu
+from scipy.sparse import (spdiags, SparseEfficiencyWarning, csc_matrix,
+        csr_matrix, isspmatrix, dok_matrix, lil_matrix, bsr_matrix)
+from scipy.sparse.linalg.dsolve import (spsolve, use_solver, splu, spilu,
+        MatrixRankWarning, _superlu)
 
 warnings.simplefilter('ignore',SparseEfficiencyWarning)
 
 # TODO add more comprehensive tests
 use_solver(useUmfpack=False)
+
 
 def toarray(a):
     if isspmatrix(a):
@@ -42,7 +43,7 @@ class TestLinsolve(TestCase):
         # "Bad" test case that leads SuperLU to call LAPACK with invalid
         # arguments. Check that it fails moderately gracefully.
         ij = np.array([(17, 0), (17, 6), (17, 12), (10, 13)], dtype=np.int32)
-        v = np.array([ 0.284213  ,  0.94933781,  0.15767017,  0.38797296])
+        v = np.array([0.284213, 0.94933781, 0.15767017, 0.38797296])
         A = csc_matrix((v, ij.T), shape=(20, 20))
         b = np.arange(20)
 
@@ -201,10 +202,13 @@ class TestLinsolve(TestCase):
 
             def not_c_contig(x):
                 return x.repeat(2)[::2]
+
             def not_1dim(x):
                 return x[:,None]
+
             def bad_type(x):
                 return x.astype(bool)
+
             def too_short(x):
                 return x[:-1]
 
@@ -222,6 +226,21 @@ class TestLinsolve(TestCase):
                 assert_raises((ValueError, TypeError), _superlu.gssv,
                               N, A.nnz, A.data, A.indices, badop(A.indptr),
                               b, int(spmatrix == csc_matrix), err_msg=msg)
+
+    def test_sparsity_preservation(self):
+        ident = csc_matrix([
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1]])
+        b = csc_matrix([
+            [0, 1],
+            [1, 0],
+            [0, 0]])
+        x = spsolve(ident, b)
+        assert_equal(ident.nnz, 3)
+        assert_equal(b.nnz, 2)
+        assert_equal(x.nnz, 2)
+        assert_allclose(x.A, b.A, atol=1e-12, rtol=1e-12)
 
 
 class TestSplu(object):
@@ -342,7 +361,8 @@ class TestSplu(object):
 
         # Now make a symmetric, and test that the two permutation vectors are
         # the same
-        a += a.T
+        # Note: a += a.T relies on undefined behavior.
+        a = a + a.T
         a_ = csc_matrix(a)
         lu = splu(a_)
         assert_array_equal(lu.perm_r, lu.perm_c)
@@ -401,23 +421,38 @@ class TestSplu(object):
         assert_(not np.isnan(B).any())
 
     def test_lu_attr(self):
-        A = self.A
-        n = A.shape[0]
-        lu = splu(A)
 
-        # Check that the decomposition is as advertized
+        def check(dtype, complex_2=False):
+            A = self.A.astype(dtype)
 
-        Pc = np.zeros((n, n))
-        Pc[np.arange(n), lu.perm_c] = 1
+            if complex_2:
+                A = A + 1j*A.T
 
-        Pr = np.zeros((n, n))
-        Pr[lu.perm_r, np.arange(n)] = 1
+            n = A.shape[0]
+            lu = splu(A)
 
-        Ad = A.toarray()
-        lhs = Pr.dot(Ad).dot(Pc)
-        rhs = (lu.L * lu.U).toarray()
+            # Check that the decomposition is as advertized
 
-        assert_allclose(lhs, rhs, atol=1e-10)
+            Pc = np.zeros((n, n))
+            Pc[np.arange(n), lu.perm_c] = 1
+
+            Pr = np.zeros((n, n))
+            Pr[lu.perm_r, np.arange(n)] = 1
+
+            Ad = A.toarray()
+            lhs = Pr.dot(Ad).dot(Pc)
+            rhs = (lu.L * lu.U).toarray()
+
+            eps = np.finfo(dtype).eps
+
+            assert_allclose(lhs, rhs, atol=100*eps)
+
+        check(np.float32)
+        check(np.float64)
+        check(np.complex64)
+        check(np.complex128)
+        check(np.complex64, True)
+        check(np.complex128, True)
 
 
 if __name__ == "__main__":
