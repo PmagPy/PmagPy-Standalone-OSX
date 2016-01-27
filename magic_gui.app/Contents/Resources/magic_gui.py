@@ -7,13 +7,11 @@ doc string
 print '-I- Importing MagIC GUI dependencies'
 import set_env
 set_env.set_backend(wx=True)
-print 'about to import wx'
 import wx
 import wx.lib.buttons as buttons
 import sys
 import os
 import webbrowser
-print 'about to import pmagpy type stuff'
 import pmagpy.check_updates as check_updates
 import pmagpy.builder as builder
 import pmagpy.pmag as pmag
@@ -24,7 +22,7 @@ import dialogs.pmag_widgets as pw
 import dialogs.magic_grid as magic_grid
 import dialogs.pmag_menu_dialogs as pmag_menu_dialogs
 import dialogs.grid_frame as grid_frame
-print 'done with imports'
+
 
 class MainFrame(wx.Frame):
     """
