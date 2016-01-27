@@ -11,6 +11,11 @@ import scipy.sparse.linalg
 from scipy.sparse.linalg._onenormest import _onenormest_core, _algorithm_2_2
 
 
+def _count_nonzero(x):
+    """np.count_nonzero not available in numpy 1.5.x"""
+    return np.sum(x != 0)
+
+
 class MatrixProductOperator(scipy.sparse.linalg.LinearOperator):
     """
     This is purely for onenormest testing.
@@ -26,13 +31,13 @@ class MatrixProductOperator(scipy.sparse.linalg.LinearOperator):
         self.ndim = 2
         self.shape = (A.shape[0], B.shape[1])
 
-    def _matvec(self, x):
+    def matvec(self, x):
         return np.dot(self.A, np.dot(self.B, x))
 
-    def _rmatvec(self, x):
+    def rmatvec(self, x):
         return np.dot(np.dot(x, self.A), self.B)
 
-    def _matmat(self, X):
+    def matmat(self, X):
         return np.dot(self.A, np.dot(self.B, X))
 
     @property
@@ -76,7 +81,7 @@ class TestOnenormest(TestCase):
         assert_(0.05 < np.mean(nresample_list) < 0.2)
 
         # check the proportion of norms computed exactly correctly
-        nexact = np.count_nonzero(relative_errors < 1e-14)
+        nexact = _count_nonzero(relative_errors < 1e-14)
         proportion_exact = nexact / float(nsamples)
         assert_(0.9 < proportion_exact < 0.95)
 
@@ -116,7 +121,7 @@ class TestOnenormest(TestCase):
         assert_equal(np.max(nresample_list), 0)
 
         # check the proportion of norms computed exactly correctly
-        nexact = np.count_nonzero(relative_errors < 1e-14)
+        nexact = _count_nonzero(relative_errors < 1e-14)
         proportion_exact = nexact / float(nsamples)
         assert_(0.15 < proportion_exact < 0.25)
 
@@ -183,7 +188,7 @@ class TestOnenormest(TestCase):
         assert_equal(max_nresamples, 0)
 
         # check the proportion of norms computed exactly correctly
-        nexact = np.count_nonzero(relative_errors < 1e-14)
+        nexact = _count_nonzero(relative_errors < 1e-14)
         proportion_exact = nexact / float(nsamples)
         assert_(0.7 < proportion_exact < 0.8)
 

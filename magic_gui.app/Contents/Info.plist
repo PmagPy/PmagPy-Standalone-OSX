@@ -64,15 +64,15 @@
 	</array>
 	<key>PyRuntimeLocations</key>
 	<array>
-		<string>@executable_path/../Frameworks/libpython2.7.dylib</string>
+		<string>@executable_path/../Frameworks/Python.framework/Versions/2.7/Python</string>
 	</array>
 	<key>PythonInfoDict</key>
 	<dict>
 		<key>PythonExecutable</key>
-		<string>/Users/nebula/Library/Enthought/Canopy_64bit/User/bin/python</string>
+		<string>/usr/local/opt/python/bin/python2.7</string>
 		<key>PythonLongVersion</key>
-		<string>2.7.10 | 64-bit | (default, Oct 21 2015, 09:09:19) 
-[GCC 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2335.6)]</string>
+		<string>2.7.10 (default, Sep 23 2015, 04:34:21) 
+[GCC 4.2.1 Compatible Apple LLVM 7.0.0 (clang-700.0.72)]</string>
 		<key>PythonShortVersion</key>
 		<string>2.7</string>
 		<key>py2app</key>

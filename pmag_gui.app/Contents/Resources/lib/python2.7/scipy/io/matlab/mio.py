@@ -7,7 +7,7 @@ from __future__ import division, print_function, absolute_import
 
 import numpy as np
 
-from scipy._lib.six import string_types
+from scipy.lib.six import string_types
 
 from .miobase import get_matfile_version, docfiller
 from .mio4 import MatFile4Reader, MatFile4Writer
@@ -24,11 +24,8 @@ def _open_file(file_like, appendmat):
         except IOError as e:
             if appendmat and not file_like.endswith('.mat'):
                 file_like += '.mat'
-                try:
-                    return open(file_like, 'rb')
-                except IOError:
-                    pass  # Rethrow the original exception.
-            raise
+                return open(file_like, 'rb')
+            raise IOError(e)
     # not a string - maybe file-like object
     try:
         file_like.read(0)
@@ -217,6 +214,8 @@ def whosmat(file_name, appendmat=True, **kwargs):
     """
     List variables inside a MATLAB file
 
+    .. versionadded:: 0.12.0
+
     Parameters
     ----------
     %(file_arg)s
@@ -240,8 +239,6 @@ def whosmat(file_name, appendmat=True, **kwargs):
     You will need an HDF5 python library to read matlab 7.3 format mat
     files.  Because scipy does not supply one, we do not implement the
     HDF5 / 7.3 interface here.
-
-    .. versionadded:: 0.12.0
 
     """
     ML = mat_reader_factory(file_name, **kwargs)

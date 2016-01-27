@@ -10,11 +10,13 @@ from __future__ import division, print_function, absolute_import
 
 __all__ = []
 
-
 import numpy as np
 
-from .base import spmatrix, _ufuncs_with_fixed_point_at_zero
+from scipy.lib.six import zip as izip
+
+from .base import spmatrix
 from .sputils import isscalarlike
+from .lil import lil_matrix
 
 
 # TODO implement all relevant operations
@@ -47,7 +49,7 @@ class _data_matrix(spmatrix):
             self.data *= other
             return self
         else:
-            return NotImplemented
+            raise NotImplementedError
 
     def __itruediv__(self, other):  # self /= other
         if isscalarlike(other):
@@ -55,7 +57,7 @@ class _data_matrix(spmatrix):
             self.data *= recip
             return self
         else:
-            return NotImplemented
+            raise NotImplementedError
 
     def astype(self, t):
         return self._with_data(self.data.astype(t))
@@ -66,31 +68,6 @@ class _data_matrix(spmatrix):
     def copy(self):
         return self._with_data(self.data.copy(), copy=True)
 
-    def power(self, n, dtype=None):
-        """
-        This function performs element-wise power.
-        
-        Parameters
-        ----------
-        n : n is a scalar
-        
-        dtype : If dtype is not specified, the current dtype will be preserved.
-        """
-                
-        if isscalarlike(n):
-            if hasattr(self, "tocsr"):                
-                m = self.tocsr()  
-                m.sum_duplicates()
-                data = m.data
-                if dtype is not None:
-                    data = data.astype(dtype)
-                
-                return m._with_data(data ** n)
-            else:
-                raise TypeError("matrix cannot be convert to csr")            
-        else:
-            raise NotImplementedError("input is not scalar")
-        
     ###########################
     # Multiplication handlers #
     ###########################
@@ -100,7 +77,9 @@ class _data_matrix(spmatrix):
 
 
 # Add the numpy unary ufuncs for which func(0) = 0 to _data_matrix.
-for npfunc in _ufuncs_with_fixed_point_at_zero:
+for npfunc in [np.sin, np.tan, np.arcsin, np.arctan, np.sinh, np.tanh,
+               np.arcsinh, np.arctanh, np.rint, np.sign, np.expm1, np.log1p,
+               np.deg2rad, np.rad2deg, np.floor, np.ceil, np.trunc, np.sqrt]:
     name = npfunc.__name__
 
     def _create_method(op):

@@ -25,319 +25,178 @@ All functions
 .. autosummary::
    :toctree: generated/
 
-
-   sgbsv
-   dgbsv
    cgbsv
-   zgbsv
-
-   sgbtrf
-   dgbtrf
    cgbtrf
-   zgbtrf
-
-   sgbtrs
-   dgbtrs
    cgbtrs
-   zgbtrs
-
-   sgebal
-   dgebal
    cgebal
-   zgebal
-
-   sgees
-   dgees
    cgees
-   zgees
-
-   sgeev
-   dgeev
    cgeev
-   zgeev
-
-   sgeev_lwork
-   dgeev_lwork
-   cgeev_lwork
-   zgeev_lwork
-
-   sgegv
-   dgegv
    cgegv
-   zgegv
-
-   sgehrd
-   dgehrd
    cgehrd
-   zgehrd
-
-   sgehrd_lwork
-   dgehrd_lwork
-   cgehrd_lwork
-   zgehrd_lwork
-
-   sgelss
-   dgelss
    cgelss
-   zgelss
-   
-   sgelss_lwork
-   dgelss_lwork
-   cgelss_lwork
-   zgelss_lwork
-   
-   sgelsd
-   dgelsd
-   cgelsd
-   zgelsd
-   
-   sgelsd_lwork
-   dgelsd_lwork
-   cgelsd_lwork
-   zgelsd_lwork
-   
-   sgelsy
-   dgelsy
-   cgelsy
-   zgelsy
-
-   sgelsy_lwork
-   dgelsy_lwork
-   cgelsy_lwork
-   zgelsy_lwork
-   
-   sgeqp3
-   dgeqp3
    cgeqp3
-   zgeqp3
-
-   sgeqrf
-   dgeqrf
    cgeqrf
-   zgeqrf
-
-   sgerqf
-   dgerqf
    cgerqf
-   zgerqf
-
-   sgesdd
-   dgesdd
    cgesdd
-   zgesdd
-
-   sgesdd_lwork
-   dgesdd_lwork
-   cgesdd_lwork
-   zgesdd_lwork
-
-   sgesv
-   dgesv
    cgesv
-   zgesv
-
-   sgetrf
-   dgetrf
    cgetrf
-   zgetrf
-
-   sgetri
-   dgetri
    cgetri
-   zgetri
-
-   sgetri_lwork
-   dgetri_lwork
-   cgetri_lwork
-   zgetri_lwork
-
-   sgetrs
-   dgetrs
    cgetrs
-   zgetrs
-
-   sgges
-   dgges
    cgges
-   zgges
-
-   sggev
-   dggev
    cggev
-   zggev
-
    chbevd
-   zhbevd
-
    chbevx
-   zhbevx
-
    cheev
-   zheev
-
    cheevd
-   zheevd
-
    cheevr
-   zheevr
-
    chegv
-   zhegv
-
    chegvd
-   zhegvd
-
    chegvx
-   zhegvx
-   
-   slarf
-   dlarf
-   clarf
-   zlarf
-
-   slarfg
-   dlarfg
-   clarfg
-   zlarfg
-
-   slartg
-   dlartg
-   clartg
-   zlartg
-
-   dlasd4
-   slasd4
-
-   slaswp
-   dlaswp
    claswp
-   zlaswp
-
-   slauum
-   dlauum
    clauum
-   zlauum
-
-   spbsv
-   dpbsv
    cpbsv
-   zpbsv
-
-   spbtrf
-   dpbtrf
    cpbtrf
-   zpbtrf
-
-   spbtrs
-   dpbtrs
    cpbtrs
-   zpbtrs
-
-   sposv
-   dposv
    cposv
-   zposv
-
-   spotrf
-   dpotrf
    cpotrf
-   zpotrf
-
-   spotri
-   dpotri
    cpotri
-   zpotri
-
-   spotrs
-   dpotrs
    cpotrs
-   zpotrs
-
-   crot
-   zrot
-
-   strsyl
-   dtrsyl
    ctrsyl
-   ztrsyl
-
-   strtri
-   dtrtri
    ctrtri
-   ztrtri
-
-   strtrs
-   dtrtrs
    ctrtrs
-   ztrtrs
-
-   cunghr
-   zunghr
-
    cungqr
-   zungqr
-
    cungrq
-   zungrq
-
    cunmqr
-   zunmqr
-
-   sgtsv
-   dgtsv
-   cgtsv
-   zgtsv
-
-   sptsv
-   dptsv
-   cptsv
-   zptsv
-
-   slamch
+   dgbsv
+   dgbtrf
+   dgbtrs
+   dgebal
+   dgees
+   dgeev
+   dgegv
+   dgehrd
+   dgelss
+   dgeqp3
+   dgeqrf
+   dgerqf
+   dgesdd
+   dgesv
+   dgetrf
+   dgetri
+   dgetrs
+   dgges
+   dggev
    dlamch
-
-   sorghr
-   dorghr
-   sorgqr
+   dlaswp
+   dlauum
    dorgqr
-
-   sorgrq
    dorgrq
-
-   sormqr
    dormqr
-
-   ssbev
+   dpbsv
+   dpbtrf
+   dpbtrs
+   dposv
+   dpotrf
+   dpotri
+   dpotrs
    dsbev
-
-   ssbevd
    dsbevd
-
-   ssbevx
    dsbevx
-
-   ssyev
    dsyev
-
-   ssyevd
    dsyevd
-
-   ssyevr
    dsyevr
-
-   ssygv
    dsygv
-
-   ssygvd
    dsygvd
-
-   ssygvx
    dsygvx
-
-   slange
-   dlange
-   clange
-   zlange
+   dtrsyl
+   dtrtri
+   dtrtrs
+   sgbsv
+   sgbtrf
+   sgbtrs
+   sgebal
+   sgees
+   sgeev
+   sgegv
+   sgehrd
+   sgelss
+   sgeqp3
+   sgeqrf
+   sgerqf
+   sgesdd
+   sgesv
+   sgetrf
+   sgetri
+   sgetrs
+   sgges
+   sggev
+   slamch
+   slaswp
+   slauum
+   sorgqr
+   sorgrq
+   sormqr
+   spbsv
+   spbtrf
+   spbtrs
+   sposv
+   spotrf
+   spotri
+   spotrs
+   ssbev
+   ssbevd
+   ssbevx
+   ssyev
+   ssyevd
+   ssyevr
+   ssygv
+   ssygvd
+   ssygvx
+   strsyl
+   strtri
+   strtrs
+   zgbsv
+   zgbtrf
+   zgbtrs
+   zgebal
+   zgees
+   zgeev
+   zgegv
+   zgehrd
+   zgelss
+   zgeqp3
+   zgeqrf
+   zgerqf
+   zgesdd
+   zgesv
+   zgetrf
+   zgetri
+   zgetrs
+   zgges
+   zggev
+   zhbevd
+   zhbevx
+   zheev
+   zheevd
+   zheevr
+   zhegv
+   zhegvd
+   zhegvx
+   zlaswp
+   zlauum
+   zpbsv
+   zpbtrf
+   zpbtrs
+   zposv
+   zpotrf
+   zpotri
+   zpotrs
+   ztrsyl
+   ztrtri
+   ztrtrs
+   zungqr
+   zungrq
+   zunmqr
 
 """
 #
@@ -360,7 +219,7 @@ except ImportError:
     _clapack = None
 
 # Backward compatibility
-from scipy._lib._util import DeprecatedImport as _DeprecatedImport
+from scipy.lib._util import DeprecatedImport as _DeprecatedImport
 clapack = _DeprecatedImport("scipy.linalg.blas.clapack", "scipy.linalg.lapack")
 flapack = _DeprecatedImport("scipy.linalg.blas.flapack", "scipy.linalg.lapack")
 
@@ -371,8 +230,6 @@ del empty_module
 
 # some convenience alias for complex functions
 _lapack_alias = {
-    'corghr': 'cunghr', 'zorghr': 'zunghr',
-    'corghr_lwork': 'cunghr_lwork', 'zorghr_lwork': 'zunghr_lwork',
     'corgqr': 'cungqr', 'zorgqr': 'zungqr',
     'cormqr': 'cunmqr', 'zormqr': 'zunmqr',
     'corgrq': 'cungrq', 'zorgrq': 'zungrq',

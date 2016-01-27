@@ -5,40 +5,28 @@ Functions which are common and require SciPy Base and Level 1 SciPy
 
 from __future__ import division, print_function, absolute_import
 
-import numpy
-import numpy as np
-from numpy import (exp, log, asarray, arange, newaxis, hstack, product, array,
-                   zeros, eye, poly1d, r_, sum, fromstring, isfinite,
-                   squeeze, amax, reshape)
-
-from scipy._lib._version import NumpyVersion
+from numpy import exp, log, asarray, arange, newaxis, hstack, product, array, \
+                  zeros, eye, poly1d, r_, rollaxis, sum, fromstring
 
 __all__ = ['logsumexp', 'central_diff_weights', 'derivative', 'pade', 'lena',
            'ascent', 'face']
 
+# XXX: the factorial functions could move to scipy.special, and the others
+# to numpy perhaps?
 
-_NUMPY_170 = (NumpyVersion(numpy.__version__) >= NumpyVersion('1.7.0'))
 
-
-def logsumexp(a, axis=None, b=None, keepdims=False):
+def logsumexp(a, axis=None, b=None):
     """Compute the log of the sum of exponentials of input elements.
 
     Parameters
     ----------
     a : array_like
         Input array.
-    axis : None or int or tuple of ints, optional
-        Axis or axes over which the sum is taken. By default `axis` is None,
-        and all elements are summed. Tuple of ints is not accepted if NumPy
-        version is lower than 1.7.0.
+    axis : int, optional
+        Axis over which the sum is taken. By default `axis` is None,
+        and all elements are summed.
 
         .. versionadded:: 0.11.0
-    keepdims : bool, optional
-        If this is set to True, the axes which are reduced are left in the
-        result as dimensions with size one. With this option, the result
-        will broadcast correctly against the original array.
-
-        .. versionadded:: 0.15.0
     b : array-like, optional
         Scaling factor for exp(`a`) must be of the same shape as `a` or
         broadcastable to `a`.
@@ -81,72 +69,21 @@ def logsumexp(a, axis=None, b=None, keepdims=False):
     9.9170178533034647
     """
     a = asarray(a)
-
-    # keepdims is available in numpy.sum and numpy.amax since NumPy 1.7.0
-    #
-    # Because SciPy supports versions earlier than 1.7.0, we have to handle
-    # those old versions differently
-
-    if not _NUMPY_170:
-        # When support for Numpy < 1.7.0 is dropped, this implementation can be
-        # removed. This implementation is a bit hacky. Similarly to old NumPy's
-        # sum and amax functions, 'axis' must be an integer or None, tuples and
-        # lists are not supported. Although 'keepdims' is not supported by these
-        # old NumPy's functions, this function supports it.
-
-        # Solve the shape of the reduced array
-        if axis is None:
-            sh_keepdims = (1,) * a.ndim
-        else:
-            sh_keepdims = list(a.shape)
-            sh_keepdims[axis] = 1
-
-        a_max = amax(a, axis=axis)
-
-        if a_max.ndim > 0:
-            a_max[~isfinite(a_max)] = 0
-        elif not isfinite(a_max):
-            a_max = 0
-
-        if b is not None:
-            b = asarray(b)
-            tmp = b * exp(a - reshape(a_max, sh_keepdims))
-        else:
-            tmp = exp(a - reshape(a_max, sh_keepdims))
-
-        # suppress warnings about log of zero
-        with np.errstate(divide='ignore'):
-            out = log(sum(tmp, axis=axis))
-
-        out += a_max
-
-        if keepdims:
-            # Put back the reduced axes with size one
-            out = reshape(out, sh_keepdims)
+    if axis is None:
+        a = a.ravel()
     else:
-        # This is a more elegant implementation, requiring NumPy >= 1.7.0
-        a_max = amax(a, axis=axis, keepdims=True)
-
-        if a_max.ndim > 0:
-            a_max[~isfinite(a_max)] = 0
-        elif not isfinite(a_max):
-            a_max = 0
-
-        if b is not None:
-            b = asarray(b)
-            tmp = b * exp(a - a_max)
+        a = rollaxis(a, axis)
+    a_max = a.max(axis=0)
+    if b is not None:
+        b = asarray(b)
+        if axis is None:
+            b = b.ravel()
         else:
-            tmp = exp(a - a_max)
-
-        # suppress warnings about log of zero
-        with np.errstate(divide='ignore'):
-            out = log(sum(tmp, axis=axis, keepdims=keepdims))
-
-        if not keepdims:
-            a_max = squeeze(a_max, axis=axis)
-
-        out += a_max
-
+            b = rollaxis(b, axis)
+        out = log(sum(b * exp(a - a_max), axis=0))
+    else:
+        out = log(sum(exp(a - a_max), axis=0))
+    out += a_max
     return out
 
 
@@ -326,14 +263,6 @@ def lena():
     -------
     lena : ndarray
         Lena image
-
-    Notes
-    -----
-    Though safe for work in most places, this sexualized image is drawn from
-    Playboy and makes some viewers uncomfortable.  It has been very widely
-    used as an example in image processing and is therefore made available
-    for compatibility.  For new code that needs an example image we recommend
-    `face` or `ascent`.
 
     Examples
     --------

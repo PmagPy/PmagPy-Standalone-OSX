@@ -1,5 +1,6 @@
 #******************************************************************************
 #   Copyright (C) 2013 Kenneth L. Ho
+#
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions are met:
 #
@@ -28,7 +29,7 @@
 
 import scipy.linalg.interpolative as pymatrixid
 import numpy as np
-from scipy.linalg import hilbert, svdvals, norm
+from scipy.linalg import hilbert, svdvals
 from scipy.sparse.linalg import aslinearoperator
 import time
 
@@ -216,16 +217,15 @@ class TestInterpolativeDecomposition(object):
         for M in [A, B]:
             ML = aslinearoperator(M)
 
-            rank_tol = 1e-9
-            rank_np = np.linalg.matrix_rank(M, norm(M, 2)*rank_tol)
-            rank_est = pymatrixid.estimate_rank(M, rank_tol)
-            rank_est_2 = pymatrixid.estimate_rank(ML, rank_tol)
+            rank_np = np.linalg.matrix_rank(M, 1e-9)
+            rank_est = pymatrixid.estimate_rank(M, 1e-9)
+            rank_est_2 = pymatrixid.estimate_rank(ML, 1e-9)
 
             assert_(rank_est >= rank_np)
             assert_(rank_est <= rank_np + 10)
 
-            assert_(rank_est_2 >= rank_np - 4)
-            assert_(rank_est_2 <= rank_np + 4)
+            assert_(rank_est_2 >= rank_np)
+            assert_(rank_est_2 <= rank_np + 10)
 
     def test_rand(self):
         pymatrixid.seed('default')

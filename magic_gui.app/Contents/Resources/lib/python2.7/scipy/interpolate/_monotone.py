@@ -10,7 +10,7 @@ __all__ = ["PchipInterpolator", "pchip_interpolate", "pchip",
            "Akima1DInterpolator"]
 
 
-class PchipInterpolator(BPoly):
+class PchipInterpolator(object):
     """PCHIP 1-d monotonic cubic interpolation
 
     x and y are arrays of values used to approximate some function f,
@@ -25,7 +25,7 @@ class PchipInterpolator(BPoly):
         include duplicate values (otherwise f is overspecified)
     y : ndarray
         A 1-D array of real values.  `y`'s length along the interpolation
-        axis must be equal to the length of `x`. If N-D array, use axis
+        axis must be equal to the length of `x`. If N-D array, use axis 
         parameter to select correct axis.
     axis : int, optional
         Axis in the y array corresponding to the x-coordinate values.
@@ -37,23 +37,17 @@ class PchipInterpolator(BPoly):
     -------
     __call__
     derivative
-    antiderivative
-
-    See Also
-    --------
-    Akima1DInterpolator
 
     Notes
     -----
     The first derivatives are guaranteed to be continuous, but the second
-    derivatives may jump at x_k.
+    derivatives may jump at x_k. 
 
     Preserves monotonicity in the interpolation data and does not overshoot
     if the data is not smooth.
 
-    Determines the derivatives at the points x_k, d_k, by using PCHIP
-    algorithm:
-
+    Determines the derivatives at the points x_k, d_k, by using PCHIP algorithm:
+      
     Let m_k be the slope of the kth segment (between k and k+1)
     If m_k=0 or m_{k-1}=0 or sgn(m_k) != sgn(m_{k-1}) then d_k == 0
     else use weighted harmonic mean:
@@ -66,31 +60,77 @@ class PchipInterpolator(BPoly):
     """
     def __init__(self, x, y, axis=0, extrapolate=None):
         x = np.asarray(x)
-        if not np.issubdtype(x.dtype, np.inexact):
-            x = x.astype(float)
-
         y = np.asarray(y)
-        if not np.issubdtype(y.dtype, np.inexact):
-            y = y.astype(float)
 
         axis = axis % y.ndim
-
+        
         xp = x.reshape((x.shape[0],) + (1,)*(y.ndim-1))
         yp = np.rollaxis(y, axis)
 
         dk = self._find_derivatives(xp, yp)
         data = np.hstack((yp[:, None, ...], dk[:, None, ...]))
 
-        _b = BPoly.from_derivatives(x, data, orders=None)
-        super(PchipInterpolator, self).__init__(_b.c, _b.x,
-                                                extrapolate=extrapolate)
+        self._bpoly = BPoly.from_derivatives(x, data, orders=None,
+                extrapolate=extrapolate)
         self.axis = axis
+
+    def __call__(self, x, der=0, extrapolate=None):
+        """
+        Evaluate the PCHIP interpolant or its derivative.
+
+        Parameters
+        ----------
+        x : array-like
+            Points to evaluate the interpolant at.
+        der : int, optional
+            Order of derivative to evaluate. Must be non-negative.
+        extrapolate : bool, optional
+            Whether to extrapolate to ouf-of-bounds points based on first
+            and last intervals, or to return NaNs.
+
+        Returns
+        -------
+        y : array-like
+            Interpolated values. Shape is determined by replacing
+            the interpolation axis in the original array with the shape of x.
+
+        """
+        out = self._bpoly(x, der, extrapolate)
+        return self._reshaper(x, out)
+
+    def derivative(self, der=1):
+        """
+        Construct a piecewise polynomial representing the derivative.
+
+        Parameters
+        ----------
+        der : int, optional
+            Order of derivative to evaluate. (Default: 1)
+            If negative, the antiderivative is returned.
+
+        Returns
+        ------- 
+        Piecewise polynomial of order k2 = k - der representing the derivative
+        of this polynomial.
+
+        """
+        t = object.__new__(self.__class__)
+        t.axis = self.axis
+        t._bpoly = self._bpoly.derivative(der)
+        return t
 
     def roots(self):
         """
         Return the roots of the interpolated function.
         """
         return (PPoly.from_bernstein_basis(self._bpoly)).roots()
+
+    def _reshaper(self, x, out):
+        x = np.asarray(x)
+        l = x.ndim
+        transp = (tuple(range(l, l+self.axis)) + tuple(range(l)) +
+                tuple(range(l+self.axis, out.ndim)))
+        return out.transpose(transp)
 
     @staticmethod
     def _edge_case(m0, d1, out):
@@ -113,8 +153,8 @@ class PchipInterpolator(BPoly):
         y_shape = y.shape
         if y.ndim == 1:
             # So that _edge_case doesn't end up assigning to scalars
-            x = x[:, None]
-            y = y[:, None]
+            x = x[:,None]
+            y = y[:,None]
 
         hk = x[1:] - x[:-1]
         mk = (y[1:] - y[:-1]) / hk
@@ -133,15 +173,15 @@ class PchipInterpolator(BPoly):
 
         # For end-points choose d_0 so that 1/d_0 = 1/m_0 + 1/d_1 unless
         #  one of d_1 or m_0 is 0, then choose d_0 = 0
-        PchipInterpolator._edge_case(mk[0], dk[1], dk[0])
-        PchipInterpolator._edge_case(mk[-1], dk[-2], dk[-1])
+        PchipInterpolator._edge_case(mk[0],dk[1], dk[0])
+        PchipInterpolator._edge_case(mk[-1],dk[-2], dk[-1])
 
         return dk.reshape(y_shape)
 
 
 def pchip_interpolate(xi, yi, x, der=0, axis=0):
     """
-    Convenience function for pchip interpolation.
+    Convenience function for pchip interpolation. 
     xi and yi are arrays of values used to approximate some function f,
     with ``yi = f(xi)``.  The interpolant uses monotonic cubic splines
     to find the value of new points x and the derivatives there.
@@ -154,11 +194,11 @@ def pchip_interpolate(xi, yi, x, der=0, axis=0):
         A sorted list of x-coordinates, of length N.
     yi :  array_like
         A 1-D array of real values.  `yi`'s length along the interpolation
-        axis must be equal to the length of `xi`. If N-D array, use axis
+        axis must be equal to the length of `xi`. If N-D array, use axis 
         parameter to select correct axis.
     x : scalar or array_like
         Of length M.
-    der : int or list, optional
+    der : integer or list
         How many derivatives to extract; None for all potentially
         nonzero derivatives (that is a number equal to the number
         of points), or a list of derivatives to extract. This number
@@ -203,22 +243,15 @@ class Akima1DInterpolator(PPoly):
     x : ndarray, shape (m, )
         1-D array of monotonically increasing real values.
     y : ndarray, shape (m, ...)
-        N-D array of real values. The length of `y` along the first axis must
-        be equal to the length of `x`.
+        N-D array of real values. The length of *y* along the first axis must
+        be equal to the length of *x*.
     axis : int, optional
-        Specifies the axis of `y` along which to interpolate. Interpolation
-        defaults to the first axis of `y`.
+        Specifies the axis of *y* along which to interpolate. Interpolation
+        defaults to the last axis of *y*.
 
     Methods
     -------
     __call__
-    derivative
-    antiderivative
-    roots
-
-    See Also
-    --------
-    PchipInterpolator
 
     Notes
     -----
@@ -236,23 +269,17 @@ class Akima1DInterpolator(PPoly):
 
     """
 
-    def __init__(self, x, y, axis=0):
+    def __init__(self, x, y):
         # Original implementation in MATLAB by N. Shamsundar (BSD licensed), see
         # http://www.mathworks.de/matlabcentral/fileexchange/1814-akima-interpolation
-        x, y = map(np.asarray, (x, y))
-        axis = axis % y.ndim
-
         if np.any(np.diff(x) < 0.):
             raise ValueError("x must be strictly ascending")
         if x.ndim != 1:
             raise ValueError("x must be 1-dimensional")
         if x.size < 2:
             raise ValueError("at least 2 breakpoints are needed")
-        if x.size != y.shape[axis]:
-            raise ValueError("x.shape must equal y.shape[%s]" % axis)
-
-        # move interpolation axis to front
-        y = np.rollaxis(y, axis)
+        if x.size != y.shape[0]:
+            raise ValueError("x.shape must equal y.shape[0]")
 
         # determine slopes between breakpoints
         m = np.empty((x.size + 3, ) + y.shape[1:])
@@ -291,20 +318,7 @@ class Akima1DInterpolator(PPoly):
         coeff[0] = d
 
         super(Akima1DInterpolator, self).__init__(coeff, x, extrapolate=False)
-        self.axis = axis
 
     def extend(self):
         raise NotImplementedError("Extending a 1D Akima interpolator is not "
-                                  "yet implemented")
-
-    # These are inherited from PPoly, but they do not produce an Akima
-    # interpolator. Hence stub them out.
-    @classmethod
-    def from_spline(cls, tck, extrapolate=None):
-        raise NotImplementedError("This method does not make sense for "
-                                  "an Akima interpolator.")
-
-    @classmethod
-    def from_bernstein_basis(cls, bp, extrapolate=None):
-        raise NotImplementedError("This method does not make sense for "
-                                  "an Akima interpolator.")
+                "yet implemented")

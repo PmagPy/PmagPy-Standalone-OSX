@@ -5,10 +5,11 @@ __all__ = ['spmatrix', 'isspmatrix', 'issparse',
         'SparseWarning','SparseEfficiencyWarning']
 
 import sys
+from warnings import warn
 
 import numpy as np
 
-from scipy._lib.six import xrange
+from scipy.lib.six import xrange
 from .sputils import isdense, isscalarlike, isintlike
 
 
@@ -46,13 +47,6 @@ _formats = {'csc':[0, "Compressed Sparse Column"],
             'vbr':[18, "Variable Block Row"],
             'und':[19, "Undefined"]
             }
-
-
-# These univariate ufuncs preserve zeros.
-_ufuncs_with_fixed_point_at_zero = frozenset([
-        np.sin, np.tan, np.arcsin, np.arctan, np.sinh, np.tanh, np.arcsinh,
-        np.arctanh, np.rint, np.sign, np.expm1, np.log1p, np.deg2rad,
-        np.rad2deg, np.floor, np.ceil, np.trunc, np.sqrt])
 
 
 MAXPRINT = 50
@@ -250,9 +244,6 @@ class spmatrix(object):
 
         """
         return self * other
-
-    def power(self, n, dtype=None):            
-        return self.tocsr().power(n, dtype=dtype)
 
     def __eq__(self, other):
         return self.tocsr().__eq__(other)
@@ -452,19 +443,19 @@ class spmatrix(object):
         return -self.tocsr()
 
     def __iadd__(self, other):
-        return NotImplemented
+        raise NotImplementedError
 
     def __isub__(self, other):
-        return NotImplemented
+        raise NotImplementedError
 
     def __imul__(self, other):
-        return NotImplemented
+        raise NotImplementedError
 
     def __idiv__(self, other):
         return self.__itruediv__(other)
 
     def __itruediv__(self, other):
-        return NotImplemented
+        raise NotImplementedError
 
     def __pow__(self, other):
         if self.shape[0] != self.shape[1]:
@@ -702,11 +693,13 @@ class spmatrix(object):
         """Average the matrix over the given axis.  If the axis is None,
         average over both rows and columns, returning a scalar.
         """
-        # Mimic numpy's casting.
+        # Mimic numpy's casting.  The int32/int64 check works around numpy
+        # 1.5.x behavior of np.issubdtype, see gh-2677.
         if (np.issubdtype(self.dtype, np.float_) or
-                np.issubdtype(self.dtype, np.integer) or
-                np.issubdtype(self.dtype, np.bool_)):
-            res_dtype = np.float_
+            np.issubdtype(self.dtype, np.int_) or
+            self.dtype in [np.dtype('int32'), np.dtype('int64')] or
+            np.issubdtype(self.dtype, np.bool_)):
+                res_dtype = np.float_
         elif np.issubdtype(self.dtype, np.complex_):
             res_dtype = np.complex_
         else:
@@ -757,12 +750,8 @@ class spmatrix(object):
         M, N = self.shape
         if (k > 0 and k >= N) or (k < 0 and -k >= M):
             raise ValueError("k exceeds matrix dimensions")
-        self._setdiag(np.asarray(values), k)
-
-    def _setdiag(self, values, k):
-        M, N = self.shape
         if k < 0:
-            if values.ndim == 0:
+            if np.asarray(values).ndim == 0:
                 # broadcast
                 max_index = min(M+k, N)
                 for i in xrange(max_index):
@@ -774,7 +763,7 @@ class spmatrix(object):
                 for i,v in enumerate(values[:max_index]):
                     self[i - k, i] = v
         else:
-            if values.ndim == 0:
+            if np.asarray(values).ndim == 0:
                 # broadcast
                 max_index = min(M, N-k)
                 for i in xrange(max_index):
@@ -848,7 +837,9 @@ class spmatrix(object):
             result = self.minimum(*without_self)
         elif func is np.absolute:
             result = abs(self)
-        elif func in _ufuncs_with_fixed_point_at_zero:
+        elif func in (np.sin, np.tan, np.arcsin, np.arctan, np.sinh, np.tanh,
+                      np.arcsinh, np.arctanh, np.rint, np.sign, np.expm1, np.log1p,
+                      np.deg2rad, np.rad2deg, np.floor, np.ceil, np.trunc, np.sqrt):
             func_name = func.__name__
             if hasattr(self, func_name):
                 result = getattr(self, func_name)()

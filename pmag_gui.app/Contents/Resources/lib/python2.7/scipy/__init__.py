@@ -22,9 +22,9 @@ Using any of these subpackages requires an explicit import.  For example,
  integrate                    --- Integration routines
  interpolate                  --- Interpolation Tools
  io                           --- Data input and output
+ lib                          --- Python wrappers to external libraries
+ lib.lapack                   --- Wrappers to LAPACK library
  linalg                       --- Linear algebra routines
- linalg.blas                  --- Wrappers to BLAS library
- linalg.lapack                --- Wrappers to LAPACK library
  misc                         --- Various utilities that don't have
                                   another home.
  ndimage                      --- n-dimensional image package
@@ -36,11 +36,20 @@ Using any of these subpackages requires an explicit import.  For example,
  sparse.linalg.dsolve         --- Linear Solvers
  sparse.linalg.dsolve.umfpack --- :Interface to the UMFPACK library:
                                   Conjugate Gradient Method (LOBPCG)
- sparse.linalg.eigen          --- Sparse Eigenvalue Solvers
  sparse.linalg.eigen.lobpcg   --- Locally Optimal Block Preconditioned
-                                  Conjugate Gradient Method (LOBPCG)
+                                  Conjugate Gradient Method (LOBPCG) [*]
+ special                      --- Airy Functions [*]
+ lib.blas                     --- Wrappers to BLAS library [*]
+ sparse.linalg.eigen          --- Sparse Eigenvalue Solvers [*]
+ stats                        --- Statistical Functions [*]
+ lib                          --- Python wrappers to external libraries
+                                  [*]
+ lib.lapack                   --- Wrappers to LAPACK library [*]
+ integrate                    --- Integration routines [*]
+ ndimage                      --- n-dimensional image package [*]
+ linalg                       --- Linear algebra routines [*]
  spatial                      --- Spatial data structures and algorithms
- special                      --- Special functions
+ special                      --- Airy Functions
  stats                        --- Statistical Functions
 
 Utility tools
@@ -103,10 +112,10 @@ else:
         raise ImportError(msg)
 
     from scipy.version import version as __version__
-    from scipy._lib._version import NumpyVersion as _NumpyVersion
-    if _NumpyVersion(__numpy_version__) < '1.6.2':
+    from scipy.lib._version import NumpyVersion as _NumpyVersion
+    if _NumpyVersion(__numpy_version__) < '1.5.1':
         import warnings
-        warnings.warn("Numpy 1.6.2 or above is recommended for this version of "
+        warnings.warn("Numpy 1.5.1 or above is recommended for this version of "
                       "scipy (detected version %s)" % __numpy_version__,
                       UserWarning)
 

@@ -19,8 +19,11 @@ from tempfile import mkstemp
 
 import numpy as np
 
-from numpy.testing import (assert_, assert_equal, assert_raises,
-                           run_module_suite)
+from nose.tools import assert_true, assert_false, \
+     assert_equal, assert_raises
+
+from numpy.testing import assert_array_equal, assert_array_almost_equal, \
+     run_module_suite
 
 from scipy.io.matlab.streams import make_stream, \
     GenericStream, cStringStream, FileStream, ZlibInputStream, \
@@ -55,10 +58,10 @@ def teardown():
 def test_make_stream():
     global fs, gs, cs
     # test stream initialization
-    assert_(isinstance(make_stream(gs), GenericStream))
+    assert_true(isinstance(make_stream(gs), GenericStream))
     if sys.version_info[0] < 3:
-        assert_(isinstance(make_stream(cs), cStringStream))
-        assert_(isinstance(make_stream(fs), FileStream))
+        assert_true(isinstance(make_stream(cs), cStringStream))
+        assert_true(isinstance(make_stream(fs), FileStream))
 
 
 def test_tell_seek():
@@ -184,11 +187,11 @@ class TestZlibInputStream(object):
     def test_all_data_read(self):
         compressed_stream, compressed_data_len, data = self._get_data(1024)
         stream = ZlibInputStream(compressed_stream, compressed_data_len)
-        assert_(not stream.all_data_read())
+        assert_false(stream.all_data_read())
         stream.seek(512)
-        assert_(not stream.all_data_read())
+        assert_false(stream.all_data_read())
         stream.seek(1024)
-        assert_(stream.all_data_read())
+        assert_true(stream.all_data_read())
 
 
 if __name__ == "__main__":

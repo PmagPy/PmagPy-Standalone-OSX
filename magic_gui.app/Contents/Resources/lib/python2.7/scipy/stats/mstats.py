@@ -27,6 +27,8 @@ is a relatively new package, some API changes are still possible.
    kendalltau
    kendalltau_seasonal
    kruskalwallis
+   kruskalwallis
+   ks_twosamp
    ks_twosamp
    kurtosis
    kurtosistest

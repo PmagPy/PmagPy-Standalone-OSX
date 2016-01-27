@@ -26,7 +26,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-
 from __future__ import division, print_function, absolute_import
 
 import struct
@@ -69,7 +68,6 @@ RECTYPE_DICT[15] = "HEAP_HEADER"
 RECTYPE_DICT[16] = "HEAP_DATA"
 RECTYPE_DICT[17] = "PROMOTE64"
 RECTYPE_DICT[19] = "NOTICE"
-RECTYPE_DICT[20] = "DESCRIPTION"
 
 # Define a dictionary to contain structure definitions
 STRUCT_DICT = {}
@@ -166,6 +164,7 @@ def _read_string(f):
         _align_32(f)
         chars = asstr(chars)
     else:
+        warnings.warn("warning: empty strings are now set to '' instead of None")
         chars = ''
     return chars
 
@@ -178,6 +177,7 @@ def _read_string_data(f):
         string_data = _read_bytes(f, length)
         _align_32(f)
     else:
+        warnings.warn("warning: empty strings are now set to '' instead of None")
         string_data = ''
     return string_data
 
@@ -231,6 +231,7 @@ def _read_structure(f, array_desc, struct_desc):
     '''
 
     nrows = array_desc['nelements']
+    ncols = struct_desc['ntags']
     columns = struct_desc['tagtable']
 
     dtype = []
@@ -262,6 +263,7 @@ def _read_structure(f, array_desc, struct_desc):
 
     # Reshape structure if needed
     if array_desc['ndims'] > 1:
+        warnings.warn("warning: multi-dimensional structures are now correctly reshaped")
         dims = array_desc['dims'][:int(array_desc['ndims'])]
         dims.reverse()
         structure = structure.reshape(dims)
@@ -320,6 +322,8 @@ def _read_record(f):
     '''Function to read in a full record'''
 
     record = {}
+
+    recpos = f.tell()
     record['rectype'] = _read_long(f)
 
     nextrec = _read_uint32(f)
@@ -342,28 +346,19 @@ def _read_record(f):
 
         rectypedesc = _read_typedesc(f)
 
-        if rectypedesc['typecode'] == 0:
+        varstart = _read_long(f)
+        if varstart != 7:
+            raise Exception("VARSTART is not 7")
 
-            if nextrec == f.tell():
-                record['data'] = None  # Indicates NULL value
-            else:
-                raise ValueError("Unexpected type code: 0")
-
+        if rectypedesc['structure']:
+            record['data'] = _read_structure(f, rectypedesc['array_desc'],
+                                          rectypedesc['struct_desc'])
+        elif rectypedesc['array']:
+            record['data'] = _read_array(f, rectypedesc['typecode'],
+                                      rectypedesc['array_desc'])
         else:
-
-            varstart = _read_long(f)
-            if varstart != 7:
-                raise Exception("VARSTART is not 7")
-
-            if rectypedesc['structure']:
-                record['data'] = _read_structure(f, rectypedesc['array_desc'],
-                                                    rectypedesc['struct_desc'])
-            elif rectypedesc['array']:
-                record['data'] = _read_array(f, rectypedesc['typecode'],
-                                                rectypedesc['array_desc'])
-            else:
-                dtype = rectypedesc['typecode']
-                record['data'] = _read_data(f, dtype)
+            dtype = rectypedesc['typecode']
+            record['data'] = _read_data(f, dtype)
 
     elif record['rectype'] == "TIMESTAMP":
 
@@ -388,10 +383,6 @@ def _read_record(f):
     elif record['rectype'] == "NOTICE":
 
         record['notice'] = _read_string(f)
-
-    elif record['rectype'] == "DESCRIPTION":
-
-        record['description'] = _read_string_data(f)
 
     elif record['rectype'] == "HEAP_HEADER":
 
@@ -593,12 +584,7 @@ def _replace_heap(variable, heap):
             if variable.index == 0:
                 variable = None
             else:
-                if variable.index in heap:
-                    variable = heap[variable.index]
-                else:
-                    warnings.warn("Variable referenced by pointer not found "
-                                  "in heap: variable will be set to None")
-                    variable = None
+                variable = heap[variable.index]
 
         replace, new = _replace_heap(variable, heap)
 
@@ -857,13 +843,6 @@ def readsav(file_name, idict=None, python_dict=False,
                 print("Author: %s" % record['author'])
                 print("Title: %s" % record['title'])
                 print("ID Code: %s" % record['idcode'])
-                break
-
-        # Print out descriptions saved with the file
-        for record in records:
-            if record['rectype'] == "DESCRIPTION":
-                print("-"*50)
-                print("Description: %s" % record['description'])
                 break
 
         print("-"*50)

@@ -1,4 +1,4 @@
-""" Testing mio5_utils Cython module
+""" Testing
 
 """
 from __future__ import division, print_function, absolute_import
@@ -10,11 +10,13 @@ cStringIO = BytesIO
 
 import numpy as np
 
-from nose.tools import (assert_true, assert_equal, assert_raises)
+from nose.tools import assert_true, assert_false, \
+     assert_equal, assert_raises
 
-from numpy.testing import (assert_array_equal, run_module_suite)
+from numpy.testing import assert_array_equal, assert_array_almost_equal, \
+     run_module_suite
 
-from scipy._lib.six import u
+from scipy.lib.six import u
 
 import scipy.io.matlab.byteordercodes as boc
 import scipy.io.matlab.streams as streams
@@ -30,9 +32,9 @@ def test_byteswap():
         a = np.array(val, dtype=np.uint32)
         b = a.byteswap()
         c = m5u.byteswap_u4(a)
-        assert_equal(b.item(), c)
+        yield assert_equal, b.item(), c
         d = m5u.byteswap_u4(c)
-        assert_equal(a.item(), d)
+        yield assert_equal, a.item(), d
 
 
 def _make_tag(base_dt, val, mdtype, sde=False):
@@ -97,12 +99,12 @@ def test_read_tag():
     r = _make_readerlike(str_io)
     c_reader = m5u.VarReader5(r)
     # This works for StringIO but _not_ cStringIO
-    assert_raises(IOError, c_reader.read_tag)
+    yield assert_raises, IOError, c_reader.read_tag
     # bad SDE
     tag = _make_tag('i4', 1, mio5p.miINT32, sde=True)
     tag['byte_count'] = 5
     _write_stream(str_io, tag.tostring())
-    assert_raises(ValueError, c_reader.read_tag)
+    yield assert_raises, ValueError, c_reader.read_tag
 
 
 def test_read_stream():
@@ -111,7 +113,7 @@ def test_read_stream():
     str_io = cStringIO(tag_str)
     st = streams.make_stream(str_io)
     s = streams._read_into(st, tag.itemsize)
-    assert_equal(s, tag.tostring())
+    yield assert_equal, s, tag.tostring()
 
 
 def test_read_numeric():
@@ -119,27 +121,28 @@ def test_read_numeric():
     str_io = cStringIO()
     r = _make_readerlike(str_io)
     # check simplest of tags
-    for base_dt, val, mdtype in (('u2', 30, mio5p.miUINT16),
-                                 ('i4', 1, mio5p.miINT32),
-                                 ('i2', -1, mio5p.miINT16)):
+    for base_dt, val, mdtype in (
+        ('u2', 30, mio5p.miUINT16),
+        ('i4', 1, mio5p.miINT32),
+        ('i2', -1, mio5p.miINT16)):
         for byte_code in ('<', '>'):
             r.byte_order = byte_code
             c_reader = m5u.VarReader5(r)
-            assert_equal(c_reader.little_endian, byte_code == '<')
-            assert_equal(c_reader.is_swapped, byte_code != boc.native_code)
+            yield assert_equal, c_reader.little_endian, byte_code == '<'
+            yield assert_equal, c_reader.is_swapped, byte_code != boc.native_code
             for sde_f in (False, True):
                 dt = np.dtype(base_dt).newbyteorder(byte_code)
                 a = _make_tag(dt, val, mdtype, sde_f)
                 a_str = a.tostring()
                 _write_stream(str_io, a_str)
                 el = c_reader.read_numeric()
-                assert_equal(el, val)
+                yield assert_equal, el, val
                 # two sequential reads
                 _write_stream(str_io, a_str, a_str)
                 el = c_reader.read_numeric()
-                assert_equal(el, val)
+                yield assert_equal, el, val
                 el = c_reader.read_numeric()
-                assert_equal(el, val)
+                yield assert_equal, el, val
 
 
 def test_read_numeric_writeable():
@@ -152,7 +155,7 @@ def test_read_numeric_writeable():
     a_str = a.tostring()
     _write_stream(str_io, a_str)
     el = c_reader.read_numeric()
-    assert_true(el.flags.writeable)
+    yield assert_true, el.flags.writeable
 
 
 def test_zero_byte_string():

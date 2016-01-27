@@ -8,7 +8,7 @@ from numpy import (atleast_1d, dot, take, triu, shape, eye,
                    transpose, zeros, product, greater, array,
                    all, where, isscalar, asarray, inf, abs,
                    finfo, inexact, issubdtype, dtype)
-from .optimize import OptimizeResult, _check_unknown_options, OptimizeWarning
+from .optimize import OptimizeResult, _check_unknown_options
 
 error = _minpack.error
 
@@ -63,7 +63,7 @@ def fsolve(func, x0, args=(), fprime=None, full_output=0,
     col_deriv : bool, optional
         Specify whether the Jacobian function computes derivatives down
         the columns (faster, because there is no transpose operation).
-    xtol : float, optional
+    xtol : float
         The calculation will terminate if the relative error between two
         consecutive iterates is at most `xtol`.
     maxfev : int, optional
@@ -155,36 +155,37 @@ def _root_hybr(func, x0, args=(), jac=None,
     Find the roots of a multivariate function using MINPACK's hybrd and
     hybrj routines (modified Powell method).
 
-    Options
-    -------
-    col_deriv : bool
-        Specify whether the Jacobian function computes derivatives down
-        the columns (faster, because there is no transpose operation).
-    xtol : float
-        The calculation will terminate if the relative error between two
-        consecutive iterates is at most `xtol`.
-    maxfev : int
-        The maximum number of calls to the function. If zero, then
-        ``100*(N+1)`` is the maximum where N is the number of elements
-        in `x0`.
-    band : tuple
-        If set to a two-sequence containing the number of sub- and
-        super-diagonals within the band of the Jacobi matrix, the
-        Jacobi matrix is considered banded (only for ``fprime=None``).
-    eps : float
-        A suitable step length for the forward-difference
-        approximation of the Jacobian (for ``fprime=None``). If
-        `eps` is less than the machine precision, it is assumed
-        that the relative errors in the functions are of the order of
-        the machine precision.
-    factor : float
-        A parameter determining the initial step bound
-        (``factor * || diag * x||``).  Should be in the interval
-        ``(0.1, 100)``.
-    diag : sequence
-        N positive entries that serve as a scale factors for the
-        variables.
+    Options for the hybrd algorithm are:
+        col_deriv : bool
+            Specify whether the Jacobian function computes derivatives down
+            the columns (faster, because there is no transpose operation).
+        xtol : float
+            The calculation will terminate if the relative error between two
+            consecutive iterates is at most `xtol`.
+        maxfev : int
+            The maximum number of calls to the function. If zero, then
+            ``100*(N+1)`` is the maximum where N is the number of elements
+            in `x0`.
+        band : tuple
+            If set to a two-sequence containing the number of sub- and
+            super-diagonals within the band of the Jacobi matrix, the
+            Jacobi matrix is considered banded (only for ``fprime=None``).
+        eps : float
+            A suitable step length for the forward-difference
+            approximation of the Jacobian (for ``fprime=None``). If
+            `eps` is less than the machine precision, it is assumed
+            that the relative errors in the functions are of the order of
+            the machine precision.
+        factor : float
+            A parameter determining the initial step bound
+            (``factor * || diag * x||``).  Should be in the interval
+            ``(0.1, 100)``.
+        diag : sequence
+            N positive entries that serve as a scale factors for the
+            variables.
 
+    This function is called by the `root` function with `method=hybr`. It
+    is not supposed to be called directly.
     """
     _check_unknown_options(unknown_options)
     epsfcn = eps
@@ -267,41 +268,38 @@ def leastsq(func, x0, args=(), Dfun=None, full_output=0,
     ----------
     func : callable
         should take at least one (possibly length N vector) argument and
-        returns M floating point numbers. It must not return NaNs or
-        fitting might fail.
+        returns M floating point numbers.
     x0 : ndarray
         The starting estimate for the minimization.
-    args : tuple, optional
+    args : tuple
         Any extra arguments to func are placed in this tuple.
-    Dfun : callable, optional
+    Dfun : callable
         A function or method to compute the Jacobian of func with derivatives
         across the rows. If this is None, the Jacobian will be estimated.
-    full_output : bool, optional
+    full_output : bool
         non-zero to return all optional outputs.
-    col_deriv : bool, optional
+    col_deriv : bool
         non-zero to specify that the Jacobian function computes derivatives
         down the columns (faster, because there is no transpose operation).
-    ftol : float, optional
+    ftol : float
         Relative error desired in the sum of squares.
-    xtol : float, optional
+    xtol : float
         Relative error desired in the approximate solution.
-    gtol : float, optional
+    gtol : float
         Orthogonality desired between the function vector and the columns of
         the Jacobian.
-    maxfev : int, optional
-        The maximum number of calls to the function. If `Dfun` is provided
-        then the default `maxfev` is 100*(N+1) where N is the number of elements
-        in x0, otherwise the default `maxfev` is 200*(N+1).
-    epsfcn : float, optional
-        A variable used in determining a suitable step length for the forward-
-        difference approximation of the Jacobian (for Dfun=None). 
-        Normally the actual step length will be sqrt(epsfcn)*x
-        If epsfcn is less than the machine precision, it is assumed that the 
-        relative errors are of the order of the machine precision.
-    factor : float, optional
+    maxfev : int
+        The maximum number of calls to the function. If zero, then 100*(N+1) is
+        the maximum where N is the number of elements in x0.
+    epsfcn : float
+        A suitable step length for the forward-difference approximation of the
+        Jacobian (for Dfun=None). If epsfcn is less than the machine precision,
+        it is assumed that the relative errors in the functions are of the
+        order of the machine precision.
+    factor : float
         A parameter determining the initial step bound
         (``factor * || diag * x||``). Should be in interval ``(0.1, 100)``.
-    diag : sequence, optional
+    diag : sequence
         N positive entries that serve as a scale factors for the variables.
 
     Returns
@@ -451,8 +449,7 @@ def _weighted_general_function(params, xdata, ydata, function, weights):
     return weights * (function(xdata, *params) - ydata)
 
 
-def curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False,
-              check_finite=True, **kw):
+def curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False, **kw):
     """
     Use non-linear least squares to fit a function, f, to data.
 
@@ -469,16 +466,14 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False,
         The independent variable where the data is measured.
     ydata : M-length sequence
         The dependent data --- nominally f(xdata, ...)
-    p0 : None, scalar, or N-length sequence, optional
+    p0 : None, scalar, or N-length sequence
         Initial guess for the parameters.  If None, then the initial
         values will all be 1 (if the number of parameters for the function
         can be determined using introspection, otherwise a ValueError
         is raised).
     sigma : None or M-length sequence, optional
-        If not None, the uncertainties in the ydata array. These are used as
-        weights in the least-squares problem
-        i.e. minimising ``np.sum( ((f(xdata, *popt) - ydata) / sigma)**2 )``
-        If None, the uncertainties are assumed to be 1.
+        If not None, these values are used as weights in the
+        least-squares problem.
     absolute_sigma : bool, optional
         If False, `sigma` denotes relative weights of the data points.
         The returned covariance matrix `pcov` is based on *estimated*
@@ -489,12 +484,6 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False,
         If True, `sigma` describes one standard deviation errors of
         the input data points. The estimated covariance in `pcov` is
         based on these values.
-    check_finite : bool, optional
-        If True, check that the input arrays do not contain nans of infs,
-        and raise a ValueError if they do. Setting this parameter to
-        False may silently produce nonsensical results if the input arrays
-        do contain nans.
-        Default is True.
 
     Returns
     -------
@@ -508,14 +497,6 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False,
 
         How the `sigma` parameter affects the estimated covariance
         depends on `absolute_sigma` argument, as described above.
-
-    Raises
-    ------
-    OptimizeWarning
-        if covariance of the parameters can not be estimated.
-
-    ValueError
-        if ydata and xdata contain NaNs.
 
     See Also
     --------
@@ -542,29 +523,25 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False,
     """
     if p0 is None:
         # determine number of parameters by inspecting the function
-        from scipy._lib._util import getargspec_no_self as _getargspec
-        args, varargs, varkw, defaults = _getargspec(f)
+        import inspect
+        args, varargs, varkw, defaults = inspect.getargspec(f)
         if len(args) < 2:
             msg = "Unable to determine number of fit parameters."
             raise ValueError(msg)
-        p0 = [1.0] * (len(args)-1)
+        if 'self' in args:
+            p0 = [1.0] * (len(args)-2)
+        else:
+            p0 = [1.0] * (len(args)-1)
 
     # Check input arguments
     if isscalar(p0):
         p0 = array([p0])
 
-    # NaNs can not be handled
-    if check_finite:
-        ydata = np.asarray_chkfinite(ydata)
-    else:
-        ydata = np.asarray(ydata)
-    if isinstance(xdata, (list, tuple, np.ndarray)):
+    ydata = np.asanyarray(ydata)
+    if isinstance(xdata, (list, tuple)):
         # `xdata` is passed straight to the user-defined `f`, so allow
         # non-array_like `xdata`.
-        if check_finite:
-            xdata = np.asarray_chkfinite(xdata)
-        else:
-            xdata = np.asarray(xdata)
+        xdata = np.asarray(xdata)
 
     args = (xdata, ydata, f)
     if sigma is None:
@@ -582,23 +559,16 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, absolute_sigma=False,
         msg = "Optimal parameters not found: " + errmsg
         raise RuntimeError(msg)
 
-    warn_cov = False
     if pcov is None:
         # indeterminate covariance
         pcov = zeros((len(popt), len(popt)), dtype=float)
         pcov.fill(inf)
-        warn_cov = True
     elif not absolute_sigma:
         if len(ydata) > len(p0):
             s_sq = (asarray(func(popt, *args))**2).sum() / (len(ydata) - len(p0))
             pcov = pcov * s_sq
         else:
             pcov.fill(inf)
-            warn_cov = True
-
-    if warn_cov:
-        warnings.warn('Covariance of the parameters could not be estimated',
-                category=OptimizeWarning)
 
     if return_full:
         return popt, pcov, infodict, errmsg, ier
@@ -666,7 +636,7 @@ def fixed_point(func, x0, args=(), xtol=1e-8, maxiter=500):
     --------
     >>> from scipy import optimize
     >>> def func(x, c1, c2):
-    ...    return np.sqrt(c1/(x+c2))
+    ....    return np.sqrt(c1/(x+c2))
     >>> c1 = np.array([10,12.])
     >>> c2 = np.array([3, 5.])
     >>> optimize.fixed_point(func, [1.2, 1.3], args=(c1,c2))

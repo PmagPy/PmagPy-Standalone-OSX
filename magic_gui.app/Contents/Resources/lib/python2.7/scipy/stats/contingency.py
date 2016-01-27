@@ -86,7 +86,6 @@ def expected_freq(observed):
     Examples
     --------
     >>> observed = np.array([[10, 10, 20],[20, 20, 20]])
-    >>> from scipy.stats import expected_freq
     >>> expected_freq(observed)
     array([[ 12.,  12.,  16.],
            [ 18.,  18.,  24.]])
@@ -198,7 +197,6 @@ def chi2_contingency(observed, correction=True, lambda_=None):
     --------
     A two-way example (2 x 3):
 
-    >>> from scipy.stats import chi2_contingency
     >>> obs = np.array([[10, 10, 20], [20, 20, 20]])
     >>> chi2_contingency(obs)
     (2.7777777777777777,
@@ -248,9 +246,9 @@ def chi2_contingency(observed, correction=True, lambda_=None):
     if np.any(expected == 0):
         # Include one of the positions where expected is zero in
         # the exception message.
-        zeropos = list(zip(*np.where(expected == 0)))[0]
+        zeropos = list(np.where(expected == 0)[0])
         raise ValueError("The internally computed table of expected "
-                         "frequencies has a zero element at %s." % (zeropos,))
+                         "frequencies has a zero element at %s." % zeropos)
 
     # The degrees of freedom
     dof = expected.size - sum(expected.shape) + expected.ndim - 1

@@ -2,7 +2,8 @@ from __future__ import division, print_function, absolute_import
 
 import numpy as np
 from numpy.testing import (assert_array_almost_equal, assert_raises, dec,
-    run_module_suite, assert_array_equal)
+    run_module_suite)
+from scipy.lib._version import NumpyVersion
 from scipy.sparse.csgraph import (shortest_path, dijkstra, johnson,
     bellman_ford, construct_dist_matrix, NegativeCycleError)
 
@@ -57,6 +58,8 @@ undirected_pred = np.array([[-9999, 0, 0, 0, 0],
 methods = ['auto', 'FW', 'D', 'BF', 'J']
 
 
+@dec.skipif(NumpyVersion(np.__version__) < '1.6.0',
+            "Can't test arrays with infs.")
 def test_dijkstra_limit():
     limits = [0, 2, np.inf]
     results = [undirected_SP_limit_0,
@@ -71,6 +74,8 @@ def test_dijkstra_limit():
         yield check, limit, result
 
 
+@dec.skipif(NumpyVersion(np.__version__) < '1.6.0',
+            "Can't test arrays with infs.")
 def test_directed():
     def check(method):
         SP = shortest_path(directed_G, method=method, directed=True,
@@ -111,6 +116,8 @@ def test_shortest_path_indices():
             yield check, func, indshape
 
 
+@dec.skipif(NumpyVersion(np.__version__) < '1.6.0',
+            "Can't test arrays with infs.")
 def test_predecessors():
     SP_res = {True: directed_SP,
               False: undirected_SP}
@@ -129,6 +136,8 @@ def test_predecessors():
             yield check, method, directed
 
 
+@dec.skipif(NumpyVersion(np.__version__) < '1.6.0',
+            "Can't test arrays with infs.")
 def test_construct_shortest_path():
     def check(method, directed):
         SP1, pred = shortest_path(directed_G,
@@ -143,6 +152,8 @@ def test_construct_shortest_path():
             yield check, method, directed
 
 
+@dec.skipif(NumpyVersion(np.__version__) < '1.6.0',
+            "Can't test arrays with infs.")
 def test_unweighted_path():
     def check(method, directed):
         SP1 = shortest_path(directed_G,
@@ -175,6 +186,8 @@ def test_negative_cycles():
             yield check, method, directed
 
 
+@dec.skipif(NumpyVersion(np.__version__) < '1.6.0',
+            "Can't test arrays with infs.")
 def test_masked_input():
     G = np.ma.masked_equal(directed_G, 0)
 
@@ -185,17 +198,6 @@ def test_masked_input():
 
     for method in methods:
         yield check, method
-
-
-def test_overwrite():
-    G = np.array([[0, 3, 3, 1, 2],
-                  [3, 0, 0, 2, 4],
-                  [3, 0, 0, 0, 0],
-                  [1, 2, 0, 0, 2],
-                  [2, 4, 0, 2, 0]], dtype=float)
-    foo = G.copy()
-    shortest_path(foo, overwrite=False)
-    assert_array_equal(foo, G)
 
 
 if __name__ == '__main__':

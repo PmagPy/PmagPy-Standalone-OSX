@@ -314,7 +314,7 @@ def binary_erosion(input, structure=None, iterations=1, mask=None,
         By default, a new array is created.
     origin : int or tuple of ints, optional
         Placement of the filter, by default 0.
-    border_value : int (cast to 0 or 1), optional
+    border_value : int (cast to 0 or 1)
         Value at the border in the output array.
 
     Returns
@@ -401,7 +401,7 @@ def binary_dilation(input, structure=None, iterations=1, mask=None,
         By default, a new array is created.
     origin : int or tuple of ints, optional
         Placement of the filter, by default 0.
-    border_value : int (cast to 0 or 1), optional
+    border_value : int (cast to 0 or 1)
         Value at the border in the output array.
 
     Returns
@@ -848,20 +848,18 @@ def binary_propagation(input, structure=None, mask=None,
     ----------
     input : array_like
         Binary image to be propagated inside `mask`.
-    structure : array_like, optional
+    structure : array_like
         Structuring element used in the successive dilations. The output
         may depend on the structuring element, especially if `mask` has
         several connex components. If no structuring element is
         provided, an element is generated with a squared connectivity equal
         to one.
-    mask : array_like, optional
+    mask : array_like
         Binary mask defining the region into which `input` is allowed to
         propagate.
     output : ndarray, optional
         Array of the same shape as input, into which the output is placed.
         By default, a new array is created.
-    border_value : int (cast to 0 or 1), optional
-        Value at the border in the output array.
     origin : int or tuple of ints, optional
         Placement of the filter, by default 0.
 
@@ -1593,9 +1591,9 @@ def morphological_laplace(input, size=None, footprint=None,
         See `structure`.
     footprint : bool or ndarray, optional
         See `structure`.
-    structure : structure, optional
+    structure : structure
         Either `size`, `footprint`, or the `structure` must be provided.
-    output : ndarray, optional
+    output : ndarray
         An output array can optionally be provided.
     mode : {'reflect','constant','nearest','mirror', 'wrap'}, optional
         The mode parameter determines how the array borders are handled.
@@ -1604,7 +1602,7 @@ def morphological_laplace(input, size=None, footprint=None,
     cval : scalar, optional
         Value to fill past edges of input if mode is 'constant'.
         Default is 0.0
-    origin : origin, optional
+    origin : origin
         The origin parameter controls the placement of the filter.
 
     Returns
@@ -1693,7 +1691,7 @@ def black_tophat(input, size=None, footprint=None,
     ----------
     input : array_like
         Input.
-    size : tuple of ints, optional
+    size : tuple of ints
         Shape of a flat and full structuring element used for the filter.
         Optional if `footprint` or `structure` is provided.
     footprint : array of ints, optional
@@ -2015,7 +2013,7 @@ def distance_transform_edt(input, sampling=None,
         return_distances/return_indices must be True. Default is True.
     return_indices : bool, optional
         Whether to return indices matrix. Default is False.
-    distances : ndarray, optional
+    distance : ndarray, optional
         Used for output of distance array, must be of type float64.
     indices : ndarray, optional
         Used for output of indices, must be of type int32.

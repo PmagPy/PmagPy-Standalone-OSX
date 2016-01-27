@@ -31,7 +31,7 @@ def _sqrtm_triu(T, blocksize=64):
     ----------
     T : (N, N) array_like upper triangular
         Matrix whose square root to evaluate
-    blocksize : int, optional
+    blocksize : integer, optional
         If the blocksize is not degenerate with respect to the
         size of the input array, then use a blocked algorithm. (Default: 64)
 
@@ -140,18 +140,6 @@ def sqrtm(A, disp=True, blocksize=64):
     .. [1] Edvin Deadman, Nicholas J. Higham, Rui Ralha (2013)
            "Blocked Schur Algorithms for Computing the Matrix Square Root,
            Lecture Notes in Computer Science, 7782. pp. 171-182.
-
-    Examples
-    --------
-    >>> from scipy.linalg import sqrtm
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> r = sqrtm(a)
-    >>> r
-    array([[ 0.75592895,  1.13389342],
-           [ 0.37796447,  1.88982237]])
-    >>> r.dot(r)
-    array([[ 1.,  3.],
-           [ 1.,  4.]])
 
     """
     A = np.asarray(A)

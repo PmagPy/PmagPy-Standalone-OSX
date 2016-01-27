@@ -18,20 +18,6 @@ flag_map = {0: CONVERGED, -1: SIGNERR, -2: CONVERR}
 
 
 class RootResults(object):
-    """ Represents the root finding result.
-    Attributes
-    ----------
-    root : float
-        Estimated root location.
-    iterations : int
-        Number of iterations needed to find the root.
-    function_calls : int
-        Number of times the function was called.
-    converged : bool
-        True if the routine converged.
-    flag : str
-        Description of the cause of termination.
-    """
     def __init__(self, root, iterations, function_calls, flag):
         self.root = root
         self.iterations = iterations
@@ -182,7 +168,7 @@ def bisect(f, a, b, args=(),
     Find root of a function within an interval.
 
     Basic bisection routine to find a zero of the function `f` between the
-    arguments `a` and `b`. `f(a)` and `f(b)` cannot have the same signs.
+    arguments `a` and `b`. `f(a)` and `f(b)` can not have the same signs.
     Slow but sure.
 
     Parameters
@@ -203,7 +189,7 @@ def bisect(f, a, b, args=(),
         the value returned of the value returned. Should be >= 0. Defaults to
         ``np.finfo(float).eps * 2``.
     maxiter : number, optional
-        if convergence is not achieved in `maxiter` iterations, an error is
+        if convergence is not achieved in `maxiter` iterations, and error is
         raised.  Must be >= 0.
     args : tuple, optional
         containing extra arguments for the function `f`.
@@ -264,7 +250,7 @@ def ridder(f, a, b, args=(),
         the value returned of the value returned. Should be >= 0. Defaults to
         ``np.finfo(float).eps * 2``.
     maxiter : number, optional
-        if convergence is not achieved in maxiter iterations, an error is
+        if convergence is not achieved in maxiter iterations, and error is
         raised.  Must be >= 0.
     args : tuple, optional
         containing extra arguments for the function `f`.
@@ -333,7 +319,7 @@ def brentq(f, a, b, args=(),
     rootfinding routines here.  It is a safe version of the secant method that
     uses inverse quadratic extrapolation.  Brent's method combines root
     bracketing, interval bisection, and inverse quadratic interpolation.  It is
-    sometimes known as the van Wijngaarden-Dekker-Brent method.  Brent (1973)
+    sometimes known as the van Wijngaarden-Deker-Brent method.  Brent (1973)
     claims convergence is guaranteed for functions computable within [a,b].
 
     [Brent1973]_ provides the classic description of the algorithm.  Another
@@ -362,7 +348,7 @@ def brentq(f, a, b, args=(),
         the value returned of the value returned. Should be >= 0. Defaults to
         ``np.finfo(float).eps * 2``.
     maxiter : number, optional
-        if convergence is not achieved in maxiter iterations, an error is
+        if convergence is not achieved in maxiter iterations, and error is
         raised.  Must be >= 0.
     args : tuple, optional
         containing extra arguments for the function `f`.
@@ -391,7 +377,7 @@ def brentq(f, a, b, args=(),
     constrained multivariate optimizers
       `fmin_l_bfgs_b`, `fmin_tnc`, `fmin_cobyla`
     global optimizers
-      `basinhopping`, `brute`, `differential_evolution`
+      `anneal`, `basinhopping`, `brute`
     local scalar minimizers
       `fminbound`, `brent`, `golden`, `bracket`
     n-dimensional root-finding
@@ -438,7 +424,7 @@ def brenth(f, a, b, args=(),
     A variation on the classic Brent routine to find a zero of the function f
     between the arguments a and b that uses hyperbolic extrapolation instead of
     inverse quadratic extrapolation. There was a paper back in the 1980's ...
-    f(a) and f(b) cannot have the same signs. Generally on a par with the
+    f(a) and f(b) can not have the same signs. Generally on a par with the
     brent routine, but not as heavily tested.  It is a safe version of the
     secant method that uses hyperbolic extrapolation. The version here is by
     Chuck Harris.
@@ -461,7 +447,7 @@ def brenth(f, a, b, args=(),
         the value returned of the value returned. Should be >= 0. Defaults to
         ``np.finfo(float).eps * 2``.
     maxiter : number, optional
-        if convergence is not achieved in maxiter iterations, an error is
+        if convergence is not achieved in maxiter iterations, and error is
         raised.  Must be >= 0.
     args : tuple, optional
         containing extra arguments for the function `f`.
@@ -490,7 +476,7 @@ def brenth(f, a, b, args=(),
 
     fmin_l_bfgs_b, fmin_tnc, fmin_cobyla : constrained multivariate optimizers
 
-    basinhopping, differential_evolution, brute : global optimizers
+    anneal, brute : global optimizers
 
     fminbound, brent, golden, bracket : local scalar minimizers
 

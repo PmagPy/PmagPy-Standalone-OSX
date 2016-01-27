@@ -8,7 +8,7 @@ __all__ = ['csr_matrix', 'isspmatrix_csr']
 
 
 import numpy as np
-from scipy._lib.six import xrange
+from scipy.lib.six import xrange
 
 from ._sparsetools import csr_tocsc, csr_tobsr, csr_count_blocks, \
         get_csr_submatrix, csr_sample_values
@@ -32,9 +32,9 @@ class csr_matrix(_cs_matrix, IndexMixin):
             to construct an empty matrix with shape (M, N)
             dtype is optional, defaulting to dtype='d'.
 
-        csr_matrix((data, (row_ind, col_ind)), [shape=(M, N)])
-            where ``data``, ``row_ind`` and ``col_ind`` satisfy the
-            relationship ``a[row_ind[k], col_ind[k]] = data[k]``.
+        csr_matrix((data, ij), [shape=(M, N)])
+            where ``data`` and ``ij`` satisfy the relationship
+            ``a[ij[0, k], ij[1, k]] = data[k]``
 
         csr_matrix((data, indices, indptr), [shape=(M, N)])
             is the standard CSR representation where the column indices for
@@ -80,47 +80,28 @@ class csr_matrix(_cs_matrix, IndexMixin):
     Examples
     --------
 
-    >>> import numpy as np
-    >>> from scipy.sparse import csr_matrix
-    >>> csr_matrix((3, 4), dtype=np.int8).toarray()
-    array([[0, 0, 0, 0],
-           [0, 0, 0, 0],
-           [0, 0, 0, 0]], dtype=int8)
+    >>> from scipy.sparse import *
+    >>> from scipy import *
+    >>> csr_matrix( (3,4), dtype=int8 ).todense()
+    matrix([[0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]], dtype=int8)
 
-    >>> row = np.array([0, 0, 1, 2, 2, 2])
-    >>> col = np.array([0, 2, 2, 0, 1, 2])
-    >>> data = np.array([1, 2, 3, 4, 5, 6])
-    >>> csr_matrix((data, (row, col)), shape=(3, 3)).toarray()
-    array([[1, 0, 2],
-           [0, 0, 3],
-           [4, 5, 6]])
+    >>> row = array([0,0,1,2,2,2])
+    >>> col = array([0,2,2,0,1,2])
+    >>> data = array([1,2,3,4,5,6])
+    >>> csr_matrix( (data,(row,col)), shape=(3,3) ).todense()
+    matrix([[1, 0, 2],
+            [0, 0, 3],
+            [4, 5, 6]])
 
-    >>> indptr = np.array([0, 2, 3, 6])
-    >>> indices = np.array([0, 2, 2, 0, 1, 2])
-    >>> data = np.array([1, 2, 3, 4, 5, 6])
-    >>> csr_matrix((data, indices, indptr), shape=(3, 3)).toarray()
-    array([[1, 0, 2],
-           [0, 0, 3],
-           [4, 5, 6]])
-
-    As an example of how to construct a CSR matrix incrementally,
-    the following snippet builds a term-document matrix from texts:
-
-    >>> docs = [["hello", "world", "hello"], ["goodbye", "cruel", "world"]]
-    >>> indptr = [0]
-    >>> indices = []
-    >>> data = []
-    >>> vocabulary = {}
-    >>> for d in docs:
-    ...     for term in d:
-    ...         index = vocabulary.setdefault(term, len(vocabulary))
-    ...         indices.append(index)
-    ...         data.append(1)
-    ...     indptr.append(len(indices))
-    ...
-    >>> csr_matrix((data, indices, indptr), dtype=int).toarray()
-    array([[2, 1, 0, 0],
-           [0, 1, 1, 1]])
+    >>> indptr = array([0,2,3,6])
+    >>> indices = array([0,2,2,0,1,2])
+    >>> data = array([1,2,3,4,5,6])
+    >>> csr_matrix( (data,indices,indptr), shape=(3,3) ).todense()
+    matrix([[1, 0, 2],
+            [0, 0, 3],
+            [4, 5, 6]])
 
     """
 
@@ -283,22 +264,14 @@ class csr_matrix(_cs_matrix, IndexMixin):
                 # col is int or slice with step 1, row is slice with step 1.
                 return self._get_submatrix(row, col)
             elif issequence(col):
-                # row is slice, col is sequence.
                 P = extractor(col,self.shape[1]).T        # [1:2,[1,2]]
-                sliced = self
-                if row != slice(None, None, None):
-                    sliced = sliced[row,:]
-                return sliced * P
-
+                # row is slice, col is sequence.
+                return self[row,:]*P
         elif issequence(row):
             # [[1,2],??]
             if isintlike(col) or isinstance(col,slice):
                 P = extractor(row, self.shape[0])     # [[1,2],j] or [[1,2],1:2]
-                extracted = P * self
-                if col == slice(None, None, None):
-                    return extracted
-                else:
-                    return extracted[:,col]
+                return (P*self)[:,col]
 
         if not (issequence(col) and issequence(row)):
             # Sample elementwise
@@ -412,7 +385,8 @@ class csr_matrix(_cs_matrix, IndexMixin):
             if not (0 <= i0 <= num) or not (0 <= i1 <= num) or not (i0 <= i1):
                 raise IndexError(
                       "index out of bounds: 0 <= %d <= %d, 0 <= %d <= %d,"
-                      " %d <= %d" % (i0, num, i1, num, i0, i1))
+                       " %d <= %d" %
+                      (i0, num, i1, num, i0, i1))
 
         i0, i1 = process_slice(row_slice, M)
         j0, j1 = process_slice(col_slice, N)
@@ -426,6 +400,7 @@ class csr_matrix(_cs_matrix, IndexMixin):
         shape = (i1 - i0, j1 - j0)
 
         return self.__class__((data,indices,indptr), shape=shape)
+
 
 def isspmatrix_csr(x):
     return isinstance(x, csr_matrix)

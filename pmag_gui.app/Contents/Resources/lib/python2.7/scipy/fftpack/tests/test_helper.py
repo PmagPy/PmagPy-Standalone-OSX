@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Created by Pearu Peterson, September 2002
-
+""" Test functions for fftpack.helper module
+"""
 from __future__ import division, print_function, absolute_import
 
 __usage__ = """
@@ -61,7 +62,6 @@ class TestRFFTFreq(TestCase):
         x = [0,1,1,2,2,3,3,4,4,5]
         assert_array_almost_equal(10*rfftfreq(10),x)
         assert_array_almost_equal(10*pi*rfftfreq(10,pi),x)
-
 
 if __name__ == "__main__":
     run_module_suite()

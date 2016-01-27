@@ -16,7 +16,7 @@ import sys
 from numpy import asarray, real, imag, conj, zeros, ndarray, concatenate, \
                   ones, ascontiguousarray, vstack, savetxt, fromfile, fromstring
 from numpy.compat import asbytes, asstr
-from scipy._lib.six import string_types
+from scipy.lib.six import string_types
 
 __all__ = ['mminfo','mmread','mmwrite', 'MMFile']
 
@@ -199,16 +199,17 @@ class MMFile (object):
             # read and validate header line
             line = source.readline()
             mmid, matrix, format, field, symmetry = \
-              [asstr(part.strip()) for part in line.split()]
-            if not mmid.startswith('%%MatrixMarket'):
+              [asstr(part.strip().lower()) for part in line.split()]
+            if not mmid.startswith('%%matrixmarket'):
                 raise ValueError('source is not in Matrix Market format')
-            if not matrix.lower() == 'matrix':
+            if not matrix == 'matrix':
                 raise ValueError("Problem reading file header: " + line)
 
+            # ??? Is this necessary?  I don't see 'dense' or 'sparse' in the spec
             # http://math.nist.gov/MatrixMarket/formats.html
-            if format.lower() == 'array':
+            if format == 'dense':
                 format = self.FORMAT_ARRAY
-            elif format.lower() == 'coordinate':
+            elif format == 'sparse':
                 format = self.FORMAT_COORDINATE
 
             # skip comments
@@ -226,7 +227,7 @@ class MMFile (object):
                     raise ValueError("Header line not of length 3: " + line)
                 rows, cols, entries = map(int, line)
 
-            return (rows, cols, entries, format, field.lower(), symmetry.lower())
+            return (rows, cols, entries, format, field, symmetry)
 
         finally:
             if close_it:
@@ -638,7 +639,7 @@ class MMFile (object):
 def _is_fromfile_compatible(stream):
     """
     Check whether stream is compatible with numpy.fromfile.
-
+    
     Passing a gzipped file to fromfile/fromstring doesn't work
     with Python3
 

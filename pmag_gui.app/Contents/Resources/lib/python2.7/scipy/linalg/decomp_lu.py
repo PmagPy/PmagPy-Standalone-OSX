@@ -29,9 +29,9 @@ def lu_factor(a, overwrite_a=False, check_finite=True):
     ----------
     a : (M, M) array_like
         Matrix to decompose
-    overwrite_a : bool, optional
+    overwrite_a : boolean
         Whether to overwrite data in A (may increase performance)
-    check_finite : bool, optional
+    check_finite : boolean, optional
         Whether to check that the input matrix contains only finite numbers.
         Disabling may give a performance gain, but may result in problems
         (crashes, non-termination) if the inputs do contain infinities or NaNs.
@@ -81,7 +81,7 @@ def lu_solve(lu_and_piv, b, trans=0, overwrite_b=False, check_finite=True):
         Factorization of the coefficient matrix a, as given by lu_factor
     b : array
         Right-hand side
-    trans : {0, 1, 2}, optional
+    trans : {0, 1, 2}
         Type of system to solve:
 
         =====  =========
@@ -91,9 +91,7 @@ def lu_solve(lu_and_piv, b, trans=0, overwrite_b=False, check_finite=True):
         1      a^T x = b
         2      a^H x = b
         =====  =========
-    overwrite_b : bool, optional
-        Whether to overwrite data in b (may increase performance)
-    check_finite : bool, optional
+    check_finite : boolean, optional
         Whether to check that the input matrices contain only finite numbers.
         Disabling may give a performance gain, but may result in problems
         (crashes, non-termination) if the inputs do contain infinities or NaNs.
@@ -127,7 +125,7 @@ def lu_solve(lu_and_piv, b, trans=0, overwrite_b=False, check_finite=True):
 
 def lu(a, permute_l=False, overwrite_a=False, check_finite=True):
     """
-    Compute pivoted LU decomposition of a matrix.
+    Compute pivoted LU decompostion of a matrix.
 
     The decomposition is::
 
@@ -140,11 +138,11 @@ def lu(a, permute_l=False, overwrite_a=False, check_finite=True):
     ----------
     a : (M, N) array_like
         Array to decompose
-    permute_l : bool, optional
+    permute_l : bool
         Perform the multiplication P*L  (Default: do not permute)
-    overwrite_a : bool, optional
+    overwrite_a : bool
         Whether to overwrite data in a (may improve performance)
-    check_finite : bool, optional
+    check_finite : boolean, optional
         Whether to check that the input matrix contains only finite numbers.
         Disabling may give a performance gain, but may result in problems
         (crashes, non-termination) if the inputs do contain infinities or NaNs.

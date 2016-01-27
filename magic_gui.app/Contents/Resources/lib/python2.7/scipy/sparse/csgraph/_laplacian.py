@@ -10,14 +10,15 @@ Laplacian of a compressed-sparse graph
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
-from scipy.sparse import isspmatrix
+from scipy.sparse import isspmatrix, coo_matrix
 
 
 ###############################################################################
 # Graph laplacian
-def laplacian(csgraph, normed=False, return_diag=False, use_out_degree=False):
-    """
-    Return the Laplacian matrix of a directed graph.
+def laplacian(csgraph, normed=False, return_diag=False):
+    """ Return the Laplacian matrix of a directed graph.
+
+    For non-symmetric graphs the out-degree is used in the computation.
 
     Parameters
     ----------
@@ -26,20 +27,15 @@ def laplacian(csgraph, normed=False, return_diag=False, use_out_degree=False):
     normed : bool, optional
         If True, then compute normalized Laplacian.
     return_diag : bool, optional
-        If True, then also return an array related to vertex degrees.
-    use_out_degree : bool, optional
-        If True, then use out-degree instead of in-degree.
-        This distinction matters only if the graph is asymmetric.
-        Default: False.
+        If True, then return diagonal as well as laplacian.
 
     Returns
     -------
     lap : ndarray
         The N x N laplacian matrix of graph.
-    diag : ndarray, optional
-        The length-N diagonal of the Laplacian matrix.
-        For the normalized Laplacian, this is the array of square roots
-        of vertex degrees or 1 if the degree is zero.
+    diag : ndarray
+        The length-N diagonal of the laplacian matrix.
+        diag is returned only if return_diag is True.
 
     Notes
     -----
@@ -47,6 +43,9 @@ def laplacian(csgraph, normed=False, return_diag=False, use_out_degree=False):
     "Kirchoff matrix" or the "admittance matrix", and is useful in many
     parts of spectral graph theory.  In particular, the eigen-decomposition
     of the laplacian matrix can give insight into many properties of the graph.
+
+    For non-symmetric directed graphs, the laplacian is computed using the
+    out-degree of each node.
 
     Examples
     --------
@@ -72,51 +71,67 @@ def laplacian(csgraph, normed=False, return_diag=False, use_out_degree=False):
                    or np.issubdtype(csgraph.dtype, np.uint)):
         csgraph = csgraph.astype(np.float)
 
-    create_lap = _laplacian_sparse if isspmatrix(csgraph) else _laplacian_dense
-    degree_axis = 1 if use_out_degree else 0
-    lap, d = create_lap(csgraph, normed=normed, axis=degree_axis)
+    if isspmatrix(csgraph):
+        return _laplacian_sparse(csgraph, normed=normed,
+                                 return_diag=return_diag)
+    else:
+        return _laplacian_dense(csgraph, normed=normed,
+                                return_diag=return_diag)
+
+
+def _laplacian_sparse(graph, normed=False, return_diag=False):
+    n_nodes = graph.shape[0]
+    if not graph.format == 'coo':
+        lap = (-graph).tocoo()
+    else:
+        lap = -graph.copy()
+    diag_mask = (lap.row == lap.col)
+    if not diag_mask.sum() == n_nodes:
+        # The sparsity pattern of the matrix has holes on the diagonal,
+        # we need to fix that
+        diag_idx = lap.row[diag_mask]
+        diagonal_holes = list(set(range(n_nodes)).difference(
+                                diag_idx))
+        new_data = np.concatenate([lap.data, np.ones(len(diagonal_holes))])
+        new_row = np.concatenate([lap.row, diagonal_holes])
+        new_col = np.concatenate([lap.col, diagonal_holes])
+        lap = coo_matrix((new_data, (new_row, new_col)), shape=lap.shape)
+        diag_mask = (lap.row == lap.col)
+
+    lap.data[diag_mask] = 0
+    w = -np.asarray(lap.sum(axis=1)).squeeze()
+    if normed:
+        w = np.sqrt(w)
+        w_zeros = (w == 0)
+        w[w_zeros] = 1
+        lap.data /= w[lap.row]
+        lap.data /= w[lap.col]
+        lap.data[diag_mask] = (1 - w_zeros[lap.row[diag_mask]]).astype(lap.data.dtype)
+    else:
+        lap.data[diag_mask] = w[lap.row[diag_mask]]
+
     if return_diag:
-        return lap, d
+        return lap, w
     return lap
 
 
-def _setdiag_dense(A, d):
-    A.flat[::len(d)+1] = d
+def _laplacian_dense(graph, normed=False, return_diag=False):
+    n_nodes = graph.shape[0]
+    lap = -np.asarray(graph)  # minus sign leads to a copy
 
-
-def _laplacian_sparse(graph, normed=False, axis=0):
-    if graph.format == 'coo':
-        m = graph.copy()
-    else:
-        m = graph.tocoo()
-    w = m.sum(axis=axis).getA1() - m.diagonal()
+    # set diagonal to zero
+    lap.flat[::n_nodes + 1] = 0
+    w = -lap.sum(axis=0)
     if normed:
         w = np.sqrt(w)
-        isolated_node_mask = (w == 0)
-        w[isolated_node_mask] = 1
-        m.data /= w[m.row]
-        m.data /= w[m.col]
-        m.data *= -1
-        m.setdiag(1 - isolated_node_mask)
+        w_zeros = (w == 0)
+        w[w_zeros] = 1
+        lap /= w
+        lap /= w[:, np.newaxis]
+        lap.flat[::n_nodes + 1] = 1 - w_zeros
     else:
-        m.data *= -1
-        m.setdiag(w)
-    return m, w
+        lap.flat[::n_nodes + 1] = w
 
-
-def _laplacian_dense(graph, normed=False, axis=0):
-    m = np.array(graph)
-    np.fill_diagonal(m, 0)
-    w = m.sum(axis=axis)
-    if normed:
-        w = np.sqrt(w)
-        isolated_node_mask = (w == 0)
-        w[isolated_node_mask] = 1
-        m /= w
-        m /= w[:, np.newaxis]
-        m *= -1
-        _setdiag_dense(m, 1 - isolated_node_mask)
-    else:
-        m *= -1
-        _setdiag_dense(m, w)
-    return m, w
+    if return_diag:
+        return lap, w
+    return lap

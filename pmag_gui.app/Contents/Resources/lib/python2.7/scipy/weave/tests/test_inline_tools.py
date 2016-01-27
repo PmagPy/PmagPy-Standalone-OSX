@@ -1,10 +1,8 @@
 from __future__ import absolute_import, print_function
 
-from numpy.testing import TestCase, assert_, run_module_suite
+from numpy.testing import TestCase, dec, assert_, run_module_suite
 
 from scipy.weave import inline_tools
-
-from weave_test_utils import dec
 
 
 class TestInline(TestCase):

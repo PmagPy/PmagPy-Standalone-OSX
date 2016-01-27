@@ -3,12 +3,9 @@ Tests for line search routines
 """
 from __future__ import division, print_function, absolute_import
 
-import warnings
-
 from numpy.testing import assert_, assert_equal, \
      assert_array_almost_equal, assert_array_almost_equal_nulp
 import scipy.optimize.linesearch as ls
-from scipy.optimize.linesearch import LineSearchWarning
 import numpy as np
 
 
@@ -193,11 +190,9 @@ class TestLineSearch(object):
             f0 = f(x)
             g0 = fprime(x)
             self.fcount = 0
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore', LineSearchWarning)
-                s, fc, gc, fv, ofv, gv = ls.line_search_wolfe2(f, fprime, x, p,
-                                                               g0, f0, old_f,
-                                                               amax=smax)
+            s, fc, gc, fv, ofv, gv = ls.line_search_wolfe2(f, fprime, x, p,
+                                                           g0, f0, old_f,
+                                                           amax=smax)
             assert_equal(self.fcount, fc+gc)
             assert_fp_equal(ofv, f(x))
             assert_fp_equal(fv, f(x + s*p))

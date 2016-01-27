@@ -11,23 +11,11 @@ import numpy as np
 import math
 import warnings
 
-from scipy._lib.six import xrange
+from scipy.lib.six import xrange
 
 
 class AccuracyWarning(Warning):
     pass
-
-
-def _cached_p_roots(n):
-    """
-    Cache p_roots results for speeding up multiple calls of the fixed_quad function.
-    """
-    if n in _cached_p_roots.cache:
-        return _cached_p_roots.cache[n]
-
-    _cached_p_roots.cache[n] = p_roots(n)
-    return _cached_p_roots.cache[n]
-_cached_p_roots.cache = dict()
 
 
 def fixed_quad(func,a,b,args=(),n=5):
@@ -69,7 +57,7 @@ def fixed_quad(func,a,b,args=(),n=5):
     odeint : ODE integrator
 
     """
-    [x,w] = _cached_p_roots(n)
+    [x,w] = p_roots(n)
     x = real(x)
     ainf, binf = map(isinf,(a,b))
     if ainf or binf:
@@ -92,9 +80,9 @@ def vectorize1(func, args=(), vec_func=False):
     ----------
     func : callable
         User defined function.
-    args : tuple, optional
+    args : tuple
         Extra arguments for the function.
-    vec_func : bool, optional
+    vec_func : bool
         True if the function func takes vector arguments.
 
     Returns
@@ -144,7 +132,7 @@ def quadrature(func, a, b, args=(), tol=1.49e-8, rtol=1.49e-8, maxiter=50,
         Upper limit of integration.
     args : tuple, optional
         Extra arguments to pass to function.
-    tol, rtol : float, optional
+    tol, rol : float, optional
         Iteration stops when error between last two iterates is less than
         `tol` OR the relative change is less than `rtol`.
     maxiter : int, optional
@@ -382,7 +370,7 @@ def simps(y, x=None, dx=1, axis=-1, even='avg'):
     last_dx = dx
     first_dx = dx
     returnshape = 0
-    if x is not None:
+    if not x is None:
         x = asarray(x)
         if len(x.shape) == 1:
             shapex = ones(nd)
@@ -401,13 +389,13 @@ def simps(y, x=None, dx=1, axis=-1, even='avg'):
         result = 0.0
         slice1 = (slice(None),)*nd
         slice2 = (slice(None),)*nd
-        if even not in ['avg', 'last', 'first']:
+        if not even in ['avg', 'last', 'first']:
             raise ValueError("Parameter 'even' must be 'avg', 'last', or 'first'.")
         # Compute using Simpson's rule on first intervals
         if even in ['avg', 'first']:
             slice1 = tupleset(slice1, axis, -1)
             slice2 = tupleset(slice2, axis, -2)
-            if x is not None:
+            if not x is None:
                 last_dx = x[slice1] - x[slice2]
             val += 0.5*last_dx*(y[slice1]+y[slice2])
             result = _basic_simps(y,0,N-3,x,dx,axis)
@@ -415,7 +403,7 @@ def simps(y, x=None, dx=1, axis=-1, even='avg'):
         if even in ['avg', 'last']:
             slice1 = tupleset(slice1, axis, 0)
             slice2 = tupleset(slice2, axis, 1)
-            if x is not None:
+            if not x is None:
                 first_dx = x[tuple(slice2)] - x[tuple(slice1)]
             val += 0.5*first_dx*(y[slice2]+y[slice1])
             result += _basic_simps(y,1,N-2,x,dx,axis)
@@ -438,7 +426,7 @@ def romb(y, dx=1.0, axis=-1, show=False):
     ----------
     y : array_like
         A vector of ``2**k + 1`` equally-spaced samples of a function.
-    dx : float, optional
+    dx : array_like, optional
         The sample spacing. Default is 1.
     axis : int, optional
         The axis along which to integrate. Default is -1 (last axis).
@@ -484,21 +472,21 @@ def romb(y, dx=1.0, axis=-1, show=False):
     slice0 = tupleset(all, axis, 0)
     slicem1 = tupleset(all, axis, -1)
     h = Ninterv*asarray(dx)*1.0
-    R[(0,0)] = (y[slice0] + y[slicem1])/2.0*h
+    R[(1,1)] = (y[slice0] + y[slicem1])/2.0*h
     slice_R = all
     start = stop = step = Ninterv
-    for i in range(1,k+1):
+    for i in range(2,k+1):
         start >>= 1
         slice_R = tupleset(slice_R, axis, slice(start,stop,step))
         step >>= 1
-        R[(i,0)] = 0.5*(R[(i-1,0)] + h*add.reduce(y[slice_R],axis))
-        for j in range(1,i+1):
+        R[(i,1)] = 0.5*(R[(i-1,1)] + h*add.reduce(y[slice_R],axis))
+        for j in range(2,i+1):
             R[(i,j)] = R[(i,j-1)] + \
-                       (R[(i,j-1)]-R[(i-1,j-1)]) / ((1 << (2*j))-1)
+                       (R[(i,j-1)]-R[(i-1,j-1)]) / ((1 << (2*(j-1)))-1)
         h = h / 2.0
 
     if show:
-        if not isscalar(R[(0,0)]):
+        if not isscalar(R[(1,1)]):
             print("*** Printing table only supported for integrals" +
                   " of a single data set.")
         else:
@@ -514,8 +502,8 @@ def romb(y, dx=1.0, axis=-1, show=False):
 
             print("\n       Richardson Extrapolation Table for Romberg Integration       ")
             print("====================================================================")
-            for i in range(0,k+1):
-                for j in range(0,i+1):
+            for i in range(1,k+1):
+                for j in range(1,i+1):
                     print(formstr % R[(i,j)], end=' ')
                 print()
             print("====================================================================\n")

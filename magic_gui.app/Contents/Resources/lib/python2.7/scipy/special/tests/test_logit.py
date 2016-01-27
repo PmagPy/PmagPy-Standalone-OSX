@@ -3,6 +3,7 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 from numpy.testing import (TestCase, assert_equal, assert_almost_equal,
         assert_allclose)
+from scipy.lib._version import NumpyVersion
 from scipy.special import logit, expit
 
 
@@ -16,7 +17,10 @@ class TestLogit(TestCase):
         finally:
             np.seterr(**olderr)
 
-        assert_almost_equal(actual, expected)
+        if NumpyVersion(np.__version__) >= '1.6.0':
+            assert_almost_equal(actual, expected)
+        else:
+            assert_almost_equal(actual[1:-1], expected[1:-1])
 
         assert_equal(actual.dtype, np.dtype(dtype))
 

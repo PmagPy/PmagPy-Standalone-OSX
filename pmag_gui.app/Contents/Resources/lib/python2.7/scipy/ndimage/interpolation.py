@@ -121,22 +121,6 @@ def spline_filter(input, order=3, output=numpy.float64):
     return return_value
 
 
-def _geometric_transform(input, mapping, coordinates, matrix, offset, output,
-                         order, mode, cval, extra_arguments, extra_keywords):
-    """
-    Wrapper around _nd_image.geometric_transform to work around
-    endianness issues
-    """
-    _nd_image.geometric_transform(
-        input, mapping, coordinates, matrix, offset, output,
-        order, mode, cval, extra_arguments, extra_keywords)
-
-    if output is not None and not output.dtype.isnative:
-        output.byteswap(True)
-
-    return output
-
-
 def geometric_transform(input, mapping, output_shape=None,
                         output=None, order=3,
                         mode='constant', cval=0.0, prefilter=True,
@@ -157,7 +141,7 @@ def geometric_transform(input, mapping, output_shape=None,
         A callable object that accepts a tuple of length equal to the output
         array rank, and returns the corresponding input coordinates as a tuple
         of length equal to the input array rank.
-    output_shape : tuple of ints, optional
+    output_shape : tuple of ints
         Shape tuple.
     output : ndarray or dtype, optional
         The array in which to place the output, or the dtype of the returned
@@ -194,12 +178,11 @@ def geometric_transform(input, mapping, output_shape=None,
 
     Examples
     --------
-    >>> from scipy import ndimage
     >>> a = np.arange(12.).reshape((4, 3))
     >>> def shift_func(output_coords):
     ...     return (output_coords[0] - 0.5, output_coords[1] - 0.5)
     ...
-    >>> ndimage.geometric_transform(a, shift_func)
+    >>> sp.ndimage.geometric_transform(a, shift_func)
     array([[ 0.   ,  0.   ,  0.   ],
            [ 0.   ,  1.362,  2.738],
            [ 0.   ,  4.812,  6.187],
@@ -222,8 +205,8 @@ def geometric_transform(input, mapping, output_shape=None,
         filtered = input
     output, return_value = _ni_support._get_output(output, input,
                                                    shape=output_shape)
-    _geometric_transform(filtered, mapping, None, None, None, output,
-                         order, mode, cval, extra_arguments, extra_keywords)
+    _nd_image.geometric_transform(filtered, mapping, None, None, None,
+               output, order, mode, cval, extra_arguments, extra_keywords)
     return return_value
 
 
@@ -321,8 +304,8 @@ def map_coordinates(input, coordinates, output=None, order=3,
         filtered = input
     output, return_value = _ni_support._get_output(output, input,
                                                    shape=output_shape)
-    _geometric_transform(filtered, None, coordinates, None, None,
-                         output, order, mode, cval, None, None)
+    _nd_image.geometric_transform(filtered, None, coordinates, None, None,
+               output, order, mode, cval, None, None)
     return return_value
 
 
@@ -415,8 +398,8 @@ def affine_transform(input, matrix, offset=0.0, output_shape=None,
         _nd_image.zoom_shift(filtered, matrix, offset, output, order,
                              mode, cval)
     else:
-        _geometric_transform(filtered, None, None, matrix, offset,
-                             output, order, mode, cval, None, None)
+        _nd_image.geometric_transform(filtered, None, None, matrix, offset,
+                            output, order, mode, cval, None, None)
     return return_value
 
 

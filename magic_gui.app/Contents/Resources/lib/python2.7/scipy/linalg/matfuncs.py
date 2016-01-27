@@ -96,48 +96,11 @@ def _maybe_real(A, B, tol=None):
 
 
 def fractional_matrix_power(A, t):
-    """
-    Compute the fractional power of a matrix.
-
-    Proceeds according to the discussion in section (6) of [1]_.
-
-    Parameters
-    ----------
-    A : (N, N) array_like
-        Matrix whose fractional power to evaluate.
-    t : float
-        Fractional power.
-
-    Returns
-    -------
-    X : (N, N) array_like
-        The fractional power of the matrix.
-
-    References
-    ----------
-    .. [1] Nicholas J. Higham and Lijing lin (2011)
-           "A Schur-Pade Algorithm for Fractional Powers of a Matrix."
-           SIAM Journal on Matrix Analysis and Applications,
-           32 (3). pp. 1056-1078. ISSN 0895-4798
-
-    Examples
-    --------
-    >>> from scipy.linalg import fractional_matrix_power
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> b = fractional_matrix_power(a, 0.5)
-    >>> b
-    array([[ 0.75592895,  1.13389342],
-           [ 0.37796447,  1.88982237]])
-    >>> np.dot(b, b)      # Verify square root
-    array([[ 1.,  3.],
-           [ 1.,  4.]])
-
-    """
     # This fixes some issue with imports;
     # this function calls onenormest which is in scipy.sparse.
     A = _asarray_square(A)
     import scipy.linalg._matfuncs_inv_ssq
-    return scipy.linalg._matfuncs_inv_ssq._fractional_matrix_power(A, t)
+    return scipy.linalg._matfuncs_inv_ssq.fractional_matrix_power(A, t)
 
 
 def logm(A, disp=True):
@@ -164,40 +127,11 @@ def logm(A, disp=True):
 
         1-norm of the estimated error, ||err||_1 / ||A||_1
 
-    References
-    ----------
-    .. [1] Awad H. Al-Mohy and Nicholas J. Higham (2012)
-           "Improved Inverse Scaling and Squaring Algorithms
-           for the Matrix Logarithm."
-           SIAM Journal on Scientific Computing, 34 (4). C152-C169.
-           ISSN 1095-7197
-
-    .. [2] Nicholas J. Higham (2008)
-           "Functions of Matrices: Theory and Computation"
-           ISBN 978-0-898716-46-7
-
-    .. [3] Nicholas J. Higham and Lijing lin (2011)
-           "A Schur-Pade Algorithm for Fractional Powers of a Matrix."
-           SIAM Journal on Matrix Analysis and Applications,
-           32 (3). pp. 1056-1078. ISSN 0895-4798
-
-    Examples
-    --------
-    >>> from scipy.linalg import logm, expm
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> b = logm(a)
-    >>> b
-    array([[-1.02571087,  2.05142174],
-           [ 0.68380725,  1.02571087]])
-    >>> expm(b)         # Verify expm(logm(a)) returns a
-    array([[ 1.,  3.],
-           [ 1.,  4.]])
-
     """
     A = _asarray_square(A)
     # Avoid circular import ... this is OK, right?
     import scipy.linalg._matfuncs_inv_ssq
-    F = scipy.linalg._matfuncs_inv_ssq._logm(A)
+    F = scipy.linalg._matfuncs_inv_ssq.logm(A)
     errtol = 1000*eps
     #TODO use a better error approximation
     errest = norm(expm(F)-A,1) / norm(A,1)
@@ -229,27 +163,6 @@ def expm(A, q=None):
            "A New Scaling and Squaring Algorithm for the Matrix Exponential."
            SIAM Journal on Matrix Analysis and Applications.
            31 (3). pp. 970-989. ISSN 1095-7162
-
-    Examples
-    --------
-    >>> from scipy.linalg import expm, sinm, cosm
-
-    Matrix version of the formula exp(0) = 1:
-
-    >>> expm(np.zeros((2,2)))
-    array([[ 1.,  0.],
-           [ 0.,  1.]])
-
-    Euler's identity (exp(i*theta) = cos(theta) + i*sin(theta))
-    applied to a matrix:
-
-    >>> a = np.array([[1.0, 2.0], [-1.0, 3.0]])
-    >>> expm(1j*a)
-    array([[ 0.42645930+1.89217551j, -2.13721484-0.97811252j],
-           [ 1.06860742+0.48905626j, -1.71075555+0.91406299j]])
-    >>> cosm(a) + 1j*sinm(a)
-    array([[ 0.42645930+1.89217551j, -2.13721484-0.97811252j],
-           [ 1.06860742+0.48905626j, -1.71075555+0.91406299j]])
 
     """
     if q is not None:
@@ -341,21 +254,6 @@ def cosm(A):
     cosm : (N, N) ndarray
         Matrix cosine of A
 
-    Examples
-    --------
-    >>> from scipy.linalg import expm, sinm, cosm
-
-    Euler's identity (exp(i*theta) = cos(theta) + i*sin(theta))
-    applied to a matrix:
-
-    >>> a = np.array([[1.0, 2.0], [-1.0, 3.0]])
-    >>> expm(1j*a)
-    array([[ 0.42645930+1.89217551j, -2.13721484-0.97811252j],
-           [ 1.06860742+0.48905626j, -1.71075555+0.91406299j]])
-    >>> cosm(a) + 1j*sinm(a)
-    array([[ 0.42645930+1.89217551j, -2.13721484-0.97811252j],
-           [ 1.06860742+0.48905626j, -1.71075555+0.91406299j]])
-
     """
     A = _asarray_square(A)
     if np.iscomplexobj(A):
@@ -379,21 +277,6 @@ def sinm(A):
     -------
     sinm : (N, N) ndarray
         Matrix cosine of `A`
-
-    Examples
-    --------
-    >>> from scipy.linalg import expm, sinm, cosm
-
-    Euler's identity (exp(i*theta) = cos(theta) + i*sin(theta))
-    applied to a matrix:
-
-    >>> a = np.array([[1.0, 2.0], [-1.0, 3.0]])
-    >>> expm(1j*a)
-    array([[ 0.42645930+1.89217551j, -2.13721484-0.97811252j],
-           [ 1.06860742+0.48905626j, -1.71075555+0.91406299j]])
-    >>> cosm(a) + 1j*sinm(a)
-    array([[ 0.42645930+1.89217551j, -2.13721484-0.97811252j],
-           [ 1.06860742+0.48905626j, -1.71075555+0.91406299j]])
 
     """
     A = _asarray_square(A)
@@ -419,23 +302,6 @@ def tanm(A):
     tanm : (N, N) ndarray
         Matrix tangent of `A`
 
-    Examples
-    --------
-    >>> from scipy.linalg import tanm, sinm, cosm
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> t = tanm(a)
-    >>> t
-    array([[ -2.00876993,  -8.41880636],
-           [ -2.80626879, -10.42757629]])
-
-    Verify tanm(a) = sinm(a).dot(inv(cosm(a)))
-
-    >>> s = sinm(a)
-    >>> c = cosm(a)
-    >>> s.dot(np.linalg.inv(c))
-    array([[ -2.00876993,  -8.41880636],
-           [ -2.80626879, -10.42757629]])
-
     """
     A = _asarray_square(A)
     return _maybe_real(A, solve(cosm(A), sinm(A)))
@@ -456,23 +322,6 @@ def coshm(A):
     -------
     coshm : (N, N) ndarray
         Hyperbolic matrix cosine of `A`
-
-    Examples
-    --------
-    >>> from scipy.linalg import tanhm, sinhm, coshm
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> c = coshm(a)
-    >>> c
-    array([[ 11.24592233,  38.76236492],
-           [ 12.92078831,  50.00828725]])
-
-    Verify tanhm(a) = sinhm(a).dot(inv(coshm(a)))
-
-    >>> t = tanhm(a)
-    >>> s = sinhm(a)
-    >>> t - s.dot(np.linalg.inv(c))
-    array([[  2.72004641e-15,   4.55191440e-15],
-           [  0.00000000e+00,  -5.55111512e-16]])
 
     """
     A = _asarray_square(A)
@@ -495,23 +344,6 @@ def sinhm(A):
     sinhm : (N, N) ndarray
         Hyperbolic matrix sine of `A`
 
-    Examples
-    --------
-    >>> from scipy.linalg import tanhm, sinhm, coshm
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> s = sinhm(a)
-    >>> s
-    array([[ 10.57300653,  39.28826594],
-           [ 13.09608865,  49.86127247]])
-
-    Verify tanhm(a) = sinhm(a).dot(inv(coshm(a)))
-
-    >>> t = tanhm(a)
-    >>> c = coshm(a)
-    >>> t - s.dot(np.linalg.inv(c))
-    array([[  2.72004641e-15,   4.55191440e-15],
-           [  0.00000000e+00,  -5.55111512e-16]])
-
     """
     A = _asarray_square(A)
     return _maybe_real(A, 0.5 * (expm(A) - expm(-A)))
@@ -532,23 +364,6 @@ def tanhm(A):
     -------
     tanhm : (N, N) ndarray
         Hyperbolic matrix tangent of `A`
-
-    Examples
-    --------
-    >>> from scipy.linalg import tanhm, sinhm, coshm
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> t = tanhm(a)
-    >>> t
-    array([[ 0.3428582 ,  0.51987926],
-           [ 0.17329309,  0.86273746]])
-
-    Verify tanhm(a) = sinhm(a).dot(inv(coshm(a)))
-
-    >>> s = sinhm(a)
-    >>> c = coshm(a)
-    >>> t - s.dot(np.linalg.inv(c))
-    array([[  2.72004641e-15,   4.55191440e-15],
-           [  0.00000000e+00,  -5.55111512e-16]])
 
     """
     A = _asarray_square(A)
@@ -582,39 +397,6 @@ def funm(A, func, disp=True):
         (if disp == False)
 
         1-norm of the estimated error, ||err||_1 / ||A||_1
-
-    Examples
-    --------
-    >>> from scipy.linalg import funm
-    >>> a = np.array([[1.0, 3.0], [1.0, 4.0]])
-    >>> funm(a, lambda x: x*x)
-    array([[  4.,  15.],
-           [  5.,  19.]])
-    >>> a.dot(a)
-    array([[  4.,  15.],
-           [  5.,  19.]])
-
-    Notes
-    -----
-    This function implements the general algorithm based on Schur decomposition
-    (Algorithm 9.1.1. in [1]_).
-
-    If the input matrix is known to be diagonalizable, then relying on the
-    eigendecomposition is likely to be faster. For example, if your matrix is
-    Hermitian, you can do
-
-    >>> from scipy.linalg import eigh
-    >>> def funm_herm(a, func, check_finite=False):
-    ...     w, v = eigh(a, check_finite=check_finite)
-    ...     ## if you further know that your matrix is positive semidefinite,
-    ...     ## you can optionally guard against precision errors by doing
-    ...     # w = np.maximum(w, 0)
-    ...     w = func(w)
-    ...     return (v * w).dot(v.conj().T)
-
-    References
-    ----------
-    .. [1] Gene H. Golub, Charles F. van Loan, Matrix Computations 4th ed.
 
     """
     A = _asarray_square(A)
@@ -693,7 +475,6 @@ def signm(A, disp=True):
 
     """
     A = _asarray_square(A)
-
     def rounded_sign(x):
         rx = np.real(x)
         if rx.dtype.char == 'f':

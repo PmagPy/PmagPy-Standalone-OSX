@@ -18,11 +18,11 @@ class FortranFile(object):
 
     Parameters
     ----------
-    filename : file or str
+    filename: file or str
         Open file object or filename.
     mode : {'r', 'w'}, optional
         Read-write mode, default is 'r'.
-    header_dtype : dtype, optional
+    header_dtype : data-type
         Data type of the header. Size and endiness must match the input/output file.
 
     Notes
@@ -94,7 +94,7 @@ class FortranFile(object):
         self._header_dtype = header_dtype
 
     def _read_size(self):
-        return int(np.fromfile(self._fp, dtype=self._header_dtype, count=1))
+        return np.fromfile(self._fp, dtype=self._header_dtype, count=1)
 
     def write_record(self, s):
         """
@@ -117,7 +117,7 @@ class FortranFile(object):
 
         Parameters
         ----------
-        dtype : dtype, optional
+        dtype : data-type
             Data type specifying the size and endiness of the data.
 
         Returns
@@ -137,26 +137,6 @@ class FortranFile(object):
 
         One can transpose to obtain the indices in the same order as in Fortran.
 
-        For records that contain several variables or mixed types (as opposed
-        to single scalar or array types), it is possible to specify a dtype
-        with mixed types:
-
-        >>> record = f.read_record([('a', '<f4'), ('b', '<i4')])
-        >>> record['a']  # access the variable 'a'
-        5.6
-
-        and if any of the variables are arrays, the shape can be specified as
-        the third item in the relevant tuple:
-
-        >>> record = f.read_record([('a', '<f4'), ('b', '<i4', (3,3))])
-
-        Numpy also supports a short syntax for this kind of type:
-
-        >>> record = f.read_record('<f4,(3,3)<i4')
-        >>> record['f0']  # variables are called f0, f1, ...
-        5.6
-
-
         See Also
         --------
         read_reals
@@ -169,14 +149,11 @@ class FortranFile(object):
 
         firstSize = self._read_size()
         if firstSize % dtype.itemsize != 0:
-            raise ValueError('Size obtained ({0}) is not a multiple of the '
-                             'dtype given ({1}).'.format(firstSize, dtype.itemsize))
-
+            raise ValueError('Size obtained is not a multiple of the dtype given.')
         data = np.fromfile(self._fp, dtype=dtype, count=firstSize//dtype.itemsize)
         secondSize = self._read_size()
         if firstSize != secondSize:
-            raise IOError('Sizes do not agree in the header and footer for '
-                          'this record - check header dtype')
+            raise IOError('Sizes do not agree in the header and footer for this record - check header dtype')
         return data
 
     def read_ints(self, dtype='i4'):
@@ -186,7 +163,7 @@ class FortranFile(object):
 
         Parameters
         ----------
-        dtype : dtype, optional
+        dtype : data-type
             Data type specifying the size and endiness of the data.
 
         Returns
@@ -209,7 +186,7 @@ class FortranFile(object):
 
         Parameters
         ----------
-        dtype : dtype, optional
+        dtype : data-type
             Data type specifying the size and endiness of the data.
 
         Returns
