@@ -229,7 +229,8 @@ class MainFrame(wx.Frame):
         wait = wx.BusyInfo('Initializing data object in new directory, please wait...')
         wx.Yield()
         print '-I- Initializing magic data object'
-        self.er_magic = builder.ErMagicBuilder(self.WD)
+        # make new builder object, but reuse old data_model
+        self.er_magic = builder.ErMagicBuilder(self.WD, self.er_magic.data_model)
         print '-I- Read in any available data from working directory'
         self.er_magic.get_all_magic_info()
         print '-I- Initializing headers'
@@ -494,14 +495,11 @@ def main():
         print "See https://earthref.org/PmagPy/cookbook/#magic_gui.py for a complete tutorial"
         sys.exit()
     print '-I- Starting MagIC GUI - please be patient'
+
     # if redirect is true, wxpython makes its own output window for stdout/stderr
-    #app = wx.App(redirect=True)
-    # this sends stdout to terminal:
-    #app = wx.App(redirect=False)
-    # this sends stdout to wxPython:
     app = wx.App(redirect=True)
-    working_dir = pmag.get_named_arg_from_sys('-WD', '.')
     app.frame = MainFrame(working_dir)
+    working_dir = pmag.get_named_arg_from_sys('-WD', '.')
     ## this causes an error with Canopy Python
     ## (it works with brew Python)
     ## need to use these lines for Py2app
