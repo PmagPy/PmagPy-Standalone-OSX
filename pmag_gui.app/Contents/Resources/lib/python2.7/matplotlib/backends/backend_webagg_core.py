@@ -13,7 +13,7 @@ Displays Agg images in the browser, with interactivity
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 import io
 import json
@@ -23,6 +23,7 @@ import warnings
 
 import numpy as np
 import tornado
+import datetime
 
 from matplotlib.backends import backend_agg
 from matplotlib.figure import Figure
@@ -144,11 +145,6 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
     def __init__(self, *args, **kwargs):
         backend_agg.FigureCanvasAgg.__init__(self, *args, **kwargs)
 
-        # A buffer to hold the PNG data for the last frame.  This is
-        # retained so it can be resent to each client without
-        # regenerating it.
-        self._png_buffer = io.BytesIO()
-
         # Set to True when the renderer contains data that is newer
         # than the PNG buffer.
         self._png_is_old = True
@@ -162,6 +158,10 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
         # self.set_image_mode(mode) so that the notification can be given
         # to the connected clients.
         self._current_image_mode = 'full'
+
+        # Store the DPI ratio of the browser.  This is the scaling that
+        # occurs automatically for all images on a HiDPI display.
+        self._dpi_ratio = 1
 
     def show(self):
         # show the figure window
@@ -226,24 +226,19 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
                 diff = buff != last_buffer
                 output = np.where(diff, buff, 0)
 
-            # Clear out the PNG data buffer rather than recreating it
-            # each time.  This reduces the number of memory
-            # (de)allocations.
-            self._png_buffer.truncate()
-            self._png_buffer.seek(0)
-
             # TODO: We should write a new version of write_png that
             # handles the differencing inline
-            _png.write_png(
+            buff = _png.write_png(
                 output.view(dtype=np.uint8).reshape(output.shape + (4,)),
-                self._png_buffer)
+                None, compression=6, filter=_png.PNG_FILTER_NONE)
 
             # Swap the renderer frames
             self._renderer, self._last_renderer = (
                 self._last_renderer, renderer)
             self._force_full = False
             self._png_is_old = False
-        return self._png_buffer.getvalue()
+
+        return buff
 
     def get_renderer(self, cleared=None):
         # Mirrors super.get_renderer, but caches the old one
@@ -343,10 +338,10 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
 
     def handle_resize(self, event):
         x, y = event.get('width', 800), event.get('height', 800)
-        x, y = int(x), int(y)
+        x, y = int(x) * self._dpi_ratio, int(y) * self._dpi_ratio
         fig = self.figure
         # An attempt at approximating the figure size in pixels.
-        fig.set_size_inches(x / fig.dpi, y / fig.dpi)
+        fig.set_size_inches(x / fig.dpi, y / fig.dpi, forward=False)
 
         _, _, w, h = self.figure.bbox.bounds
         # Acknowledge the resize, and force the viewer to update the
@@ -359,6 +354,17 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
     def handle_send_image_mode(self, event):
         # The client requests notification of what the current image mode is.
         self.send_event('image_mode', mode=self._current_image_mode)
+
+    def handle_set_dpi_ratio(self, event):
+        dpi_ratio = event.get('dpi_ratio', 1)
+        if dpi_ratio != self._dpi_ratio:
+            # We don't want to scale up the figure dpi more than once.
+            if not hasattr(self.figure, '_original_dpi'):
+                self.figure._original_dpi = self.figure.dpi
+            self.figure.dpi = dpi_ratio * self.figure._original_dpi
+            self._dpi_ratio = dpi_ratio
+            self._force_full = True
+            self.draw_idle()
 
     def send_event(self, event_type, **kwargs):
         self.manager._send_event(event_type, **kwargs)
@@ -445,7 +451,9 @@ class FigureManagerWebAgg(backend_bases.FigureManagerBase):
         return toolbar
 
     def resize(self, w, h):
-        self._send_event('resize', size=(w, h))
+        self._send_event(
+            'resize',
+            size=(w / self.canvas._dpi_ratio, h / self.canvas._dpi_ratio))
 
     def set_window_title(self, title):
         self._send_event('figure_label', label=title)

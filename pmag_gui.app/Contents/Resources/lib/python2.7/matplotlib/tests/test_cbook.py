@@ -2,8 +2,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import itertools
 from weakref import ref
+import warnings
 
-from matplotlib.externals import six
+import six
 
 from datetime import datetime
 
@@ -47,6 +48,14 @@ def test_is_sequence_of_strings():
     assert cbook.is_sequence_of_strings(y)
 
 
+def test_is_hashable():
+    s = 'string'
+    assert cbook.is_hashable(s)
+
+    lst = ['list', 'of', 'stings']
+    assert not cbook.is_hashable(lst)
+
+
 def test_restrict_dict():
     d = {'foo': 'bar', 1: 2}
     d1 = cbook.restrict_dict(d, ['foo', 1])
@@ -77,7 +86,7 @@ class Test_delete_masked_points(object):
                        datetime(2008, 1, 5), datetime(2008, 1, 6)]
         self.arr_dt2 = np.array(self.arr_dt)
         self.arr_colors = ['r', 'g', 'b', 'c', 'm', 'y']
-        self.arr_rgba = mcolors.colorConverter.to_rgba_array(self.arr_colors)
+        self.arr_rgba = mcolors.to_rgba_array(self.arr_colors)
 
     @raises(ValueError)
     def test_bad_first_arg(self):
@@ -264,6 +273,20 @@ class Test_boxplot_stats(object):
         data = np.random.normal(size=(34, 34, 34))
         results = cbook.boxplot_stats(data)
 
+    def test_boxplot_stats_autorange_false(self):
+        x = np.zeros(shape=140)
+        x = np.hstack([-25, x, 25])
+        bstats_false = cbook.boxplot_stats(x, autorange=False)
+        bstats_true = cbook.boxplot_stats(x, autorange=True)
+
+        assert_equal(bstats_false[0]['whislo'], 0)
+        assert_equal(bstats_false[0]['whishi'], 0)
+        assert_array_almost_equal(bstats_false[0]['fliers'], [-25, 25])
+
+        assert_equal(bstats_true[0]['whislo'], -25)
+        assert_equal(bstats_true[0]['whishi'], 25)
+        assert_array_almost_equal(bstats_true[0]['fliers'], [])
+
 
 class Test_callback_registry(object):
     def setup(self):
@@ -307,6 +330,67 @@ class Test_callback_registry(object):
 
     def dummy(self):
         pass
+
+
+def _kwarg_norm_helper(inp, expected, kwargs_to_norm, warn_count=0):
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        assert expected == cbook.normalize_kwargs(inp, **kwargs_to_norm)
+        assert len(w) == warn_count
+
+
+def _kwarg_norm_fail_helper(inp, kwargs_to_norm):
+    assert_raises(TypeError, cbook.normalize_kwargs, inp, **kwargs_to_norm)
+
+
+def test_normalize_kwargs():
+    fail_mapping = (
+        ({'a': 1}, {'forbidden': ('a')}),
+        ({'a': 1}, {'required': ('b')}),
+        ({'a': 1, 'b': 2}, {'required': ('a'), 'allowed': ()})
+    )
+
+    for inp, kwargs in fail_mapping:
+        yield _kwarg_norm_fail_helper, inp, kwargs
+
+    warn_passing_mapping = (
+        ({'a': 1, 'b': 2}, {'a': 1}, {'alias_mapping': {'a': ['b']}}, 1),
+        ({'a': 1, 'b': 2}, {'a': 1}, {'alias_mapping': {'a': ['b']},
+                                      'allowed': ('a',)}, 1),
+        ({'a': 1, 'b': 2}, {'a': 2}, {'alias_mapping': {'a': ['a', 'b']}}, 1),
+
+        ({'a': 1, 'b': 2, 'c': 3}, {'a': 1, 'c': 3},
+         {'alias_mapping': {'a': ['b']}, 'required': ('a', )}, 1),
+
+    )
+
+    for inp, exp, kwargs, wc in warn_passing_mapping:
+        yield _kwarg_norm_helper, inp, exp, kwargs, wc
+
+    pass_mapping = (
+        ({'a': 1, 'b': 2}, {'a': 1, 'b': 2}, {}),
+        ({'b': 2}, {'a': 2}, {'alias_mapping': {'a': ['a', 'b']}}),
+        ({'b': 2}, {'a': 2}, {'alias_mapping': {'a': ['b']},
+                              'forbidden': ('b', )}),
+
+        ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'required': ('a', ),
+                                              'allowed': ('c', )}),
+
+        ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'required': ('a', 'c'),
+                                              'allowed': ('c', )}),
+        ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'required': ('a', 'c'),
+                                              'allowed': ('a', 'c')}),
+        ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'required': ('a', 'c'),
+                                              'allowed': ()}),
+
+        ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'required': ('a', 'c')}),
+        ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'allowed': ('a', 'c')}),
+
+    )
+
+    for inp, exp, kwargs in pass_mapping:
+        yield _kwarg_norm_helper, inp, exp, kwargs
 
 
 def test_to_prestep():
@@ -415,3 +499,15 @@ def test_grouper_private():
     base_set = mapping[ref(objs[0])]
     for o in objs[1:]:
         assert mapping[ref(o)] is base_set
+
+
+def test_flatiter():
+    x = np.arange(5)
+    it = x.flat
+    assert 0 == next(it)
+    assert 1 == next(it)
+    ret = cbook.safe_first_element(it)
+    assert ret == 0
+
+    assert 0 == next(it)
+    assert 1 == next(it)

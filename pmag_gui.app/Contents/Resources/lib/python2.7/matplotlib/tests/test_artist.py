@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import warnings
-from matplotlib.externals import six
+import six
 
 import io
 
@@ -13,6 +13,7 @@ import matplotlib.lines as mlines
 import matplotlib.path as mpath
 import matplotlib.transforms as mtrans
 import matplotlib.collections as mcollections
+import matplotlib as mpl
 from matplotlib.testing.decorators import image_comparison, cleanup
 
 from nose.tools import (assert_true, assert_false)
@@ -147,6 +148,35 @@ def test_cull_markers():
     assert len(svg.getvalue()) < 20000
 
 
+@image_comparison(baseline_images=['hatching'], remove_text=True,
+                  style='default')
+def test_hatching():
+    fig, ax = plt.subplots(1, 1)
+
+    # Default hatch color.
+    rect1 = mpatches.Rectangle((0, 0), 3, 4, hatch='/')
+    ax.add_patch(rect1)
+
+    rect2 = mcollections.RegularPolyCollection(4, sizes=[16000],
+                                               offsets=[(1.5, 6.5)],
+                                               transOffset=ax.transData,
+                                               hatch='/')
+    ax.add_collection(rect2)
+
+    # Ensure edge color is not applied to hatching.
+    rect3 = mpatches.Rectangle((4, 0), 3, 4, hatch='/', edgecolor='C1')
+    ax.add_patch(rect3)
+
+    rect4 = mcollections.RegularPolyCollection(4, sizes=[16000],
+                                               offsets=[(5.5, 6.5)],
+                                               transOffset=ax.transData,
+                                               hatch='/', edgecolor='C1')
+    ax.add_collection(rect4)
+
+    ax.set_xlim(0, 7)
+    ax.set_ylim(0, 9)
+
+
 @cleanup
 def test_remove():
     fig, ax = plt.subplots()
@@ -175,6 +205,25 @@ def test_remove():
     assert_true(im not in ax.mouseover_set)
     assert_true(fig.stale)
     assert_true(ax.stale)
+
+
+@image_comparison(baseline_images=["default_edges"], remove_text=True,
+                  extensions=['png'], style='default')
+def test_default_edges():
+    fig, [[ax1, ax2], [ax3, ax4]] = plt.subplots(2, 2)
+
+    ax1.plot(np.arange(10), np.arange(10), 'x',
+             np.arange(10) + 1, np.arange(10), 'o')
+    ax2.bar(np.arange(10), np.arange(10), align='edge')
+    ax3.text(0, 0, "BOX", size=24, bbox=dict(boxstyle='sawtooth'))
+    ax3.set_xlim((-1, 1))
+    ax3.set_ylim((-1, 1))
+    pp1 = mpatches.PathPatch(
+        mpath.Path([(0, 0), (1, 0), (1, 1), (0, 0)],
+             [mpath.Path.MOVETO, mpath.Path.CURVE3,
+              mpath.Path.CURVE3, mpath.Path.CLOSEPOLY]),
+        fc="none", transform=ax4.transData)
+    ax4.add_patch(pp1)
 
 
 @cleanup

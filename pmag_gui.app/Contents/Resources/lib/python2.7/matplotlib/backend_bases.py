@@ -36,8 +36,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from contextlib import contextmanager
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange
+import six
+from six.moves import xrange
 
 import os
 import sys
@@ -55,6 +55,7 @@ from matplotlib import rcParams
 from matplotlib import is_interactive
 from matplotlib import get_backend
 from matplotlib._pylab_helpers import Gcf
+from matplotlib import lines
 
 from matplotlib.transforms import Bbox, TransformedBbox, Affine2D
 
@@ -514,23 +515,34 @@ class RendererBase(object):
         """
         return 1.0
 
-    def draw_image(self, gc, x, y, im):
+    def draw_image(self, gc, x, y, im, transform=None):
         """
-        Draw the image instance into the current axes;
+        Draw an RGBA image.
 
         *gc*
-            a GraphicsContext containing clipping information
+            a :class:`GraphicsContextBase` instance with clipping information.
 
         *x*
-            is the distance in pixels from the left hand side of the canvas.
+            the distance in physical units (i.e., dots or pixels) from the left
+            hand side of the canvas.
 
         *y*
-            the distance from the origin.  That is, if origin is
-            upper, y is the distance from top.  If origin is lower, y
-            is the distance from bottom
+            the distance in physical units (i.e., dots or pixels) from the
+            bottom side of the canvas.
 
         *im*
-            the :class:`matplotlib._image.Image` instance
+            An NxMx4 array of RGBA pixels (of dtype uint8).
+
+        *transform*
+            If and only if the concrete backend is written such that
+            :meth:`option_scale_image` returns ``True``, an affine
+            transformation *may* be passed to :meth:`draw_image`. It takes the
+            form of a :class:`~matplotlib.transforms.Affine2DBase` instance.
+            The translation vector of the transformation is given in physical
+            units (i.e., dots or pixels). Note that the transformation does not
+            override `x` and `y`, and has to be applied *before* translating
+            the result by `x` and `y` (this can be accomplished by adding `x`
+            and `y` to the translation vector defined by `transform`).
         """
         raise NotImplementedError
 
@@ -543,8 +555,8 @@ class RendererBase(object):
 
     def option_scale_image(self):
         """
-        override this method for renderers that support arbitrary
-        scaling of image (most of the vector backend).
+        override this method for renderers that support arbitrary affine
+        transformations in :meth:`draw_image` (most vector backends).
         """
         return False
 
@@ -771,14 +783,6 @@ class GraphicsContextBase(object):
     An abstract base class that provides color, line styles, etc...
     """
 
-    # a mapping from dash styles to suggested offset, dash pairs
-    dashd = {
-        'solid': (None, None),
-        'dashed': (0, (6.0, 6.0)),
-        'dashdot': (0, (3.0, 5.0, 1.0, 5.0)),
-        'dotted': (0, (1.0, 3.0)),
-    }
-
     def __init__(self):
         self._alpha = 1.0
         self._forced_alpha = False  # if True, _alpha overrides A from RGBA
@@ -792,6 +796,8 @@ class GraphicsContextBase(object):
         self._linewidth = 1
         self._rgb = (0.0, 0.0, 0.0, 1.0)
         self._hatch = None
+        self._hatch_color = colors.to_rgba(rcParams['hatch.color'])
+        self._hatch_linewidth = rcParams['hatch.linewidth']
         self._url = None
         self._gid = None
         self._snap = None
@@ -865,7 +871,7 @@ class GraphicsContextBase(object):
         off in pixels.
 
         See p107 of to PostScript `BLUEBOOK
-        <http://www-cdf.fnal.gov/offline/PostScript/BLUEBOOK.PDF>`_
+        <https://www-cdf.fnal.gov/offline/PostScript/BLUEBOOK.PDF>`_
         for more info.
 
         Default value is None
@@ -1012,11 +1018,11 @@ class GraphicsContextBase(object):
         if self._forced_alpha and isRGBA:
             self._rgb = fg[:3] + (self._alpha,)
         elif self._forced_alpha:
-            self._rgb = colors.colorConverter.to_rgba(fg, self._alpha)
+            self._rgb = colors.to_rgba(fg, self._alpha)
         elif isRGBA:
             self._rgb = fg
         else:
-            self._rgb = colors.colorConverter.to_rgba(fg)
+            self._rgb = colors.to_rgba(fg)
 
     def set_graylevel(self, frac):
         """
@@ -1047,24 +1053,12 @@ class GraphicsContextBase(object):
     def set_linestyle(self, style):
         """
         Set the linestyle to be one of ('solid', 'dashed', 'dashdot',
-        'dotted'). One may specify customized dash styles by providing
-        a tuple of (offset, dash pairs). For example, the predefiend
-        linestyles have following values.:
-
-         'dashed'  : (0, (6.0, 6.0)),
-         'dashdot' : (0, (3.0, 5.0, 1.0, 5.0)),
-         'dotted'  : (0, (1.0, 3.0)),
+        'dotted'). These are defined in the rcParams
+        `lines.dashed_pattern`, `lines.dashdot_pattern` and
+        `lines.dotted_pattern`.  One may also specify customized dash
+        styles by providing a tuple of (offset, dash pairs).
         """
-
-        if style in self.dashd:
-            offset, dashes = self.dashd[style]
-        elif isinstance(style, tuple):
-            offset, dashes = style
-        else:
-            raise ValueError('Unrecognized linestyle: %s' % str(style))
-
         self._linestyle = style
-        self.set_dashes(offset, dashes)
 
     def set_url(self, url):
         """
@@ -1110,6 +1104,18 @@ class GraphicsContextBase(object):
         if self._hatch is None:
             return None
         return Path.hatch(self._hatch, density)
+
+    def get_hatch_color(self):
+        """
+        Gets the color to use for hatching.
+        """
+        return self._hatch_color
+
+    def get_hatch_linewidth(self):
+        """
+        Gets the linewidth to use for hatching.
+        """
+        return self._hatch_linewidth
 
     def get_sketch_params(self):
         """
@@ -1576,13 +1582,13 @@ class PickEvent(Event):
 
     Example usage::
 
-        line, = ax.plot(rand(100), 'o', picker=5)  # 5 points tolerance
+        ax.plot(np.rand(100), 'o', picker=5)  # 5 points tolerance
 
         def on_pick(event):
-            thisline = event.artist
-            xdata, ydata = thisline.get_data()
+            line = event.artist
+            xdata, ydata = line.get_data()
             ind = event.ind
-            print('on pick line:', zip(xdata[ind], ydata[ind]))
+            print('on pick line:', np.array([xdata[ind], ydata[ind]]).T)
 
         cid = fig.canvas.mpl_connect('pick_event', on_pick)
 
@@ -2078,7 +2084,7 @@ class FigureCanvasBase(object):
                          'Supported formats: '
                          '%s.' % (format, ', '.join(formats)))
 
-    def print_figure(self, filename, dpi=None, facecolor='w', edgecolor='w',
+    def print_figure(self, filename, dpi=None, facecolor=None, edgecolor=None,
                      orientation='portrait', format=None, **kwargs):
         """
         Render the figure to hardcopy. Set the figure patch face and edge
@@ -2098,10 +2104,10 @@ class FigureCanvasBase(object):
             the dots per inch to save the figure in; if None, use savefig.dpi
 
         *facecolor*
-            the facecolor of the figure
+            the facecolor of the figure; if None, defaults to savefig.facecolor
 
         *edgecolor*
-            the edgecolor of the figure
+            the edgecolor of the figure; if None, defaults to savefig.edgecolor
 
         *orientation*
             landscape' | 'portrait' (not supported on all backends)
@@ -2141,8 +2147,14 @@ class FigureCanvasBase(object):
 
         if dpi is None:
             dpi = rcParams['savefig.dpi']
-            if dpi == 'figure':
-                dpi = self.figure.dpi
+
+        if dpi == 'figure':
+            dpi = self.figure.dpi
+
+        if facecolor is None:
+            facecolor = rcParams['savefig.facecolor']
+        if edgecolor is None:
+            edgecolor = rcParams['savefig.edgecolor']
 
         origDPI = self.figure.dpi
         origfacecolor = self.figure.get_facecolor()
@@ -2424,10 +2436,6 @@ class FigureCanvasBase(object):
         functions for each of the GUI backends can be written.  As
         such, it throws a deprecated warning.
 
-        Call signature::
-
-            start_event_loop_default(self,timeout=0)
-
         This call blocks until a callback function triggers
         stop_event_loop() or *timeout* is reached.  If *timeout* is
         <=0, never timeout.
@@ -2452,9 +2460,6 @@ class FigureCanvasBase(object):
         loop so that interactive functions, such as ginput and
         waitforbuttonpress, can wait for events.
 
-        Call signature::
-
-          stop_event_loop_default(self)
         """
         self._looping = False
 
@@ -2491,7 +2496,7 @@ def key_press_handler(event, canvas, toolbar=None):
     toggle_xscale_keys = rcParams['keymap.xscale']
     all = rcParams['keymap.all_axes']
 
-    # toggle fullscreen mode (default key 'f')
+    # toggle fullscreen mode ('f', 'ctrl + f')
     if event.key in fullscreen_keys:
         try:
             canvas.manager.full_screen_toggle()
@@ -2542,7 +2547,11 @@ def key_press_handler(event, canvas, toolbar=None):
             ax.set_yscale('linear')
             ax.figure.canvas.draw()
         elif scale == 'linear':
-            ax.set_yscale('log')
+            try:
+                ax.set_yscale('log')
+            except ValueError as exc:
+                warnings.warn(str(exc))
+                ax.set_yscale('linear')
             ax.figure.canvas.draw()
     # toggle scaling of x-axes between 'log and 'linear' (default key 'k')
     elif event.key in toggle_xscale_keys:
@@ -2552,7 +2561,11 @@ def key_press_handler(event, canvas, toolbar=None):
             ax.set_xscale('linear')
             ax.figure.canvas.draw()
         elif scalex == 'linear':
-            ax.set_xscale('log')
+            try:
+                ax.set_xscale('log')
+            except ValueError:
+                warnings.warn(str(exc))
+                ax.set_xscale('linear')
             ax.figure.canvas.draw()
 
     elif (event.key.isdigit() and event.key != '0') or event.key in all:
@@ -2719,8 +2732,8 @@ class NavigationToolbar2(object):
         (None, None, None, None),
         ('Pan', 'Pan axes with left mouse, zoom with right', 'move', 'pan'),
         ('Zoom', 'Zoom to rectangle', 'zoom_to_rect', 'zoom'),
-        (None, None, None, None),
         ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots'),
+        (None, None, None, None),
         ('Save', 'Save the figure', 'filesave', 'save_figure'),
       )
 
@@ -2834,11 +2847,10 @@ class NavigationToolbar2(object):
                 pass
             else:
                 artists = [a for a in event.inaxes.mouseover_set
-                           if a.contains(event)]
+                           if a.contains(event) and a.get_visible()]
 
                 if artists:
-
-                    a = max(enumerate(artists), key=lambda x: x[1].zorder)[1]
+                    a = max(artists, key=lambda x: x.zorder)
                     if a is not event.inaxes.patch:
                         data = a.get_cursor_data(event)
                         if data is not None:

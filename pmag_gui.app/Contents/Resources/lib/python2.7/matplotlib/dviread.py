@@ -21,8 +21,8 @@ Interface::
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange
+import six
+from six.moves import xrange
 
 import errno
 import matplotlib
@@ -841,7 +841,7 @@ def find_tex_file(filename, format=None):
     """
     Call :program:`kpsewhich` to find a file in the texmf tree. If
     *format* is not None, it is used as the value for the
-    :option:`--format` option.
+    `--format` option.
 
     Apparently most existing TeX distributions on Unix-like systems
     use kpathsea. I hear MikTeX (a popular distribution on Windows)
@@ -853,7 +853,7 @@ def find_tex_file(filename, format=None):
         The library that :program:`kpsewhich` is part of.
     """
 
-    cmd = ['kpsewhich']
+    cmd = [str('kpsewhich')]
     if format is not None:
         cmd += ['--format=' + format]
     cmd += [filename]

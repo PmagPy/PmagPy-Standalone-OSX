@@ -21,8 +21,8 @@ is a thin wrapper over :meth:`~matplotlib.figure.Figure.colorbar`.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange, zip
+import six
+from six.moves import xrange, zip
 
 import warnings
 
@@ -311,7 +311,10 @@ class ColorbarBase(cm.ScalarMappable):
             self.locator = ticks    # Handle default in _ticker()
         if format is None:
             if isinstance(self.norm, colors.LogNorm):
-                self.formatter = ticker.LogFormatterMathtext()
+                self.formatter = ticker.LogFormatterSciNotation()
+            elif isinstance(self.norm, colors.SymLogNorm):
+                self.formatter = ticker.LogFormatterSciNotation(
+                                        linthresh=self.norm.linthresh)
             else:
                 self.formatter = ticker.ScalarFormatter()
         elif cbook.is_string_like(format):
@@ -501,10 +504,10 @@ class ColorbarBase(cm.ScalarMappable):
         # Save, set, and restore hold state to keep pcolor from
         # clearing the axes. Ordinarily this will not be needed,
         # since the axes object should already have hold set.
-        _hold = self.ax.ishold()
-        self.ax.hold(True)
+        _hold = self.ax._hold
+        self.ax._hold = True
         col = self.ax.pcolormesh(*args, **kw)
-        self.ax.hold(_hold)
+        self.ax._hold = _hold
         #self.add_observer(col) # We should observe, not be observed...
 
         if self.solids is not None:
@@ -574,9 +577,19 @@ class ColorbarBase(cm.ScalarMappable):
                     b = self.norm.boundaries
                     locator = ticker.FixedLocator(b, nbins=10)
                 elif isinstance(self.norm, colors.LogNorm):
-                    locator = ticker.LogLocator()
+                    locator = ticker.LogLocator(subs='all')
+                elif isinstance(self.norm, colors.SymLogNorm):
+                    # The subs setting here should be replaced
+                    # by logic in the locator.
+                    locator = ticker.SymmetricalLogLocator(
+                                      subs=np.arange(1, 10),
+                                      linthresh=self.norm.linthresh,
+                                      base=10)
                 else:
-                    locator = ticker.MaxNLocator()
+                    if mpl.rcParams['_internal.classic_mode']:
+                        locator = ticker.MaxNLocator()
+                    else:
+                        locator = ticker.AutoLocator()
             else:
                 b = self._boundaries[self._inside]
                 locator = ticker.FixedLocator(b, nbins=10)
@@ -673,10 +686,18 @@ class ColorbarBase(cm.ScalarMappable):
                                                                 expander=0.1)
 
             b = self.norm.inverse(self._uniform_y(self.cmap.N + 1))
-            if self._extend_lower():
-                b[0] = b[0] - 1
-            if self._extend_upper():
-                b[-1] = b[-1] + 1
+
+            if isinstance(self.norm, colors.LogNorm):
+                # If using a lognorm, ensure extensions don't go negative
+                if self._extend_lower():
+                    b[0] = 0.9 * b[0]
+                if self._extend_upper():
+                    b[-1] = 1.1 * b[-1]
+            else:
+                if self._extend_lower():
+                    b[0] = b[0] - 1
+                if self._extend_upper():
+                    b[-1] = b[-1] + 1
         self._process_values(b)
 
     def _find_range(self):
@@ -1022,9 +1043,7 @@ def make_axes(parents, location=None, orientation=None, fraction=0.15,
               shrink=1.0, aspect=20, **kw):
     '''
     Resize and reposition parent axes, and return a child
-    axes suitable for a colorbar::
-
-        cax, kw = make_axes(parent, **kw)
+    axes suitable for a colorbar.
 
     Keyword arguments may include the following (with defaults):
 
@@ -1158,9 +1177,7 @@ def make_axes_gridspec(parent, **kw):
         of the parent with a new one.
 
     While this function is meant to be compatible with *make_axes*,
-    there could be some minor differences.::
-
-        cax, kw = make_axes_gridspec(parent, **kw)
+    there could be some minor differences.
 
     Keyword arguments may include the following (with defaults):
 
@@ -1263,8 +1280,8 @@ class ColorbarPatch(Colorbar):
         # Save, set, and restore hold state to keep pcolor from
         # clearing the axes. Ordinarily this will not be needed,
         # since the axes object should already have hold set.
-        _hold = self.ax.ishold()
-        self.ax.hold(True)
+        _hold = self.ax._hold
+        self.ax._hold = True
 
         kw = {'alpha': self.alpha, }
 
@@ -1310,7 +1327,7 @@ class ColorbarPatch(Colorbar):
                     linewidths=(0.5 * mpl.rcParams['axes.linewidth'],))
             self.ax.add_collection(self.dividers)
 
-        self.ax.hold(_hold)
+        self.ax._hold = _hold
 
 
 def colorbar_factory(cax, mappable, **kwargs):

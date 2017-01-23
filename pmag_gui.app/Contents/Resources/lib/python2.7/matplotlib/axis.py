@@ -4,7 +4,7 @@ Classes for the ticks and x and y axis
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 from matplotlib import rcParams
 import matplotlib.artist as artist
@@ -169,6 +169,20 @@ class Tick(artist.Artist):
         """
         pass
 
+    def get_tickdir(self):
+        return self._tickdir
+
+    def get_tick_padding(self):
+        """
+        Get the length of the tick outside of the axes.
+        """
+        padding = {
+            'in': 0.0,
+            'inout': 0.5,
+            'out': 1.0
+        }
+        return self._size * padding[self._tickdir]
+
     def get_children(self):
         children = [self.tick1line, self.tick2line,
                     self.gridline, self.label1, self.label2]
@@ -235,25 +249,23 @@ class Tick(artist.Artist):
     @allow_rasterization
     def draw(self, renderer):
         if not self.get_visible():
+            self.stale = False
             return
-        renderer.open_group(self.__name__)
-        midPoint = mtransforms.interval_contains(self.get_view_interval(),
-                                                 self.get_loc())
 
-        if midPoint:
-            if self.gridOn:
-                self.gridline.draw(renderer)
-            if self.tick1On:
-                self.tick1line.draw(renderer)
-            if self.tick2On:
-                self.tick2line.draw(renderer)
+        renderer.open_group(self.__name__)
+        if self.gridOn:
+            self.gridline.draw(renderer)
+        if self.tick1On:
+            self.tick1line.draw(renderer)
+        if self.tick2On:
+            self.tick2line.draw(renderer)
 
         if self.label1On:
             self.label1.draw(renderer)
         if self.label2On:
             self.label2.draw(renderer)
-
         renderer.close_group(self.__name__)
+
         self.stale = False
 
     def set_label1(self, s):
@@ -288,16 +300,26 @@ class Tick(artist.Artist):
         switches = [k for k in kw if k in switchkw]
         for k in switches:
             setattr(self, k, kw.pop(k))
-        dirpad = [k for k in kw if k in ['pad', 'tickdir']]
-        if dirpad:
+        newmarker = [k for k in kw if k in ['size', 'width', 'pad', 'tickdir']]
+        if newmarker:
+            self._size = kw.pop('size', self._size)
+            # Width could be handled outside this block, but it is
+            # convenient to leave it here.
+            self._width = kw.pop('width', self._width)
             self._base_pad = kw.pop('pad', self._base_pad)
+            # apply_tickdir uses _size and _base_pad to make _pad,
+            # and also makes _tickmarkers.
             self.apply_tickdir(kw.pop('tickdir', self._tickdir))
+            self.tick1line.set_marker(self._tickmarkers[0])
+            self.tick2line.set_marker(self._tickmarkers[1])
+            for line in (self.tick1line, self.tick2line):
+                line.set_markersize(self._size)
+                line.set_markeredgewidth(self._width)
+            # _get_text1_transform uses _pad from apply_tickdir.
             trans = self._get_text1_transform()[0]
             self.label1.set_transform(trans)
             trans = self._get_text2_transform()[0]
             self.label2.set_transform(trans)
-            self.tick1line.set_marker(self._tickmarkers[0])
-            self.tick2line.set_marker(self._tickmarkers[1])
         tick_kw = dict([kv for kv in six.iteritems(kw)
                         if kv[0] in ['color', 'zorder']])
         if tick_kw:
@@ -305,16 +327,6 @@ class Tick(artist.Artist):
             self.tick2line.set(**tick_kw)
             for k, v in six.iteritems(tick_kw):
                 setattr(self, '_' + k, v)
-        tick_list = [kv for kv
-                     in six.iteritems(kw) if kv[0] in ['size', 'width']]
-        for k, v in tick_list:
-            setattr(self, '_' + k, v)
-            if k == 'size':
-                self.tick1line.set_markersize(v)
-                self.tick2line.set_markersize(v)
-            else:
-                self.tick1line.set_markeredgewidth(v)
-                self.tick2line.set_markeredgewidth(v)
         label_list = [k for k in six.iteritems(kw)
                       if k[0] in ['labelsize', 'labelcolor']]
         if label_list:
@@ -326,7 +338,17 @@ class Tick(artist.Artist):
                 # -> points. grab the integer from the `Text` object
                 # instead of saving the string representation
                 v = getattr(self.label1, 'get_' + k)()
-                setattr(self, '_' + k, v)
+                setattr(self, '_label' + k, v)
+
+    def update_position(self, loc):
+        'Set the location of tick in data coords with scalar *loc*'
+        raise NotImplementedError('Derived must override')
+
+    def _get_text1_transform(self):
+        raise NotImplementedError('Derived must override')
+
+    def _get_text2_transform(self):
+        raise NotImplementedError('Derived must override')
 
 
 class XTick(Tick):
@@ -349,13 +371,11 @@ class XTick(Tick):
 
         if self._tickdir == 'in':
             self._tickmarkers = (mlines.TICKUP, mlines.TICKDOWN)
-            self._pad = self._base_pad
         elif self._tickdir == 'inout':
             self._tickmarkers = ('|', '|')
-            self._pad = self._base_pad + self._size / 2.
         else:
             self._tickmarkers = (mlines.TICKDOWN, mlines.TICKUP)
-            self._pad = self._base_pad + self._size
+        self._pad = self._base_pad + self.get_tick_padding()
         self.stale = True
 
     def _get_text1(self):
@@ -485,13 +505,11 @@ class YTick(Tick):
 
         if self._tickdir == 'in':
             self._tickmarkers = (mlines.TICKRIGHT, mlines.TICKLEFT)
-            self._pad = self._base_pad
         elif self._tickdir == 'inout':
             self._tickmarkers = ('_', '_')
-            self._pad = self._base_pad + self._size / 2.
         else:
             self._tickmarkers = (mlines.TICKLEFT, mlines.TICKRIGHT)
-            self._pad = self._base_pad + self._size
+        self._pad = self._base_pad + self.get_tick_padding()
         self.stale = True
 
     # how far from the y axis line the right of the ticklabel are
@@ -784,6 +802,8 @@ class Axis(artist.Artist):
             if which == 'minor' or which == 'both':
                 for tick in self.minorTicks:
                     tick._apply_params(**self._minor_tick_kw)
+            if 'labelcolor' in kwtrans:
+                self.offsetText.set_color(kwtrans['labelcolor'])
         self.stale = True
 
     @staticmethod
@@ -1094,6 +1114,16 @@ class Axis(artist.Artist):
             return _bbox
         else:
             return None
+
+    def get_tick_padding(self):
+        values = []
+        if len(self.majorTicks):
+            values.append(self.majorTicks[0].get_tick_padding())
+        if len(self.minorTicks):
+            values.append(self.minorTicks[0].get_tick_padding())
+        if len(values):
+            return max(values)
+        return 0.0
 
     @allow_rasterization
     def draw(self, renderer, *args, **kwargs):
@@ -1643,6 +1673,30 @@ class Axis(artist.Artist):
             tz = pytz.timezone(tz)
         self.update_units(datetime.datetime(2009, 1, 1, 0, 0, 0, 0, tz))
 
+    def get_tick_space(self):
+        """
+        Return the estimated number of ticks that can fit on the axis.
+        """
+        # Must be overridden in the subclass
+        raise NotImplementedError()
+
+    def get_label_position(self):
+        """
+        Return the label position (top or bottom)
+        """
+        return self.label_position
+
+    def set_label_position(self, position):
+        """
+        Set the label position (top or bottom)
+
+        ACCEPTS: [ 'top' | 'bottom' ]
+        """
+        raise NotImplementedError()
+
+    def get_minpos(self):
+        raise NotImplementedError()
+
 
 class XAxis(Axis):
     __name__ = 'xaxis'
@@ -1741,12 +1795,6 @@ class XAxis(Axis):
         dx = abs(ptp[0] - where)
 
         return dx
-
-    def get_label_position(self):
-        """
-        Return the label position (top or bottom)
-        """
-        return self.label_position
 
     def set_label_position(self, position):
         """
@@ -1966,6 +2014,15 @@ class XAxis(Axis):
                 self.axes.viewLim.intervalx = xmin, xmax
         self.stale = True
 
+    def get_tick_space(self):
+        ends = self.axes.transAxes.transform([[0, 0], [1, 0]])
+        length = ((ends[1][0] - ends[0][0]) / self.axes.figure.dpi) * 72.0
+        tick = self._get_tick(True)
+        # There is a heuristic here that the aspect ratio of tick text
+        # is no more than 3:1
+        size = tick.label1.get_size() * 3
+        return int(np.floor(length / size))
+
 
 class YAxis(Axis):
     __name__ = 'yaxis'
@@ -2061,12 +2118,6 @@ class YAxis(Axis):
         ptp = transinv.transform_point((pix[0], pix[1] + perturb))
         dy = abs(ptp[1] - where)
         return dy
-
-    def get_label_position(self):
-        """
-        Return the label position (left or right)
-        """
-        return self.label_position
 
     def set_label_position(self, position):
         """
@@ -2296,3 +2347,11 @@ class YAxis(Axis):
             if not viewMutated:
                 self.axes.viewLim.intervaly = ymin, ymax
         self.stale = True
+
+    def get_tick_space(self):
+        ends = self.axes.transAxes.transform([[0, 0], [0, 1]])
+        length = ((ends[1][1] - ends[0][1]) / self.axes.figure.dpi) * 72.0
+        tick = self._get_tick(True)
+        # Having a spacing of at least 2 just looks good.
+        size = tick.label1.get_size() * 2.0
+        return int(np.floor(length / size))

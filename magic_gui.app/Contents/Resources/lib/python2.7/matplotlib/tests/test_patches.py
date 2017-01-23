@@ -4,7 +4,7 @@ Tests specific to the patches module.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -171,6 +171,14 @@ def test_patch_alpha_override():
 
     ax.set_xlim([-1, 2])
     ax.set_ylim([-1, 2])
+
+
+@cleanup(style='default')
+def test_patch_color_none():
+    # Make sure the alpha kwarg does not override 'none' facecolor.
+    # Addresses issue #7478.
+    c = plt.Circle((0, 0), 1, facecolor='none', alpha=1)
+    assert c.get_facecolor()[0] == 0
 
 
 @image_comparison(baseline_images=['patch_custom_linestyle'],

@@ -1,8 +1,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange
+import six
+from six.moves import xrange
 
 from nose.tools import assert_equal, assert_true
 from matplotlib.testing.decorators import image_comparison, cleanup
@@ -97,6 +97,17 @@ def test_suptitle():
     ax = fig.add_subplot(1, 1, 1)
     fig.suptitle('hello', color='r')
     fig.suptitle('title', color='g', rotation='30')
+
+
+@cleanup
+def test_suptitle_fontproperties():
+    from matplotlib.font_manager import FontProperties
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    fps = FontProperties(size='large', weight='bold')
+    txt = fig.suptitle('fontprops title', fontproperties=fps)
+    assert_equal(txt.get_fontsize(), fps.get_size_in_points())
+    assert_equal(txt.get_weight(), fps.get_weight())
 
 
 @image_comparison(baseline_images=['alpha_background'],

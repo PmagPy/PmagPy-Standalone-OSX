@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 from six.moves import xrange
 from itertools import chain
+from distutils.version import LooseVersion
 import io
 
 from nose.tools import assert_equal, assert_raises, assert_false, assert_true
@@ -11,23 +12,31 @@ from nose.plugins.skip import SkipTest
 
 import datetime
 
+import pytz
+
 import numpy as np
 from numpy import ma
 from numpy import arange
 from cycler import cycler
 
+import warnings
+
 import matplotlib
 from matplotlib.testing.decorators import image_comparison, cleanup
+from matplotlib.testing.noseclasses import KnownFailureTest
 import matplotlib.pyplot as plt
 import matplotlib.markers as mmarkers
-from numpy.testing import assert_array_equal
-import warnings
+import matplotlib.patches as mpatches
+import matplotlib.colors as mcolors
+from numpy.testing import assert_allclose, assert_array_equal
 from matplotlib.cbook import IgnoredKeywordWarning
+import matplotlib.colors as mcolors
 
 # Note: Some test cases are run twice: once normally and once with labeled data
 #       These two must be defined in the same test function or need to have
 #       different baseline images to prevent race conditions when nose runs
 #       the tests with multiple threads.
+
 
 @image_comparison(baseline_images=['formatter_ticker_001',
                                    'formatter_ticker_002',
@@ -81,6 +90,8 @@ def test_formatter_ticker():
 
 @image_comparison(baseline_images=["formatter_large_small"])
 def test_formatter_large_small():
+    if LooseVersion(np.__version__) >= LooseVersion('1.11.0'):
+        raise KnownFailureTest("Fall out from a fixed numpy bug")
     # github issue #617, pull #619
     fig, ax = plt.subplots(1)
     x = [0.500000001, 0.500000002]
@@ -155,6 +166,52 @@ def test_autoscale_tiny_range():
         y1 = 10**(-11 - i)
         ax[i].plot([0, 1], [1, 1 + y1])
 
+
+@cleanup(style='default')
+def test_autoscale_tight():
+    fig, ax = plt.subplots(1, 1)
+    ax.plot([1, 2, 3, 4])
+    ax.autoscale(enable=True, axis='x', tight=False)
+    ax.autoscale(enable=True, axis='y', tight=True)
+    assert_allclose(ax.get_xlim(), (-0.15, 3.15))
+    assert_allclose(ax.get_ylim(), (1.0, 4.0))
+
+
+@cleanup(style='default')
+def test_autoscale_log_shared():
+    # related to github #7587
+    # array starts at zero to trigger _minpos handling
+    x = np.arange(100, dtype=float)
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    ax1.loglog(x, x)
+    ax2.semilogx(x, x)
+    ax1.autoscale(tight=True)
+    ax2.autoscale(tight=True)
+    plt.draw()
+    lims = (x[1], x[-1])
+    assert_allclose(ax1.get_xlim(), lims)
+    assert_allclose(ax1.get_ylim(), lims)
+    assert_allclose(ax2.get_xlim(), lims)
+    assert_allclose(ax2.get_ylim(), (x[0], x[-1]))
+
+
+@cleanup(style='default')
+def test_use_sticky_edges():
+    fig, ax = plt.subplots()
+    ax.imshow([[0, 1], [2, 3]], origin='lower')
+    assert_allclose(ax.get_xlim(), (-0.5, 1.5))
+    assert_allclose(ax.get_ylim(), (-0.5, 1.5))
+    ax.use_sticky_edges = False
+    ax.autoscale()
+    xlim = (-0.5 - 2 * ax._xmargin, 1.5 + 2 * ax._xmargin)
+    ylim = (-0.5 - 2 * ax._ymargin, 1.5 + 2 * ax._ymargin)
+    assert_allclose(ax.get_xlim(), xlim)
+    assert_allclose(ax.get_ylim(), ylim)
+    # Make sure it is reversible:
+    ax.use_sticky_edges = True
+    ax.autoscale()
+    assert_allclose(ax.get_xlim(), (-0.5, 1.5))
+    assert_allclose(ax.get_ylim(), (-0.5, 1.5))
 
 @image_comparison(baseline_images=['offset_points'],
                   remove_text=True)
@@ -238,7 +295,7 @@ def test_polar_coord_annotations():
     ax.set_ylim(-20, 20)
 
 
-@image_comparison(baseline_images=['fill_units'], tol=18, extensions=['png'],
+@image_comparison(baseline_images=['fill_units'], extensions=['png'],
                   savefig_kwarg={'dpi': 60})
 def test_fill_units():
     from datetime import datetime
@@ -1046,7 +1103,7 @@ def test_markevery_polar():
 
 
 @image_comparison(baseline_images=['marker_edges'],
-                  remove_text=True, tol=3)
+                  remove_text=True)
 def test_marker_edges():
     x = np.linspace(0, 1, 10)
     fig = plt.figure()
@@ -1062,14 +1119,14 @@ def test_marker_edges():
 def test_bar_tick_label_single():
     # From 2516: plot bar with array of string labels for x axis
     ax = plt.gca()
-    ax.bar(0, 1 , tick_label='a')
+    ax.bar(0, 1, tick_label='0')
 
     # Reuse testcase from above for a labeled data test
     data = {"a": 0, "b": 1}
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax = plt.gca()
-    ax.bar("a", "b" , tick_label='a', data=data)
+    ax.bar("a", "b", tick_label='0', data=data)
 
 
 @cleanup
@@ -1120,7 +1177,7 @@ def test_hist_step_empty():
     ax = plt.gca()
     ax.hist([], histtype='step')
 
-@image_comparison(baseline_images=['hist_steplog'], remove_text=True)
+@image_comparison(baseline_images=['hist_steplog'], remove_text=True, tol=0.1)
 def test_hist_steplog():
     np.random.seed(0)
     data = np.random.standard_normal(2000)
@@ -1140,6 +1197,27 @@ def test_hist_steplog():
 
     ax = plt.subplot(4, 1, 4)
     plt.hist(data_big, 100, histtype='stepfilled', log=True, orientation='horizontal')
+
+
+@image_comparison(baseline_images=['hist_step_filled'], remove_text=True,
+                  extensions=['png'])
+def test_hist_step_filled():
+    np.random.seed(0)
+    x = np.random.randn(1000, 3)
+    n_bins = 10
+
+    kwargs = [{'fill': True}, {'fill': False}, {'fill': None}, {}]*2
+    types = ['step']*4+['stepfilled']*4
+    fig, axes = plt.subplots(nrows=2, ncols=4)
+    axes = axes.flatten()
+
+    for kg, _type, ax in zip(kwargs, types, axes):
+        ax.hist(x, n_bins, histtype=_type, stacked=True, **kg)
+        ax.set_title('%s/%s' % (kg, _type))
+        ax.set_ylim(ymin=-50)
+
+    patches = axes[0].patches
+    assert all([p.get_facecolor() == p.get_edgecolor() for p in patches])
 
 
 @image_comparison(baseline_images=['hist_step_log_bottom'],
@@ -1252,7 +1330,7 @@ def test_scatter_plot():
 @image_comparison(baseline_images=['scatter_marker'], remove_text=True,
                   extensions=['png'])
 def test_scatter_marker():
-    fig, (ax0, ax1) = plt.subplots(ncols=2)
+    fig, (ax0, ax1, ax2) = plt.subplots(ncols=3)
     ax0.scatter([3, 4, 2, 6], [2, 5, 2, 3],
                 c=[(1, 0, 0), 'y', 'b', 'lime'],
                 s=[60, 50, 40, 30],
@@ -1263,6 +1341,16 @@ def test_scatter_marker():
                 s=[60, 50, 40, 30],
                 edgecolors=['k', 'r', 'g', 'b'],
                 marker=mmarkers.MarkerStyle('o', fillstyle='top'))
+    # unit area ellipse
+    rx, ry = 3, 1
+    area = rx * ry * np.pi
+    theta = np.linspace(0, 2 * np.pi, 21)
+    verts = list(zip(np.cos(theta) * rx / area, np.sin(theta) * ry / area))
+    ax2.scatter([3, 4, 2, 6], [2, 5, 2, 3],
+                c=[(1, 0, 0), 'y', 'b', 'lime'],
+                s=[60, 50, 40, 30],
+                edgecolors=['k', 'r', 'g', 'b'],
+                verts=verts)
 
 
 @image_comparison(baseline_images=['scatter_2D'], remove_text=True,
@@ -1275,6 +1363,13 @@ def test_scatter_2D():
     fig, ax = plt.subplots()
     ax.scatter(x, y, c=z, s=200, edgecolors='face')
 
+@cleanup
+def test_scatter_color():
+    # Try to catch cases where 'c' kwarg should have been used.
+    assert_raises(ValueError, plt.scatter, [1, 2], [1, 2],
+                  color=[0.1, 0.2])
+    assert_raises(ValueError, plt.scatter, [1, 2, 3], [1, 2, 3],
+                  color=[1, 2, 3])
 
 @cleanup
 def test_as_mpl_axes_api():
@@ -1377,6 +1472,7 @@ def test_stackplot_baseline():
         return a
 
     d = layers(3, 100)
+    d[50,:] = 0  # test for fixed weighted wiggle (issue #6313)
 
     fig = plt.figure()
 
@@ -1395,7 +1491,8 @@ def test_stackplot_baseline():
 
 @image_comparison(baseline_images=['bxp_baseline'],
                   extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_baseline():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1409,7 +1506,8 @@ def test_bxp_baseline():
 
 @image_comparison(baseline_images=['bxp_rangewhis'],
                   extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_rangewhis():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1424,7 +1522,8 @@ def test_bxp_rangewhis():
 
 @image_comparison(baseline_images=['bxp_precentilewhis'],
                   extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_precentilewhis():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1439,7 +1538,8 @@ def test_bxp_precentilewhis():
 
 @image_comparison(baseline_images=['bxp_with_xlabels'],
                   extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_with_xlabels():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1455,7 +1555,9 @@ def test_bxp_with_xlabels():
 
 @image_comparison(baseline_images=['bxp_horizontal'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default',
+                  tol=0.1)
 def test_bxp_horizontal():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1469,7 +1571,9 @@ def test_bxp_horizontal():
 
 @image_comparison(baseline_images=['bxp_with_ylabels'],
                   extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default',
+                  tol=0.1,)
 def test_bxp_with_ylabels():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1485,7 +1589,8 @@ def test_bxp_with_ylabels():
 
 @image_comparison(baseline_images=['bxp_patchartist'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_patchartist():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1499,7 +1604,8 @@ def test_bxp_patchartist():
 
 @image_comparison(baseline_images=['bxp_custompatchartist'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 100},
+                  style='default')
 def test_bxp_custompatchartist():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1514,7 +1620,8 @@ def test_bxp_custompatchartist():
 
 @image_comparison(baseline_images=['bxp_customoutlier'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_customoutlier():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1529,7 +1636,8 @@ def test_bxp_customoutlier():
 
 @image_comparison(baseline_images=['bxp_withmean_custompoint'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_showcustommean():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1544,7 +1652,8 @@ def test_bxp_showcustommean():
 
 @image_comparison(baseline_images=['bxp_custombox'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_custombox():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1559,7 +1668,8 @@ def test_bxp_custombox():
 
 @image_comparison(baseline_images=['bxp_custommedian'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_custommedian():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1574,7 +1684,8 @@ def test_bxp_custommedian():
 
 @image_comparison(baseline_images=['bxp_customcap'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_customcap():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1589,7 +1700,8 @@ def test_bxp_customcap():
 
 @image_comparison(baseline_images=['bxp_customwhisker'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_customwhisker():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1604,7 +1716,8 @@ def test_bxp_customwhisker():
 
 @image_comparison(baseline_images=['bxp_withnotch'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_shownotches():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1618,7 +1731,8 @@ def test_bxp_shownotches():
 
 @image_comparison(baseline_images=['bxp_nocaps'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_nocaps():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1632,7 +1746,8 @@ def test_bxp_nocaps():
 
 @image_comparison(baseline_images=['bxp_nobox'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_nobox():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1644,9 +1759,27 @@ def test_bxp_nobox():
     ax.bxp(logstats, showbox=False)
 
 
+@image_comparison(baseline_images=['bxp_no_flier_stats'],
+                  remove_text=True, extensions=['png'],
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
+def test_bxp_no_flier_stats():
+    np.random.seed(937)
+    logstats = matplotlib.cbook.boxplot_stats(
+        np.random.lognormal(mean=1.25, sigma=1., size=(37, 4))
+    )
+    for ls in logstats:
+        ls.pop('fliers', None)
+
+    fig, ax = plt.subplots()
+    ax.set_yscale('log')
+    ax.bxp(logstats, showfliers=False)
+
+
 @image_comparison(baseline_images=['bxp_withmean_point'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_showmean():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1660,7 +1793,8 @@ def test_bxp_showmean():
 
 @image_comparison(baseline_images=['bxp_withmean_line'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_showmeanasline():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1674,7 +1808,8 @@ def test_bxp_showmeanasline():
 
 @image_comparison(baseline_images=['bxp_scalarwidth'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_scalarwidth():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1688,7 +1823,8 @@ def test_bxp_scalarwidth():
 
 @image_comparison(baseline_images=['bxp_customwidths'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_customwidths():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1702,7 +1838,8 @@ def test_bxp_customwidths():
 
 @image_comparison(baseline_images=['bxp_custompositions'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_bxp_custompositions():
     np.random.seed(937)
     logstats = matplotlib.cbook.boxplot_stats(
@@ -1738,8 +1875,13 @@ def test_bxp_bad_positions():
     assert_raises(ValueError, ax.bxp, logstats, positions=[2, 3])
 
 
-@image_comparison(baseline_images=['boxplot', 'boxplot'])
+@image_comparison(baseline_images=['boxplot', 'boxplot'],
+                  tol=1,
+                  style='default')
 def test_boxplot():
+    # Randomness used for bootstrapping.
+    np.random.seed(937)
+
     x = np.linspace(-7, 7, 140)
     x = np.hstack([-25, x, 25])
     fig, ax = plt.subplots()
@@ -1748,15 +1890,19 @@ def test_boxplot():
     ax.set_ylim((-30, 30))
 
     # Reuse testcase from above for a labeled data test
-    data={"x": [x, x]}
+    data = {"x": [x, x]}
     fig, ax = plt.subplots()
     ax.boxplot("x", bootstrap=10000, notch=1, data=data)
     ax.set_ylim((-30, 30))
 
 
 @image_comparison(baseline_images=['boxplot_sym2'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'],
+                  style='default')
 def test_boxplot_sym2():
+    # Randomness used for bootstrapping.
+    np.random.seed(937)
+
     x = np.linspace(-7, 7, 140)
     x = np.hstack([-25, x, 25])
     fig, [ax1, ax2] = plt.subplots(1, 2)
@@ -1770,7 +1916,8 @@ def test_boxplot_sym2():
 
 @image_comparison(baseline_images=['boxplot_sym'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40},
+                  style='default')
 def test_boxplot_sym():
     x = np.linspace(-7, 7, 140)
     x = np.hstack([-25, x, 25])
@@ -1780,14 +1927,26 @@ def test_boxplot_sym():
     ax.set_ylim((-30, 30))
 
 
-@image_comparison(baseline_images=['boxplot_autorange_whiskers'])
+@image_comparison(
+    baseline_images=['boxplot_autorange_false_whiskers',
+                     'boxplot_autorange_true_whiskers'],
+    extensions=['png'],
+    style='default'
+)
 def test_boxplot_autorange_whiskers():
+    # Randomness used for bootstrapping.
+    np.random.seed(937)
+
     x = np.ones(140)
     x = np.hstack([0, x, 2])
-    fig, ax = plt.subplots()
 
-    ax.boxplot([x, x], bootstrap=10000, notch=1)
-    ax.set_ylim((-5, 5))
+    fig1, ax1 = plt.subplots()
+    ax1.boxplot([x, x], bootstrap=10000, notch=1)
+    ax1.set_ylim((-5, 5))
+
+    fig2, ax2 = plt.subplots()
+    ax2.boxplot([x, x], bootstrap=10000, notch=1, autorange=True)
+    ax2.set_ylim((-5, 5))
 
 def _rc_test_bxp_helper(ax, rc_dict):
     x = np.linspace(-7, 7, 140)
@@ -1797,8 +1956,12 @@ def _rc_test_bxp_helper(ax, rc_dict):
     return ax
 
 @image_comparison(baseline_images=['boxplot_rc_parameters'],
-                  savefig_kwarg={'dpi': 100}, remove_text=True)
+                  savefig_kwarg={'dpi': 100}, remove_text=True,
+                  tol=1, style='default')
 def test_boxplot_rc_parameters():
+    # Randomness used for bootstrapping.
+    np.random.seed(937)
+
     fig, ax = plt.subplots(3)
 
     rc_axis0 = {
@@ -1859,8 +2022,11 @@ def test_boxplot_rc_parameters():
 
 @image_comparison(baseline_images=['boxplot_with_CIarray'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40}, style='default')
 def test_boxplot_with_CIarray():
+    # Randomness used for bootstrapping.
+    np.random.seed(937)
+
     x = np.linspace(-7, 7, 140)
     x = np.hstack([-25, x, 25])
     fig = plt.figure()
@@ -1875,7 +2041,7 @@ def test_boxplot_with_CIarray():
 
 @image_comparison(baseline_images=['boxplot_no_inverted_whisker'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40}, style='default')
 def test_boxplot_no_weird_whisker():
     x = np.array([3, 9000, 150, 88, 350, 200000, 1400, 960],
                  dtype=np.float64)
@@ -1912,6 +2078,14 @@ def test_boxplot_bad_ci_1():
 
 
 @cleanup
+def test_boxplot_zorder():
+    x = np.arange(10)
+    fix, ax = plt.subplots()
+    assert ax.boxplot(x)['boxes'][0].get_zorder() == 2
+    assert ax.boxplot(x, zorder=10)['boxes'][0].get_zorder() == 10
+
+
+@cleanup
 def test_boxplot_bad_ci_2():
     x = np.linspace(-7, 7, 140)
     x = np.hstack([-25, x, 25])
@@ -1922,7 +2096,7 @@ def test_boxplot_bad_ci_2():
 
 @image_comparison(baseline_images=['boxplot_mod_artists_after_plotting'],
                   remove_text=True, extensions=['png'],
-                  savefig_kwarg={'dpi': 40})
+                  savefig_kwarg={'dpi': 40}, style='default')
 def test_boxplot_mod_artist_after_plotting():
     x = [0.15, 0.11, 0.06, 0.06, 0.12, 0.56, -0.56]
     fig, ax = plt.subplots()
@@ -2675,6 +2849,90 @@ def test_eb_line_zorder():
     ax.set_title("errorbar zorder test")
 
 
+@image_comparison(
+    baseline_images=['vlines_basic', 'vlines_with_nan', 'vlines_masked'],
+    extensions=['png']
+)
+def test_vlines():
+    # normal
+    x1 = [2, 3, 4, 5, 7]
+    y1 = [2, -6, 3, 8, 2]
+    fig1, ax1 = plt.subplots()
+    ax1.vlines(x1, 0, y1, colors='g', linewidth=5)
+
+    # GH #7406
+    x2 = [2, 3, 4, 5, 6, 7]
+    y2 = [2, -6, 3, 8, np.nan, 2]
+    fig2, (ax2, ax3, ax4) = plt.subplots(nrows=3, figsize=(4, 8))
+    ax2.vlines(x2, 0, y2, colors='g', linewidth=5)
+
+    x3 = [2, 3, 4, 5, 6, 7]
+    y3 = [np.nan, 2, -6, 3, 8, 2]
+    ax3.vlines(x3, 0, y3, colors='r', linewidth=3, linestyle='--')
+
+    x4 = [2, 3, 4, 5, 6, 7]
+    y4 = [np.nan, 2, -6, 3, 8, np.nan]
+    ax4.vlines(x4, 0, y4, colors='k', linewidth=2)
+
+    # tweak the x-axis so we can see the lines better
+    for ax in [ax1, ax2, ax3, ax4]:
+        ax.set_xlim(0, 10)
+
+    # check that the y-lims are all automatically the same
+    assert ax1.get_ylim() == ax2.get_ylim()
+    assert ax1.get_ylim() == ax3.get_ylim()
+    assert ax1.get_ylim() == ax4.get_ylim()
+
+    fig3, ax5 = plt.subplots()
+    x5 = np.ma.masked_equal([2, 4, 6, 8, 10, 12], 8)
+    ymin5 = np.ma.masked_equal([0, 1, -1, 0, 2, 1], 2)
+    ymax5 = np.ma.masked_equal([13, 14, 15, 16, 17, 18], 18)
+    ax5.vlines(x5, ymin5, ymax5, colors='k', linewidth=2)
+    ax5.set_xlim(0, 15)
+
+
+@image_comparison(
+    baseline_images=['hlines_basic', 'hlines_with_nan', 'hlines_masked'],
+    extensions=['png']
+)
+def test_hlines():
+    # normal
+    y1 = [2, 3, 4, 5, 7]
+    x1 = [2, -6, 3, 8, 2]
+    fig1, ax1 = plt.subplots()
+    ax1.hlines(y1, 0, x1, colors='g', linewidth=5)
+
+    # GH #7406
+    y2 = [2, 3, 4, 5, 6, 7]
+    x2 = [2, -6, 3, 8, np.nan, 2]
+    fig2, (ax2, ax3, ax4) = plt.subplots(nrows=3, figsize=(4, 8))
+    ax2.hlines(y2, 0, x2, colors='g', linewidth=5)
+
+    y3 = [2, 3, 4, 5, 6, 7]
+    x3 = [np.nan, 2, -6, 3, 8, 2]
+    ax3.hlines(y3, 0, x3, colors='r', linewidth=3, linestyle='--')
+
+    y4 = [2, 3, 4, 5, 6, 7]
+    x4 = [np.nan, 2, -6, 3, 8, np.nan]
+    ax4.hlines(y4, 0, x4, colors='k', linewidth=2)
+
+    # tweak the y-axis so we can see the lines better
+    for ax in [ax1, ax2, ax3, ax4]:
+        ax.set_ylim(0, 10)
+
+    # check that the x-lims are all automatically the same
+    assert ax1.get_xlim() == ax2.get_xlim()
+    assert ax1.get_xlim() == ax3.get_xlim()
+    assert ax1.get_xlim() == ax4.get_xlim()
+
+    fig3, ax5 = plt.subplots()
+    y5 = np.ma.masked_equal([2, 4, 6, 8, 10, 12], 8)
+    xmin5 = np.ma.masked_equal([0, 1, -1, 0, 2, 1], 2)
+    xmax5 = np.ma.masked_equal([13, 14, 15, 16, 17, 18], 18)
+    ax5.hlines(y5, xmin5, xmax5, colors='k', linewidth=2)
+    ax5.set_ylim(0, 15)
+
+
 @image_comparison(baseline_images=['step_linestyle', 'step_linestyle'],
                   remove_text=True)
 def test_step_linestyle():
@@ -2747,16 +3005,17 @@ def test_subplot_key_hash():
 
 @image_comparison(baseline_images=['specgram_freqs',
                                    'specgram_freqs_linear'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'], tol=0.07,
+                  style='default')
 def test_specgram_freqs():
     '''test axes.specgram in default (psd) mode with sinusoidal stimuli'''
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
     fstims1 = [Fs/4, Fs/5, Fs/11]
     fstims2 = [Fs/4.7, Fs/5.6, Fs/11.9]
 
-    NFFT = int(1000 * Fs / min(fstims1 + fstims2))
+    NFFT = int(10 * Fs / min(fstims1 + fstims2))
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -2800,15 +3059,16 @@ def test_specgram_freqs():
 
 @image_comparison(baseline_images=['specgram_noise',
                                    'specgram_noise_linear'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'], tol=0.01,
+                  style='default')
 def test_specgram_noise():
     '''test axes.specgram in default (psd) mode with noise stimuli'''
     np.random.seed(0)
 
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
-    NFFT = int(1000 * Fs / 11)
+    NFFT = int(10 * Fs / 11)
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -2847,16 +3107,17 @@ def test_specgram_noise():
 
 @image_comparison(baseline_images=['specgram_magnitude_freqs',
                                    'specgram_magnitude_freqs_linear'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'], tol=0.07,
+                  style='default')
 def test_specgram_magnitude_freqs():
     '''test axes.specgram in magnitude mode with sinusoidal stimuli'''
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
     fstims1 = [Fs/4, Fs/5, Fs/11]
     fstims2 = [Fs/4.7, Fs/5.6, Fs/11.9]
 
-    NFFT = int(1000 * Fs / min(fstims1 + fstims2))
+    NFFT = int(100 * Fs / min(fstims1 + fstims2))
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -2902,15 +3163,16 @@ def test_specgram_magnitude_freqs():
 
 @image_comparison(baseline_images=['specgram_magnitude_noise',
                                    'specgram_magnitude_noise_linear'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'],
+                  style='default')
 def test_specgram_magnitude_noise():
     '''test axes.specgram in magnitude mode with noise stimuli'''
     np.random.seed(0)
 
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
-    NFFT = int(1000 * Fs / 11)
+    NFFT = int(10 * Fs / 11)
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -2948,16 +3210,17 @@ def test_specgram_magnitude_noise():
 
 
 @image_comparison(baseline_images=['specgram_angle_freqs'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'], tol=0.007,
+                  style='default')
 def test_specgram_angle_freqs():
     '''test axes.specgram in angle mode with sinusoidal stimuli'''
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
     fstims1 = [Fs/4, Fs/5, Fs/11]
     fstims2 = [Fs/4.7, Fs/5.6, Fs/11.9]
 
-    NFFT = int(1000 * Fs / min(fstims1 + fstims2))
+    NFFT = int(10 * Fs / min(fstims1 + fstims2))
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -2977,10 +3240,6 @@ def test_specgram_angle_freqs():
     ax11 = fig1.add_subplot(3, 1, 1)
     ax12 = fig1.add_subplot(3, 1, 2)
     ax13 = fig1.add_subplot(3, 1, 3)
-
-    ax11.hold(True)
-    ax12.hold(True)
-    ax13.hold(True)
 
     spec11 = ax11.specgram(y, NFFT=NFFT, Fs=Fs, noverlap=noverlap,
                            pad_to=pad_to, sides='default', mode='angle')
@@ -3003,15 +3262,16 @@ def test_specgram_angle_freqs():
 
 
 @image_comparison(baseline_images=['specgram_angle_noise'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'],
+                  style='default')
 def test_specgram_noise_angle():
     '''test axes.specgram in angle mode with noise stimuli'''
     np.random.seed(0)
 
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
-    NFFT = int(1000 * Fs / 11)
+    NFFT = int(10 * Fs / 11)
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -3024,10 +3284,6 @@ def test_specgram_noise_angle():
     ax11 = fig1.add_subplot(3, 1, 1)
     ax12 = fig1.add_subplot(3, 1, 2)
     ax13 = fig1.add_subplot(3, 1, 3)
-
-    ax11.hold(True)
-    ax12.hold(True)
-    ax13.hold(True)
 
     spec11 = ax11.specgram(y, NFFT=NFFT, Fs=Fs, noverlap=noverlap,
                            pad_to=pad_to, sides='default', mode='angle')
@@ -3050,16 +3306,17 @@ def test_specgram_noise_angle():
 
 
 @image_comparison(baseline_images=['specgram_phase_freqs'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'],
+                  style='default')
 def test_specgram_freqs_phase():
     '''test axes.specgram in phase mode with sinusoidal stimuli'''
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
     fstims1 = [Fs/4, Fs/5, Fs/11]
     fstims2 = [Fs/4.7, Fs/5.6, Fs/11.9]
 
-    NFFT = int(1000 * Fs / min(fstims1 + fstims2))
+    NFFT = int(10 * Fs / min(fstims1 + fstims2))
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -3079,10 +3336,6 @@ def test_specgram_freqs_phase():
     ax11 = fig1.add_subplot(3, 1, 1)
     ax12 = fig1.add_subplot(3, 1, 2)
     ax13 = fig1.add_subplot(3, 1, 3)
-
-    ax11.hold(True)
-    ax12.hold(True)
-    ax13.hold(True)
 
     spec11 = ax11.specgram(y, NFFT=NFFT, Fs=Fs, noverlap=noverlap,
                            pad_to=pad_to, sides='default', mode='phase')
@@ -3105,15 +3358,16 @@ def test_specgram_freqs_phase():
 
 
 @image_comparison(baseline_images=['specgram_phase_noise'],
-                  remove_text=True, extensions=['png'])
+                  remove_text=True, extensions=['png'],
+                  style='default')
 def test_specgram_noise_phase():
     '''test axes.specgram in phase mode with noise stimuli'''
     np.random.seed(0)
 
-    n = 10000
-    Fs = 100.
+    n = 1000
+    Fs = 10.
 
-    NFFT = int(1000 * Fs / 11)
+    NFFT = int(10 * Fs / 11)
     noverlap = int(NFFT / 2)
     pad_to = int(2 ** np.ceil(np.log2(NFFT)))
 
@@ -3126,10 +3380,6 @@ def test_specgram_noise_phase():
     ax11 = fig1.add_subplot(3, 1, 1)
     ax12 = fig1.add_subplot(3, 1, 2)
     ax13 = fig1.add_subplot(3, 1, 3)
-
-    ax11.hold(True)
-    ax12.hold(True)
-    ax13.hold(True)
 
     spec11 = ax11.specgram(y, NFFT=NFFT, Fs=Fs, noverlap=noverlap,
                            pad_to=pad_to, sides='default',
@@ -3707,8 +3957,7 @@ def test_vline_limit():
     ax.axvline(0.5)
     ax.plot([-0.1, 0, 0.2, 0.1])
     (ymin, ymax) = ax.get_ylim()
-    assert ymin == -0.1
-    assert ymax == 0.25
+    assert_allclose(ax.get_ylim(), (-.1, .2))
 
 
 @cleanup
@@ -4030,6 +4279,51 @@ def test_rc_grid():
 
 
 @cleanup
+def test_rc_tick():
+    d = {'xtick.bottom': False, 'xtick.top': True,
+         'ytick.left': True, 'ytick.right': False}
+    with plt.rc_context(rc=d):
+        fig = plt.figure()
+        ax1 = fig.add_subplot(1, 1, 1)
+        xax = ax1.xaxis
+        yax = ax1.yaxis
+        # tick1On bottom/left
+        assert xax._major_tick_kw['tick1On'] == False
+        assert xax._major_tick_kw['tick2On'] == True
+        assert xax._minor_tick_kw['tick1On'] == False
+        assert xax._minor_tick_kw['tick2On'] == True
+
+        assert yax._major_tick_kw['tick1On'] == True
+        assert yax._major_tick_kw['tick2On'] == False
+        assert yax._minor_tick_kw['tick1On'] == True
+        assert yax._minor_tick_kw['tick2On'] == False
+
+
+@cleanup
+def test_rc_major_minor_tick():
+    d = {'xtick.top': True, 'ytick.right': True,  # Enable all ticks
+         'xtick.bottom': True, 'ytick.left': True,
+         # Selectively disable
+         'xtick.minor.bottom': False, 'xtick.major.bottom': False,
+         'ytick.major.left': False, 'ytick.minor.left': False}
+    with plt.rc_context(rc=d):
+        fig = plt.figure()
+        ax1 = fig.add_subplot(1, 1, 1)
+        xax = ax1.xaxis
+        yax = ax1.yaxis
+        # tick1On bottom/left
+        assert xax._major_tick_kw['tick1On'] == False
+        assert xax._major_tick_kw['tick2On'] == True
+        assert xax._minor_tick_kw['tick1On'] == False
+        assert xax._minor_tick_kw['tick2On'] == True
+
+        assert yax._major_tick_kw['tick1On'] == False
+        assert yax._major_tick_kw['tick2On'] == True
+        assert yax._minor_tick_kw['tick1On'] == False
+        assert yax._minor_tick_kw['tick2On'] == True
+
+
+@cleanup
 def test_bar_negative_width():
     fig, ax = plt.subplots()
     res = ax.bar(range(1, 5), range(1, 5), width=-1)
@@ -4134,6 +4428,84 @@ def test_errorbar_inputs_shotgun():
 
 
 @cleanup
+def test_axisbg_warning():
+    fig = plt.figure()
+    with warnings.catch_warnings(record=True) as w:
+        ax = matplotlib.axes.Axes(fig, [0, 0, 1, 1], axisbg='r')
+    assert len(w) == 1
+    assert (str(w[0].message).startswith(
+            ("The axisbg attribute was deprecated in version 2.0.")))
+
+
+@image_comparison(baseline_images=["dash_offset"], remove_text=True)
+def test_dash_offset():
+    fig, ax = plt.subplots()
+    x = np.linspace(0, 10)
+    y = np.ones_like(x)
+    for j in range(0, 100, 2):
+        ax.plot(x, j*y, ls=(j, (10, 10)), lw=5, color='k')
+
+
+@cleanup
+def test_title_location_roundtrip():
+    fig, ax = plt.subplots()
+    ax.set_title('aardvark')
+    ax.set_title('left', loc='left')
+    ax.set_title('right', loc='right')
+
+    assert_equal('left', ax.get_title(loc='left'))
+    assert_equal('right', ax.get_title(loc='right'))
+    assert_equal('aardvark', ax.get_title())
+
+    assert_raises(ValueError, ax.get_title, loc='foo')
+    assert_raises(ValueError, ax.set_title, 'fail', loc='foo')
+
+
+@image_comparison(baseline_images=["loglog"], remove_text=True,
+                  extensions=['png'])
+def test_loglog():
+    fig, ax = plt.subplots()
+    x = np.arange(1, 11)
+    ax.loglog(x, x**3, lw=5)
+    ax.tick_params(length=25, width=2)
+    ax.tick_params(length=15, width=2, which='minor')
+
+
+@cleanup('default')
+def test_axes_margins():
+    fig, ax = plt.subplots()
+    ax.plot([0, 1, 2, 3])
+    assert ax.get_ybound()[0] != 0
+
+    fig, ax = plt.subplots()
+    ax.bar([0, 1, 2, 3], [1, 1, 1, 1])
+    assert ax.get_ybound()[0] == 0
+
+    fig, ax = plt.subplots()
+    ax.barh([0, 1, 2, 3], [1, 1, 1, 1])
+    assert ax.get_xbound()[0] == 0
+
+    fig, ax = plt.subplots()
+    ax.pcolor(np.zeros((10, 10)))
+    assert ax.get_xbound() == (0, 10)
+    assert ax.get_ybound() == (0, 10)
+
+    fig, ax = plt.subplots()
+    ax.pcolorfast(np.zeros((10, 10)))
+    assert ax.get_xbound() == (0, 10)
+    assert ax.get_ybound() == (0, 10)
+
+    fig, ax = plt.subplots()
+    ax.hist(np.arange(10))
+    assert ax.get_ybound()[0] == 0
+
+    fig, ax = plt.subplots()
+    ax.imshow(np.zeros((10, 10)))
+    assert ax.get_xbound() == (-0.5, 9.5)
+    assert ax.get_ybound() == (-0.5, 9.5)
+
+
+@cleanup
 def test_remove_shared_axes():
 
     def _helper_x(ax):
@@ -4175,7 +4547,36 @@ def test_remove_shared_axes():
     orig_xlim = ax_lst[0][1].get_xlim()
     ax.remove()
     ax.set_xlim(0, 5)
-    assert assert_array_equal(ax_lst[0][1].get_xlim(), orig_xlim)
+    assert_array_equal(ax_lst[0][1].get_xlim(), orig_xlim)
+
+
+@cleanup
+def test_adjust_numtick_aspect():
+    fig, ax = plt.subplots()
+    ax.yaxis.get_major_locator().set_params(nbins='auto')
+    ax.set_xlim(0, 1000)
+    ax.set_aspect('equal')
+    fig.canvas.draw()
+    assert len(ax.yaxis.get_major_locator()()) == 2
+    ax.set_ylim(0, 1000)
+    fig.canvas.draw()
+    assert len(ax.yaxis.get_major_locator()()) > 2
+
+
+@image_comparison(baseline_images=["auto_numticks"], style='default',
+                  extensions=['png'])
+def test_auto_numticks():
+    # Make tiny, empty subplots, verify that there are only 3 ticks.
+    fig, axes = plt.subplots(4, 4)
+
+
+@image_comparison(baseline_images=["auto_numticks_log"], style='default',
+                  extensions=['png'])
+def test_auto_numticks_log():
+    # Verify that there are not too many ticks with a large log range.
+    fig, ax = plt.subplots()
+    matplotlib.rcParams['axes.autolimit_mode'] = 'round_numbers'
+    ax.loglog([1e-20, 1e5], [1e-16, 10])
 
 
 @cleanup
@@ -4202,6 +4603,20 @@ def test_pandas_indexing_dates():
 
 
 @cleanup
+def test_pandas_errorbar_indexing():
+    try:
+        import pandas as pd
+    except ImportError:
+        raise SkipTest("Pandas not installed")
+
+    df = pd.DataFrame(np.random.uniform(size=(5, 4)),
+                      columns=['x', 'y', 'xe', 'ye'],
+                      index=[1, 2, 3, 4, 5])
+    fig, ax = plt.subplots()
+    ax.errorbar('x', 'y', xerr='xe', yerr='ye', data=df)
+
+
+@cleanup
 def test_pandas_indexing_hist():
     try:
         import pandas as pd
@@ -4212,6 +4627,203 @@ def test_pandas_indexing_hist():
     ser_2 = ser_1.iloc[1:]
     fig, axes = plt.subplots()
     axes.hist(ser_2)
+
+
+@cleanup
+def test_axis_set_tick_params_labelsize_labelcolor():
+    # Tests fix for issue 4346
+    axis_1 = plt.subplot()
+    axis_1.yaxis.set_tick_params(labelsize=30, labelcolor='red', direction='out')
+
+    # Expected values after setting the ticks
+    assert axis_1.yaxis.majorTicks[0]._size == 4.0
+    assert axis_1.yaxis.majorTicks[0]._color == 'k'
+    assert axis_1.yaxis.majorTicks[0]._labelsize == 30.0
+    assert axis_1.yaxis.majorTicks[0]._labelcolor == 'red'
+
+
+@cleanup
+def test_none_kwargs():
+    fig, ax = plt.subplots()
+    ln, = ax.plot(range(32), linestyle=None)
+    assert ln.get_linestyle() == '-'
+
+
+@cleanup
+def test_ls_ds_conflict():
+    assert_raises(ValueError, plt.plot, range(32),
+                  linestyle='steps-pre:', drawstyle='steps-post')
+
+
+@cleanup
+def test_ls_ds_conflict():
+    assert_raises(ValueError, plt.plot, range(32),
+                  linestyle='steps-pre:', drawstyle='steps-post')
+
+
+@image_comparison(baseline_images=['date_timezone_x'], extensions=['png'])
+def test_date_timezone_x():
+    # Tests issue 5575
+    time_index = [pytz.timezone('Canada/Eastern').localize(datetime.datetime(
+        year=2016, month=2, day=22, hour=x)) for x in range(3)]
+
+    # Same Timezone
+    fig = plt.figure(figsize=(20, 12))
+    plt.subplot(2, 1, 1)
+    plt.plot_date(time_index, [3] * 3, tz='Canada/Eastern')
+
+    # Different Timezone
+    plt.subplot(2, 1, 2)
+    plt.plot_date(time_index, [3] * 3, tz='UTC')
+
+
+@image_comparison(baseline_images=['date_timezone_y'],
+                  extensions=['png'])
+def test_date_timezone_y():
+    # Tests issue 5575
+    time_index = [pytz.timezone('Canada/Eastern').localize(datetime.datetime(
+        year=2016, month=2, day=22, hour=x)) for x in range(3)]
+
+    # Same Timezone
+    fig = plt.figure(figsize=(20, 12))
+    plt.subplot(2, 1, 1)
+    plt.plot_date([3] * 3,
+                  time_index, tz='Canada/Eastern', xdate=False, ydate=True)
+
+    # Different Timezone
+    plt.subplot(2, 1, 2)
+    plt.plot_date([3] * 3, time_index, tz='UTC', xdate=False, ydate=True)
+
+
+@image_comparison(baseline_images=['date_timezone_x_and_y'],
+                  extensions=['png'])
+def test_date_timezone_x_and_y():
+    # Tests issue 5575
+    time_index = [pytz.timezone('UTC').localize(datetime.datetime(
+        year=2016, month=2, day=22, hour=x)) for x in range(3)]
+
+    # Same Timezone
+    fig = plt.figure(figsize=(20, 12))
+    plt.subplot(2, 1, 1)
+    plt.plot_date(time_index, time_index, tz='UTC', ydate=True)
+
+    # Different Timezone
+    plt.subplot(2, 1, 2)
+    plt.plot_date(time_index, time_index, tz='US/Eastern', ydate=True)
+
+
+@image_comparison(baseline_images=['axisbelow'],
+                  extensions=['png'], remove_text=True)
+def test_axisbelow():
+    # Test 'line' setting added in 6287.
+    # Show only grids, not frame or ticks, to make this test
+    # independent of future change to drawing order of those elements.
+    fig, axs = plt.subplots(ncols=3, sharex=True, sharey=True)
+    settings = (False, 'line', True)
+
+    for ax, setting in zip(axs, settings):
+        ax.plot((0, 10), (0, 10), lw=10, color='m')
+        circ = mpatches.Circle((3, 3), color='r')
+        ax.add_patch(circ)
+        ax.grid(color='c', linestyle='-', linewidth=3)
+        ax.tick_params(top=False, bottom=False,
+                       left=False, right=False)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.set_axisbelow(setting)
+
+
+@cleanup
+def test_offset_label_color():
+    # Tests issue 6440
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot([1.01e9, 1.02e9, 1.03e9])
+    ax.yaxis.set_tick_params(labelcolor='red')
+    assert ax.yaxis.get_offset_text().get_color() == 'red'
+
+
+@cleanup
+def test_large_offset():
+    fig, ax = plt.subplots()
+    ax.plot((1 + np.array([0, 1.e-12])) * 1.e27)
+    fig.canvas.draw()
+
+
+@cleanup
+def test_bar_color_cycle():
+    ccov = mcolors.colorConverter.to_rgb
+    fig, ax = plt.subplots()
+    for j in range(5):
+        ln, = ax.plot(range(3))
+        brs = ax.bar(range(3), range(3))
+        for br in brs:
+            assert ccov(ln.get_color()) == ccov(br.get_facecolor())
+
+
+@cleanup(style='default')
+def test_fillbetween_cycle():
+    fig, ax = plt.subplots()
+
+    for j in range(3):
+        cc = ax.fill_between(range(3), range(3))
+        target = mcolors.to_rgba('C{}'.format(j))
+        assert tuple(cc.get_facecolors().squeeze()) == tuple(target)
+
+    for j in range(3, 6):
+        cc = ax.fill_betweenx(range(3), range(3))
+        target = mcolors.to_rgba('C{}'.format(j))
+        assert tuple(cc.get_facecolors().squeeze()) == tuple(target)
+
+    target = mcolors.to_rgba('k')
+
+    for al in ['facecolor', 'facecolors', 'color']:
+        cc = ax.fill_between(range(3), range(3), **{al: 'k'})
+        assert tuple(cc.get_facecolors().squeeze()) == tuple(target)
+
+    edge_target = mcolors.to_rgba('k')
+    for j, el in enumerate(['edgecolor', 'edgecolors'], start=6):
+        cc = ax.fill_between(range(3), range(3), **{el: 'k'})
+        face_target = mcolors.to_rgba('C{}'.format(j))
+        assert tuple(cc.get_facecolors().squeeze()) == tuple(face_target)
+        assert tuple(cc.get_edgecolors().squeeze()) == tuple(edge_target)
+
+
+@cleanup
+def test_log_margins():
+    plt.rcParams['axes.autolimit_mode'] = 'data'
+    fig, ax = plt.subplots()
+    margin = 0.05
+    ax.set_xmargin(margin)
+    ax.semilogx([10, 100], [10, 100])
+    xlim0, xlim1 = ax.get_xlim()
+    transform = ax.xaxis.get_transform()
+    xlim0t, xlim1t = transform.transform([xlim0, xlim1])
+    x0t, x1t = transform.transform([10, 100])
+    delta = (x1t - x0t) * margin
+    assert_allclose([xlim0t + delta, xlim1t - delta], [x0t, x1t])
+
+
+@cleanup
+def test_scatter_color_masking():
+    x = np.array([1, 2, 3])
+    y = np.array([1, np.nan, 3])
+    colors = np.array(['k', 'w', 'k'])
+    linewidths = np.array([1, 2, 3])
+    s = plt.scatter(x, y, color=colors, linewidths=linewidths)
+
+    facecolors = s.get_facecolors()
+    linecolors = s.get_edgecolors()
+    linewidths = s.get_linewidths()
+    assert_array_equal(facecolors[1], np.array([0, 0, 0, 1]))
+    assert_array_equal(linecolors[1], np.array([0, 0, 0, 1]))
+    assert linewidths[1] == 3
+
+
+@cleanup
+def test_eventplot_legend():
+    plt.eventplot([1.0], label='Label')
+    plt.legend()
 
 
 if __name__ == '__main__':

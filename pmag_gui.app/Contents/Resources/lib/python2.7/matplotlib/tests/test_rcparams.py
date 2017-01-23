@@ -1,22 +1,25 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 import io
 import os
-import sys
 import warnings
+from collections import OrderedDict
 
 from cycler import cycler, Cycler
 
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.tests import assert_str_equal
 from matplotlib.testing.decorators import cleanup, knownfailureif
 import matplotlib.colors as mcolors
 from nose.tools import assert_true, assert_raises, assert_equal
-from nose.plugins.skip import SkipTest
 import nose
 from itertools import chain
 import numpy as np
@@ -27,7 +30,8 @@ from matplotlib.rcsetup import (validate_bool_maybe_none,
                                 validate_nseq_int,
                                 validate_nseq_float,
                                 validate_cycler,
-                                validate_hatch)
+                                validate_hatch,
+                                validate_hist_bins)
 
 
 mpl.rc('text', usetex=False)
@@ -114,9 +118,6 @@ font.weight: normal""".lstrip()
 
 
 def test_rcparams_update():
-    if sys.version_info[:2] < (2, 7):
-        raise nose.SkipTest("assert_raises as context manager "
-                            "not supported with Python < 2.7")
     rc = mpl.RcParams({'figure.figsize': (3.5, 42)})
     bad_dict = {'figure.figsize': (3.5, 42, 1)}
     # make sure validation happens on input
@@ -130,9 +131,6 @@ def test_rcparams_update():
 
 
 def test_rcparams_init():
-    if sys.version_info[:2] < (2, 7):
-        raise nose.SkipTest("assert_raises as context manager "
-                            "not supported with Python < 2.7")
     with assert_raises(ValueError):
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore',
@@ -171,14 +169,6 @@ def test_Bug_2543():
             mpl.rcParams['svg.embed_char_paths'] = False
             assert_true(mpl.rcParams['svg.fonttype'] == "none")
 
-
-@cleanup
-def test_Bug_2543_newer_python():
-    # only split from above because of the usage of assert_raises
-    # as a context manager, which only works in 2.7 and above
-    if sys.version_info[:2] < (2, 7):
-        raise nose.SkipTest("assert_raises as context manager not supported with Python < 2.7")
-    from matplotlib.rcsetup import validate_bool_maybe_none, validate_bool
     with assert_raises(ValueError):
         validate_bool_maybe_none("blah")
     with assert_raises(ValueError):
@@ -201,15 +191,11 @@ def test_legend_facecolor():
     get_func = 'get_facecolor'
     rcparam = 'legend.facecolor'
     test_values = [({rcparam: 'r'},
-                    mcolors.colorConverter.to_rgba('r')),
-                   ({rcparam: 'inherit',
-                     'axes.facecolor': 'r'
-                     },
-                    mcolors.colorConverter.to_rgba('r')),
-                   ({rcparam: 'g',
-                     'axes.facecolor': 'r'},
-                   mcolors.colorConverter.to_rgba('g'))
-                   ]
+                    mcolors.to_rgba('r')),
+                   ({rcparam: 'inherit', 'axes.facecolor': 'r'},
+                    mcolors.to_rgba('r')),
+                   ({rcparam: 'g', 'axes.facecolor': 'r'},
+                    mcolors.to_rgba('g'))]
     for rc_dict, target in test_values:
         yield _legend_rcparam_helper, rc_dict, target, get_func
 
@@ -218,15 +204,11 @@ def test_legend_edgecolor():
     get_func = 'get_edgecolor'
     rcparam = 'legend.edgecolor'
     test_values = [({rcparam: 'r'},
-                    mcolors.colorConverter.to_rgba('r')),
-                   ({rcparam: 'inherit',
-                     'axes.edgecolor': 'r'
-                     },
-                    mcolors.colorConverter.to_rgba('r')),
-                   ({rcparam: 'g',
-                     'axes.facecolor': 'r'},
-                   mcolors.colorConverter.to_rgba('g'))
-                   ]
+                    mcolors.to_rgba('r')),
+                   ({rcparam: 'inherit', 'axes.edgecolor': 'r'},
+                    mcolors.to_rgba('r')),
+                   ({rcparam: 'g', 'axes.facecolor': 'r'},
+                    mcolors.to_rgba('g'))]
     for rc_dict, target in test_values:
         yield _legend_rcparam_helper, rc_dict, target, get_func
 
@@ -234,13 +216,9 @@ def test_legend_edgecolor():
 def test_Issue_1713():
     utf32_be = os.path.join(os.path.dirname(__file__),
                            'test_utf32_be_rcparams.rc')
-    old_lang = os.environ.get('LANG', None)
-    os.environ['LANG'] = 'en_US.UTF-32-BE'
-    rc = mpl.rc_params_from_file(utf32_be, True)
-    if old_lang:
-        os.environ['LANG'] = old_lang
-    else:
-        del os.environ['LANG']
+    import locale
+    with mock.patch('locale.getpreferredencoding', return_value='UTF-32-BE'):
+        rc = mpl.rc_params_from_file(utf32_be, True, False)
     assert rc.get('timezone') == 'UTC'
 
 
@@ -256,9 +234,6 @@ def _validation_test_helper(validator, arg, target):
 
 
 def _validation_fail_helper(validator, arg, exception_type):
-    if sys.version_info[:2] < (2, 7):
-        raise nose.SkipTest("assert_raises as context manager not "
-                            "supported with Python < 2.7")
     with assert_raises(exception_type):
         validator(arg)
 
@@ -321,6 +296,10 @@ def test_validators():
                      ("cycler('c', 'rgb') * cycler('linestyle', ['-', '--'])",
                       (cycler('color', 'rgb') *
                           cycler('linestyle', ['-', '--']))),
+                     (cycler('ls', ['-', '--']),
+                      cycler('linestyle', ['-', '--'])),
+                     (cycler(mew=[2, 5]),
+                      cycler('markeredgewidth', [2, 5])),
                     ),
          # This is *so* incredibly important: validate_cycler() eval's
          # an arbitrary string! I think I have it locked down enough,
@@ -342,6 +321,8 @@ def test_validators():
                   ('cycler("waka", [1, 2, 3])', ValueError),  # not a property
                   ('cycler(c=[1, 2, 3])', ValueError),  # invalid values
                   ("cycler(lw=['a', 'b', 'c'])", ValueError),  # invalid values
+                  (cycler('waka', [1, 3, 5]), ValueError),  # not a property
+                  (cycler('color', ['C1', 'r', 'g']), ValueError)  # no CN
                  )
         },
         {'validator': validate_hatch,
@@ -363,7 +344,17 @@ def test_validators():
                     ),
          'fail': (('fish', ValueError),
                  ),
-        }
+        },
+        {'validator': validate_hist_bins,
+         'success': (('auto', 'auto'),
+                     ('10', 10),
+                     ('1, 2, 3', [1, 2, 3]),
+                     ([1, 2, 3], [1, 2, 3]),
+                     (np.arange(15), np.arange(15))
+                     ),
+         'fail': (('aardvark', ValueError),
+                  )
+         }
     )
 
     for validator_dict in validation_tests:
@@ -385,11 +376,6 @@ def test_rcparams_reset_after_fail():
     # There was previously a bug that meant that if rc_context failed and
     # raised an exception due to issues in the supplied rc parameters, the
     # global rc parameters were left in a modified state.
-
-    if sys.version_info[:2] >= (2, 7):
-        from collections import OrderedDict
-    else:
-        raise SkipTest("Test can only be run in Python >= 2.7 as it requires OrderedDict")
 
     with mpl.rc_context(rc={'text.usetex': False}):
 

@@ -5,14 +5,15 @@ Streamline plotting for 2D vector fields.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange
+import six
+from six.moves import xrange
 
 import numpy as np
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import matplotlib.collections as mcollections
+import matplotlib.lines as mlines
 import matplotlib.patches as patches
 
 
@@ -21,7 +22,7 @@ __all__ = ['streamplot']
 
 def streamplot(axes, x, y, u, v, density=1, linewidth=None, color=None,
                cmap=None, norm=None, arrowsize=1, arrowstyle='-|>',
-               minlength=0.1, transform=None, zorder=1, start_points=None):
+               minlength=0.1, transform=None, zorder=None, start_points=None):
     """Draws streamlines of a vector flow.
 
     *x*, *y* : 1d arrays
@@ -78,12 +79,15 @@ def streamplot(axes, x, y, u, v, density=1, linewidth=None, color=None,
     mask = StreamMask(density)
     dmap = DomainMap(grid, mask)
 
+    if zorder is None:
+        zorder = mlines.Line2D.zorder
+
     # default to data coordinates
     if transform is None:
         transform = axes.transData
 
-    if color is None and 'color' in axes._get_lines._prop_keys:
-        color = six.next(axes._get_lines.prop_cycler)['color']
+    if color is None:
+        color = axes._get_lines.get_next_color()
 
     if linewidth is None:
         linewidth = matplotlib.rcParams['lines.linewidth']
@@ -181,16 +185,15 @@ def streamplot(axes, x, y, u, v, density=1, linewidth=None, color=None,
             line_colors.append(color_values)
             arrow_kw['color'] = cmap(norm(color_values[n]))
 
-        p = patches.FancyArrowPatch(arrow_tail,
-                                    arrow_head,
-                                    transform=transform,
-                                    **arrow_kw)
+        p = patches.FancyArrowPatch(
+            arrow_tail, arrow_head, transform=transform, **arrow_kw)
         axes.add_patch(p)
         arrows.append(p)
 
-    lc = mcollections.LineCollection(streamlines,
-                                     transform=transform,
-                                     **line_kw)
+    lc = mcollections.LineCollection(
+        streamlines, transform=transform, **line_kw)
+    lc.sticky_edges.x[:] = [grid.x_origin, grid.x_origin + grid.width]
+    lc.sticky_edges.y[:] = [grid.y_origin, grid.y_origin + grid.height]
     if use_multicolor_lines:
         lc.set_array(np.ma.hstack(line_colors))
         lc.set_cmap(cmap)

@@ -8,79 +8,86 @@ All possible markers are defined here:
 ============================== ===============================================
 marker                         description
 ============================== ===============================================
-"."                            point
-","                            pixel
-"o"                            circle
-"v"                            triangle_down
-"^"                            triangle_up
-"<"                            triangle_left
-">"                            triangle_right
-"1"                            tri_down
-"2"                            tri_up
-"3"                            tri_left
-"4"                            tri_right
-"8"                            octagon
-"s"                            square
-"p"                            pentagon
-"*"                            star
-"h"                            hexagon1
-"H"                            hexagon2
-"+"                            plus
-"x"                            x
-"D"                            diamond
-"d"                            thin_diamond
-"|"                            vline
-"_"                            hline
+`"."`                          point
+`","`                          pixel
+`"o"`                          circle
+`"v"`                          triangle_down
+`"^"`                          triangle_up
+`"<"`                          triangle_left
+`">"`                          triangle_right
+`"1"`                          tri_down
+`"2"`                          tri_up
+`"3"`                          tri_left
+`"4"`                          tri_right
+`"8"`                          octagon
+`"s"`                          square
+`"p"`                          pentagon
+`"P"`                          plus (filled)
+`"*"`                          star
+`"h"`                          hexagon1
+`"H"`                          hexagon2
+`"+"`                          plus
+`"x"`                          x
+`"X"`                          x (filled)
+`"D"`                          diamond
+`"d"`                          thin_diamond
+`"|"`                          vline
+`"_"`                          hline
 TICKLEFT                       tickleft
 TICKRIGHT                      tickright
 TICKUP                         tickup
 TICKDOWN                       tickdown
-CARETLEFT                      caretleft
-CARETRIGHT                     caretright
-CARETUP                        caretup
-CARETDOWN                      caretdown
-"None"                         nothing
-None                           nothing
-" "                            nothing
-""                             nothing
+CARETLEFT                      caretleft (centered at tip)
+CARETRIGHT                     caretright (centered at tip)
+CARETUP                        caretup (centered at tip)
+CARETDOWN                      caretdown (centered at tip)
+CARETLEFTBASE                  caretleft (centered at base)
+CARETRIGHTBASE                 caretright (centered at base)
+CARETUPBASE                    caretup (centered at base)
+`"None"`, `" "` or `""`        nothing
 ``'$...$'``                    render the string using mathtext.
 `verts`                        a list of (x, y) pairs used for Path vertices.
                                The center of the marker is located at (0,0) and
                                the size is normalized.
 path                           a `~matplotlib.path.Path` instance.
-(`numsides`, `style`, `angle`) see below
+(`numsides`, `style`, `angle`) The marker can also be a tuple (`numsides`,
+                               `style`, `angle`), which will create a custom,
+                               regular symbol.
+
+                               `numsides`:
+                                   the number of sides
+
+                               `style`:
+                                   the style of the regular symbol:
+
+                                   0
+                                     a regular polygon
+                                   1
+                                     a star-like symbol
+                                   2
+                                     an asterisk
+                                   3
+                                     a circle (`numsides` and `angle` is
+                                     ignored)
+
+                               `angle`:
+                                   the angle of rotation of the symbol
 ============================== ===============================================
-
-The marker can also be a tuple (`numsides`, `style`, `angle`), which
-will create a custom, regular symbol.
-
-    `numsides`:
-      the number of sides
-
-    `style`:
-      the style of the regular symbol:
-
-      =====   =============================================
-      Value   Description
-      =====   =============================================
-      0       a regular polygon
-      1       a star-like symbol
-      2       an asterisk
-      3       a circle (`numsides` and `angle` is ignored)
-      =====   =============================================
-
-    `angle`:
-      the angle of rotation of the symbol, in degrees
 
 For backward compatibility, the form (`verts`, 0) is also accepted,
 but it is equivalent to just `verts` for giving a raw set of vertices
 that define the shape.
+
+`None` is the default which means 'nothing', however this table is
+referred to from other docs for the valid inputs from marker inputs and in
+those cases `None` still means 'default'.
 """
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange
+import six
+from six.moves import xrange
 
 import numpy as np
 
@@ -91,7 +98,8 @@ from .transforms import IdentityTransform, Affine2D
 
 # special-purpose marker identifiers:
 (TICKLEFT, TICKRIGHT, TICKUP, TICKDOWN,
- CARETLEFT, CARETRIGHT, CARETUP, CARETDOWN) = list(xrange(8))
+ CARETLEFT, CARETRIGHT, CARETUP, CARETDOWN,
+ CARETLEFTBASE, CARETRIGHTBASE, CARETUPBASE, CARETDOWNBASE) = list(xrange(12))
 
 
 class MarkerStyle(object):
@@ -120,6 +128,8 @@ class MarkerStyle(object):
         'd': 'thin_diamond',
         '|': 'vline',
         '_': 'hline',
+        'P': 'plus_filled',
+        'X': 'x_filled',
         TICKLEFT: 'tickleft',
         TICKRIGHT: 'tickright',
         TICKUP: 'tickup',
@@ -128,6 +138,10 @@ class MarkerStyle(object):
         CARETRIGHT: 'caretright',
         CARETUP: 'caretup',
         CARETDOWN: 'caretdown',
+        CARETLEFTBASE: 'caretleftbase',
+        CARETRIGHTBASE: 'caretrightbase',
+        CARETUPBASE: 'caretupbase',
+        CARETDOWNBASE: 'caretdownbase',
         "None": 'nothing',
         None: 'nothing',
         ' ': 'nothing',
@@ -137,7 +151,8 @@ class MarkerStyle(object):
     # Just used for informational purposes.  is_filled()
     # is calculated in the _set_* functions.
     filled_markers = (
-        'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd')
+        'o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd',
+        'P', 'X')
 
     fillstyles = ('full', 'left', 'right', 'bottom', 'top', 'none')
     _half_fillstyles = ('left', 'right', 'bottom', 'top')
@@ -779,6 +794,36 @@ class MarkerStyle(object):
         self._path = self._caret_path
         self._joinstyle = 'miter'
 
+    _caret_path_base = Path([[-1.0, 0.0], [0.0, -1.5], [1.0, 0]])
+
+    def _set_caretdownbase(self):
+        self._transform = Affine2D().scale(0.5)
+        self._snap_threshold = 3.0
+        self._filled = False
+        self._path = self._caret_path_base
+        self._joinstyle = 'miter'
+
+    def _set_caretupbase(self):
+        self._transform = Affine2D().scale(0.5).rotate_deg(180)
+        self._snap_threshold = 3.0
+        self._filled = False
+        self._path = self._caret_path_base
+        self._joinstyle = 'miter'
+
+    def _set_caretleftbase(self):
+        self._transform = Affine2D().scale(0.5).rotate_deg(270)
+        self._snap_threshold = 3.0
+        self._filled = False
+        self._path = self._caret_path_base
+        self._joinstyle = 'miter'
+
+    def _set_caretrightbase(self):
+        self._transform = Affine2D().scale(0.5).rotate_deg(90)
+        self._snap_threshold = 3.0
+        self._filled = False
+        self._path = self._caret_path_base
+        self._joinstyle = 'miter'
+
     _x_path = Path([[-1.0, -1.0], [1.0, 1.0],
                     [-1.0, 1.0], [1.0, -1.0]],
                    [Path.MOVETO, Path.LINETO,
@@ -789,3 +834,87 @@ class MarkerStyle(object):
         self._snap_threshold = 3.0
         self._filled = False
         self._path = self._x_path
+
+    _plus_filled_path = Path([(1/3, 0), (2/3, 0), (2/3, 1/3),
+                              (1, 1/3), (1, 2/3), (2/3, 2/3),
+                              (2/3, 1), (1/3, 1), (1/3, 2/3),
+                              (0, 2/3), (0, 1/3), (1/3, 1/3),
+                              (1/3, 0)],
+                             [Path.MOVETO, Path.LINETO, Path.LINETO,
+                              Path.LINETO, Path.LINETO, Path.LINETO,
+                              Path.LINETO, Path.LINETO, Path.LINETO,
+                              Path.LINETO, Path.LINETO, Path.LINETO,
+                              Path.CLOSEPOLY])
+
+    _plus_filled_path_t = Path([(1, 1/2), (1, 2/3), (2/3, 2/3),
+                                (2/3, 1), (1/3, 1), (1/3, 2/3),
+                                (0, 2/3), (0, 1/2), (1, 1/2)],
+                               [Path.MOVETO, Path.LINETO, Path.LINETO,
+                                Path.LINETO, Path.LINETO, Path.LINETO,
+                                Path.LINETO, Path.LINETO,
+                                Path.CLOSEPOLY])
+
+    def _set_plus_filled(self):
+        self._transform = Affine2D().translate(-0.5, -0.5)
+        self._snap_threshold = 5.0
+        self._joinstyle = 'miter'
+        fs = self.get_fillstyle()
+        if not self._half_fill():
+            self._path = self._plus_filled_path
+        else:
+            # Rotate top half path to support all partitions
+            if fs == 'top':
+                rotate, rotate_alt = 0, 180
+            elif fs == 'bottom':
+                rotate, rotate_alt = 180, 0
+            elif fs == 'left':
+                rotate, rotate_alt = 90, 270
+            else:
+                rotate, rotate_alt = 270, 90
+
+            self._path = self._plus_filled_path_t
+            self._alt_path = self._plus_filled_path_t
+            self._alt_transform = Affine2D().translate(-0.5, -0.5)
+            self._transform.rotate_deg(rotate)
+            self._alt_transform.rotate_deg(rotate_alt)
+
+    _x_filled_path = Path([(0.25, 0), (0.5, 0.25), (0.75, 0), (1, 0.25),
+                           (0.75, 0.5), (1, 0.75), (0.75, 1), (0.5, 0.75),
+                           (0.25, 1), (0, 0.75), (0.25, 0.5), (0, 0.25),
+                           (0.25, 0)],
+                          [Path.MOVETO, Path.LINETO, Path.LINETO,
+                           Path.LINETO, Path.LINETO, Path.LINETO,
+                           Path.LINETO, Path.LINETO, Path.LINETO,
+                           Path.LINETO, Path.LINETO, Path.LINETO,
+                           Path.CLOSEPOLY])
+
+    _x_filled_path_t = Path([(0.75, 0.5), (1, 0.75), (0.75, 1),
+                             (0.5, 0.75), (0.25, 1), (0, 0.75),
+                             (0.25, 0.5), (0.75, 0.5)],
+                            [Path.MOVETO, Path.LINETO, Path.LINETO,
+                             Path.LINETO, Path.LINETO, Path.LINETO,
+                             Path.LINETO, Path.CLOSEPOLY])
+
+    def _set_x_filled(self):
+        self._transform = Affine2D().translate(-0.5, -0.5)
+        self._snap_threshold = 5.0
+        self._joinstyle = 'miter'
+        fs = self.get_fillstyle()
+        if not self._half_fill():
+            self._path = self._x_filled_path
+        else:
+            # Rotate top half path to support all partitions
+            if fs == 'top':
+                rotate, rotate_alt = 0, 180
+            elif fs == 'bottom':
+                rotate, rotate_alt = 180, 0
+            elif fs == 'left':
+                rotate, rotate_alt = 90, 270
+            else:
+                rotate, rotate_alt = 270, 90
+
+            self._path = self._x_filled_path_t
+            self._alt_path = self._x_filled_path_t
+            self._alt_transform = Affine2D().translate(-0.5, -0.5)
+            self._transform.rotate_deg(rotate)
+            self._alt_transform.rotate_deg(rotate_alt)

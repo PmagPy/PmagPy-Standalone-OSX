@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 from matplotlib.contour import ContourSet
 from matplotlib.tri.triangulation import Triangulation
@@ -50,12 +50,8 @@ class TriContourSet(ContourSet):
         else:
             tri, z = self._contour_args(args, kwargs)
             C = _tri.TriContourGenerator(tri.get_cpp_triangulation(), z)
-            x0 = tri.x.min()
-            x1 = tri.x.max()
-            y0 = tri.y.min()
-            y1 = tri.y.max()
-            self.ax.update_datalim([(x0, y0), (x1, y1)])
-            self.ax.autoscale_view()
+            self._mins = [tri.x.min(), tri.y.min()]
+            self._maxs = [tri.x.max(), tri.y.max()]
 
         self.cppContourGenerator = C
 

@@ -17,8 +17,8 @@ width and height of the its child text.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange, zip
+import six
+from six.moves import xrange, zip
 
 import warnings
 import matplotlib.transforms as mtransforms
@@ -754,12 +754,12 @@ class TextArea(OffsetBox):
         self._minimumdescent = minimumdescent
 
     def set_text(self, s):
-        "set text"
+        "Set the text of this area as a string."
         self._text.set_text(s)
         self.stale = True
 
     def get_text(self):
-        "get text"
+        "Returns the string representation of this area's text"
         return self._text.get_text()
 
     def set_multilinebaseline(self, t):
@@ -1334,8 +1334,6 @@ class OffsetImage(OffsetBox):
         return mtransforms.Bbox.from_bounds(ox - xd, oy - yd, w, h)
 
     def get_extent(self, renderer):
-
-        # FIXME dpi_cor is never used
         if self._dpi_cor:  # True, do correction
             dpi_cor = renderer.points_to_pixels(1.)
         else:
@@ -1344,7 +1342,7 @@ class OffsetImage(OffsetBox):
         zoom = self.get_zoom()
         data = self.get_data()
         ny, nx = data.shape[:2]
-        w, h = nx * zoom, ny * zoom
+        w, h = dpi_cor * nx * zoom, dpi_cor * ny * zoom
 
         return w, h, 0, 0
 
@@ -1695,6 +1693,12 @@ class DraggableBase(object):
         """disconnect the callbacks"""
         for cid in self.cids:
             self.canvas.mpl_disconnect(cid)
+        try:
+            c1 = self._c1
+        except AttributeError:
+            pass
+        else:
+            self.canvas.mpl_disconnect(c1)
 
     def artist_picker(self, artist, evt):
         return self.ref_artist.contains(evt)
@@ -1744,30 +1748,12 @@ class DraggableAnnotation(DraggableBase):
 
     def save_offset(self):
         ann = self.annotation
-        x, y = ann.xyann
-        if isinstance(ann.anncoords, tuple):
-            xcoord, ycoord = ann.anncoords
-            x1, y1 = ann._get_xy(self.canvas.renderer, x, y, xcoord)
-            x2, y2 = ann._get_xy(self.canvas.renderer, x, y, ycoord)
-            ox0, oy0 = x1, y2
-        else:
-            ox0, oy0 = ann._get_xy(self.canvas.renderer, x, y, ann.anncoords)
-
-        self.ox, self.oy = ox0, oy0
-        self.annotation.anncoords = "figure pixels"
-        self.update_offset(0, 0)
+        self.ox, self.oy = ann.get_transform().transform(ann.xyann)
 
     def update_offset(self, dx, dy):
         ann = self.annotation
-        ann.xyann = self.ox + dx, self.oy + dy
-        x, y = ann.xyann
-
-    def finalize_offset(self):
-        loc_in_canvas = self.annotation.xyann
-        self.annotation.anncoords = "axes fraction"
-        pos_axes_fraction = self.annotation.axes.transAxes.inverted()
-        pos_axes_fraction = pos_axes_fraction.transform_point(loc_in_canvas)
-        self.annotation.xyann = tuple(pos_axes_fraction)
+        ann.xyann = ann.get_transform().inverted().transform(
+            (self.ox + dx, self.oy + dy))
 
 
 if __name__ == "__main__":

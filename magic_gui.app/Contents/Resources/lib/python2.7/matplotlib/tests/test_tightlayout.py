@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 import warnings
 
 import numpy as np
@@ -157,6 +157,34 @@ def test_tight_layout8():
     fig.set_tight_layout({'pad': .1})
     ax = fig.add_subplot(111)
     example_plot(ax, fontsize=24)
+
+
+# The following test is misleading when the text is removed.
+@image_comparison(baseline_images=['outward_ticks'], remove_text=False)
+def test_outward_ticks():
+    'Test automatic use of tight_layout'
+    fig = plt.figure()
+    ax = fig.add_subplot(221)
+    ax.xaxis.set_tick_params(tickdir='out', length=16, width=3)
+    ax.yaxis.set_tick_params(tickdir='out', length=16, width=3)
+    ax.xaxis.set_tick_params(
+        tickdir='out', length=32, width=3, tick1On=True, which='minor')
+    ax.yaxis.set_tick_params(
+        tickdir='out', length=32, width=3, tick1On=True, which='minor')
+    # The following minor ticks are not labelled, and they
+    # are drawn over the major ticks and labels--ugly!
+    ax.xaxis.set_ticks([0], minor=True)
+    ax.yaxis.set_ticks([0], minor=True)
+    ax = fig.add_subplot(222)
+    ax.xaxis.set_tick_params(tickdir='in', length=32, width=3)
+    ax.yaxis.set_tick_params(tickdir='in', length=32, width=3)
+    ax = fig.add_subplot(223)
+    ax.xaxis.set_tick_params(tickdir='inout', length=32, width=3)
+    ax.yaxis.set_tick_params(tickdir='inout', length=32, width=3)
+    ax = fig.add_subplot(224)
+    ax.xaxis.set_tick_params(tickdir='out', length=32, width=3)
+    ax.yaxis.set_tick_params(tickdir='out', length=32, width=3)
+    plt.tight_layout()
 
 
 def add_offsetboxes(ax, size=10, margin=.1, color='black'):

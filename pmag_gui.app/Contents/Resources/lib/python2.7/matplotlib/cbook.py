@@ -9,11 +9,10 @@ it imports matplotlib only at runtime.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
-from matplotlib.externals.six.moves import xrange, zip
+import six
+from six.moves import xrange, zip
 from itertools import repeat
 import collections
-
 import datetime
 import errno
 from functools import reduce
@@ -43,7 +42,7 @@ class MatplotlibDeprecationWarning(UserWarning):
     allow for the signaling of deprecation, but via UserWarnings which are not
     ignored by default.
 
-    http://docs.python.org/dev/whatsnew/2.7.html#the-future-for-python-2-x
+    https://docs.python.org/dev/whatsnew/2.7.html#the-future-for-python-2-x
     """
     pass
 
@@ -86,7 +85,7 @@ def warn_deprecated(
     Used to display deprecation warning in a standard way.
 
     Parameters
-    ------------
+    ----------
     since : str
         The release at which this API became deprecated.
 
@@ -143,7 +142,7 @@ def deprecated(since, message='', name='', alternative='', pending=False,
     Decorator to mark a function as deprecated.
 
     Parameters
-    ------------
+    ----------
     since : str
         The release at which this API became deprecated.  This is
         required.
@@ -192,20 +191,7 @@ def deprecated(since, message='', name='', alternative='', pending=False,
         import textwrap
 
         if isinstance(func, classmethod):
-            try:
-                func = func.__func__
-            except AttributeError:
-                # classmethods in Python2.6 and below lack the __func__
-                # attribute so we need to hack around to get it
-                method = func.__get__(None, object)
-                if hasattr(method, '__func__'):
-                    func = method.__func__
-                elif hasattr(method, 'im_func'):
-                    func = method.im_func
-                else:
-                    # Nothing we can do really...  just return the original
-                    # classmethod
-                    return func
+            func = func.__func__
             is_classmethod = True
         else:
             is_classmethod = False
@@ -291,13 +277,13 @@ class converter(object):
 
 
 class tostr(converter):
-    'convert to string or None'
+    """convert to string or None"""
     def __init__(self, missing='Null', missingval=''):
         converter.__init__(self, missing=missing, missingval=missingval)
 
 
 class todatetime(converter):
-    'convert to a datetime or None'
+    """convert to a datetime or None"""
     def __init__(self, fmt='%Y-%m-%d', missing='Null', missingval=None):
         'use a :func:`time.strptime` format string for conversion'
         converter.__init__(self, missing, missingval)
@@ -311,9 +297,9 @@ class todatetime(converter):
 
 
 class todate(converter):
-    'convert to a date or None'
+    """convert to a date or None"""
     def __init__(self, fmt='%Y-%m-%d', missing='Null', missingval=None):
-        'use a :func:`time.strptime` format string for conversion'
+        """use a :func:`time.strptime` format string for conversion"""
         converter.__init__(self, missing, missingval)
         self.fmt = fmt
 
@@ -325,7 +311,7 @@ class todate(converter):
 
 
 class tofloat(converter):
-    'convert to a float or None'
+    """convert to a float or None"""
     def __init__(self, missing='Null', missingval=None):
         converter.__init__(self, missing)
         self.missingval = missingval
@@ -337,7 +323,7 @@ class tofloat(converter):
 
 
 class toint(converter):
-    'convert to an int or None'
+    """convert to an int or None"""
     def __init__(self, missing='Null', missingval=None):
         converter.__init__(self, missing)
 
@@ -348,7 +334,7 @@ class toint(converter):
 
 
 class _BoundMethodProxy(object):
-    '''
+    """
     Our own proxy object which enables weak references to bound and unbound
     methods and arbitrary callables. Pulls information about the function,
     class, and instance out of a bound method. Stores a weak reference to the
@@ -359,7 +345,7 @@ class _BoundMethodProxy(object):
     @license: The BSD License
 
     Minor bugfixes by Michael Droettboom
-    '''
+    """
     def __init__(self, cb):
         self._hash = hash(cb)
         self._destroy_callbacks = []
@@ -408,13 +394,13 @@ class _BoundMethodProxy(object):
             self.inst = ref(inst)
 
     def __call__(self, *args, **kwargs):
-        '''
+        """
         Proxy for a call to the weak referenced object. Take
         arbitrary params to pass to the callable.
 
         Raises `ReferenceError`: When the weak reference refers to
         a dead object
-        '''
+        """
         if self.inst is not None and self.inst() is None:
             raise ReferenceError
         elif self.inst is not None:
@@ -430,10 +416,10 @@ class _BoundMethodProxy(object):
         return mtd(*args, **kwargs)
 
     def __eq__(self, other):
-        '''
+        """
         Compare the held function and instance with that held by
         another proxy.
-        '''
+        """
         try:
             if self.inst is None:
                 return self.func == other.func and other.inst is None
@@ -443,9 +429,9 @@ class _BoundMethodProxy(object):
             return False
 
     def __ne__(self, other):
-        '''
+        """
         Inverse of __eq__.
-        '''
+        """
         return not self.__eq__(other)
 
     def __hash__(self):
@@ -488,7 +474,7 @@ class CallbackRegistry(object):
     object to handle weak references to bound methods (or regular free
     functions).  This technique was shared by Peter Parente on his
     `"Mindtrove" blog
-    <http://mindtrove.info/articles/python-weak-references/>`_.
+    <http://mindtrove.info/python-weak-references/>`_.
     """
     def __init__(self):
         self.callbacks = dict()
@@ -612,7 +598,7 @@ def local_over_kwdict(local_var, kwargs, *keys):
     kwargs dict in place.
 
     Parameters
-    ------------
+    ----------
         local_var: any object
             The local variable (highest priority)
 
@@ -624,12 +610,12 @@ def local_over_kwdict(local_var, kwargs, *keys):
             priority
 
     Returns
-    ---------
+    -------
         out: any object
             Either local_var or one of kwargs[key] for key in keys
 
     Raises
-    --------
+    ------
         IgnoredKeywordWarning
             For each key in keys that is removed from kwargs but not used as
             the output value
@@ -648,7 +634,7 @@ def local_over_kwdict(local_var, kwargs, *keys):
 
 
 def strip_math(s):
-    'remove latex formatting from mathtext'
+    """remove latex formatting from mathtext"""
     remove = (r'\mathdefault', r'\rm', r'\cal', r'\tt', r'\it', '\\', '{', '}')
     s = s[1:-1]
     for r in remove:
@@ -667,7 +653,7 @@ class Bunch(object):
       >>> point.datum
 
       By: Alex Martelli
-      From: http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/52308
+      From: https://code.activestate.com/recipes/121294/
     """
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -680,12 +666,12 @@ class Bunch(object):
 
 
 def unique(x):
-    'Return a list of unique elements of *x*'
+    """Return a list of unique elements of *x*"""
     return list(six.iterkeys(dict([(val, 1) for val in x])))
 
 
 def iterable(obj):
-    'return true if *obj* is iterable'
+    """return true if *obj* is iterable"""
     try:
         iter(obj)
     except TypeError:
@@ -694,7 +680,7 @@ def iterable(obj):
 
 
 def is_string_like(obj):
-    'Return True if *obj* looks like a string'
+    """Return True if *obj* looks like a string"""
     if isinstance(obj, six.string_types):
         return True
     # numpy strings are subclass of str, ma strings are not
@@ -711,9 +697,7 @@ def is_string_like(obj):
 
 
 def is_sequence_of_strings(obj):
-    """
-    Returns true if *obj* is iterable and contains strings
-    """
+    """Returns true if *obj* is iterable and contains strings"""
     if not iterable(obj):
         return False
     if is_string_like(obj) and not isinstance(obj, np.ndarray):
@@ -728,8 +712,17 @@ def is_sequence_of_strings(obj):
     return True
 
 
+def is_hashable(obj):
+    """Returns true if *obj* can be hashed"""
+    try:
+        hash(obj)
+    except TypeError:
+        return False
+    return True
+
+
 def is_writable_file_like(obj):
-    'return true if *obj* looks like a file object with a *write* method'
+    """return true if *obj* looks like a file object with a *write* method"""
     return hasattr(obj, 'write') and six.callable(obj.write)
 
 
@@ -747,12 +740,12 @@ def file_requires_unicode(x):
 
 
 def is_scalar(obj):
-    'return true if *obj* is not string like and is not iterable'
+    """return true if *obj* is not string like and is not iterable"""
     return not is_string_like(obj) and not iterable(obj)
 
 
 def is_numlike(obj):
-    'return true if *obj* looks like a number'
+    """return true if *obj* looks like a number"""
     try:
         obj + 1
     except:
@@ -823,8 +816,7 @@ def get_sample_data(fname, asfileobj=True):
     if matplotlib.rcParams['examples.directory']:
         root = matplotlib.rcParams['examples.directory']
     else:
-        root = os.path.join(os.path.dirname(__file__),
-                            "mpl-data", "sample_data")
+        root = os.path.join(matplotlib._get_data_path(), 'sample_data')
     path = os.path.join(root, fname)
 
     if asfileobj:
@@ -855,7 +847,7 @@ def flatten(seq, scalarp=is_scalar_or_string):
         ['John', 'Hunter', 1, 23, 42, 5, 23]
 
     By: Composite of Holger Krekel and Luther Blissett
-    From: http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/121294
+    From: https://code.activestate.com/recipes/121294/
     and Recipe 1.12 in cookbook
     """
     for item in seq:
@@ -927,10 +919,10 @@ class Xlator(dict):
       "Perl" : "Python",
       }
 
-      print multiple_replace(adict, text)
+      print(multiple_replace(adict, text))
 
       xlat = Xlator(adict)
-      print xlat.xlat(text)
+      print(xlat.xlat(text))
     """
 
     def _make_regex(self):
@@ -1044,7 +1036,7 @@ get_realpath_and_stat = GetRealpathAndStat()
 
 
 def dict_delall(d, keys):
-    'delete all of the *keys* from the :class:`dict` *d*'
+    """delete all of the *keys* from the :class:`dict` *d*"""
     for key in keys:
         try:
             del d[key]
@@ -1094,17 +1086,17 @@ def get_split_ind(seq, N):
     .
     """
 
-    sLen = 0
+    s_len = 0
     # todo: use Alex's xrange pattern from the cbook for efficiency
     for (word, ind) in zip(seq, xrange(len(seq))):
-        sLen += len(word) + 1  # +1 to account for the len(' ')
-        if sLen >= N:
+        s_len += len(word) + 1  # +1 to account for the len(' ')
+        if s_len >= N:
             return ind
     return len(seq)
 
 
 def wrap(prefix, text, cols):
-    'wrap *text* with *prefix* at length *cols*'
+    """wrap *text* with *prefix* at length *cols*"""
     pad = ' ' * len(prefix.expandtabs())
     available = cols - len(pad)
 
@@ -1218,7 +1210,7 @@ def get_recursive_filelist(args):
 
 
 def pieces(seq, num=2):
-    "Break up the *seq* into *num* tuples"
+    """Break up the *seq* into *num* tuples"""
     start = 0
     while 1:
         item = seq[start:start + num]
@@ -1294,7 +1286,7 @@ def allpairs(x):
 class maxdict(dict):
     """
     A dictionary with a maximum size; this doesn't override all the
-    relevant methods to contrain size, just setitem, so use with
+    relevant methods to constrain the size, just setitem, so use with
     caution
     """
     def __init__(self, maxsize):
@@ -1323,7 +1315,7 @@ class Stack(object):
         self._default = default
 
     def __call__(self):
-        'return the current element, or None'
+        """return the current element, or None"""
         if not len(self._elements):
             return self._default
         else:
@@ -1336,14 +1328,14 @@ class Stack(object):
         return self._elements.__getitem__(ind)
 
     def forward(self):
-        'move the position forward and return the current element'
-        N = len(self._elements)
-        if self._pos < N - 1:
+        """move the position forward and return the current element"""
+        n = len(self._elements)
+        if self._pos < n - 1:
             self._pos += 1
         return self()
 
     def back(self):
-        'move the position back and return the current element'
+        """move the position back and return the current element"""
         if self._pos > 0:
             self._pos -= 1
         return self()
@@ -1359,7 +1351,7 @@ class Stack(object):
         return self()
 
     def home(self):
-        'push the first element onto the top of the stack'
+        """push the first element onto the top of the stack"""
         if not len(self._elements):
             return
         self.push(self._elements[0])
@@ -1369,7 +1361,7 @@ class Stack(object):
         return len(self._elements) == 0
 
     def clear(self):
-        'empty the stack'
+        """empty the stack"""
         self._pos = -1
         self._elements = []
 
@@ -1427,7 +1419,7 @@ def finddir(o, match, case=False):
 
 
 def reverse_dict(d):
-    'reverse the dictionary -- may lose data if values are not unique!'
+    """reverse the dictionary -- may lose data if values are not unique!"""
     return dict([(v, k) for k, v in six.iteritems(d)])
 
 
@@ -1440,12 +1432,12 @@ def restrict_dict(d, keys):
 
 
 def report_memory(i=0):  # argument may go away
-    'return the memory consumed by process'
+    """return the memory consumed by process"""
     from matplotlib.compat.subprocess import Popen, PIPE
     pid = os.getpid()
     if sys.platform == 'sunos5':
         try:
-            a2 = Popen('ps -p %d -o osz' % pid, shell=True,
+            a2 = Popen(str('ps -p %d -o osz') % pid, shell=True,
                        stdout=PIPE).stdout.readlines()
         except OSError:
             raise NotImplementedError(
@@ -1454,7 +1446,7 @@ def report_memory(i=0):  # argument may go away
         mem = int(a2[-1].strip())
     elif sys.platform.startswith('linux'):
         try:
-            a2 = Popen('ps -p %d -o rss,sz' % pid, shell=True,
+            a2 = Popen(str('ps -p %d -o rss,sz') % pid, shell=True,
                        stdout=PIPE).stdout.readlines()
         except OSError:
             raise NotImplementedError(
@@ -1463,7 +1455,7 @@ def report_memory(i=0):  # argument may go away
         mem = int(a2[1].split()[1])
     elif sys.platform.startswith('darwin'):
         try:
-            a2 = Popen('ps -p %d -o rss,vsz' % pid, shell=True,
+            a2 = Popen(str('ps -p %d -o rss,vsz') % pid, shell=True,
                        stdout=PIPE).stdout.readlines()
         except OSError:
             raise NotImplementedError(
@@ -1472,7 +1464,7 @@ def report_memory(i=0):  # argument may go away
         mem = int(a2[1].split()[0])
     elif sys.platform.startswith('win'):
         try:
-            a2 = Popen(["tasklist", "/nh", "/fi", "pid eq %d" % pid],
+            a2 = Popen([str("tasklist"), "/nh", "/fi", "pid eq %d" % pid],
                        stdout=PIPE).stdout.read()
         except OSError:
             raise NotImplementedError(
@@ -1488,7 +1480,7 @@ _safezip_msg = 'In safezip, len(args[0])=%d but len(args[%d])=%d'
 
 
 def safezip(*args):
-    'make sure *args* are equal len before zipping'
+    """make sure *args* are equal len before zipping"""
     Nx = len(args[0])
     for i, arg in enumerate(args[1:]):
         if len(arg) != Nx:
@@ -1497,7 +1489,7 @@ def safezip(*args):
 
 
 def issubclass_safe(x, klass):
-    'return issubclass(x, klass) and return False on a TypeError'
+    """return issubclass(x, klass) and return False on a TypeError"""
 
     try:
         return issubclass(x, klass)
@@ -1505,8 +1497,15 @@ def issubclass_safe(x, klass):
         return False
 
 
-def safe_masked_invalid(x):
-    x = np.asanyarray(x)
+def safe_masked_invalid(x, copy=False):
+    x = np.array(x, subok=True, copy=copy)
+    if not x.dtype.isnative:
+        # Note that the argument to `byteswap` is 'inplace',
+        # thus if we have already made a copy, do the byteswap in
+        # place, else make a copy with the byte order swapped.
+        # Be explicit that we are swapping the byte order of the dtype
+        x = x.byteswap(copy).newbyteorder('S')
+
     try:
         xm = np.ma.masked_invalid(x, copy=False)
         xm.shrink_mask()
@@ -1876,39 +1875,46 @@ def delete_masked_points(*args):
     return margs
 
 
-def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None):
-    '''
-    Returns list of dictionaries of staticists to be use to draw a series of
-    box and whisker plots. See the `Returns` section below to the required
-    keys of the dictionary. Users can skip this function and pass a user-
-    defined set of dictionaries to the new `axes.bxp` method instead of
-    relying on MPL to do the calcs.
+def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
+                  autorange=False):
+    """
+    Returns list of dictionaries of statistics used to draw a series
+    of box and whisker plots. The `Returns` section enumerates the
+    required keys of the dictionary. Users can skip this function and
+    pass a user-defined set of dictionaries to the new `axes.bxp` method
+    instead of relying on MPL to do the calculations.
 
     Parameters
     ----------
     X : array-like
-        Data that will be represented in the boxplots. Should have 2 or fewer
-        dimensions.
+        Data that will be represented in the boxplots. Should have 2 or
+        fewer dimensions.
 
     whis : float, string, or sequence (default = 1.5)
-        As a float, determines the reach of the whiskers past the first and
-        third quartiles (e.g., Q3 + whis*IQR, QR = interquartile range, Q3-Q1).
-        Beyond the whiskers, data are considered outliers and are plotted as
-        individual points. Set this to an unreasonably high value to force the
-        whiskers to show the min and max data. Alternatively, set this to an
-        ascending sequence of percentile (e.g., [5, 95]) to set the whiskers
-        at specific percentiles of the data. Finally, can  `whis` be the
-        string 'range' to force the whiskers to the min and max of the data.
-        In the edge case that the 25th and 75th percentiles are equivalent,
-        `whis` will be automatically set to 'range'
+        As a float, determines the reach of the whiskers past the first
+        and third quartiles (e.g., Q3 + whis*IQR, QR = interquartile
+        range, Q3-Q1). Beyond the whiskers, data are considered outliers
+        and are plotted as individual points. This can be set this to an
+        ascending sequence of percentile (e.g., [5, 95]) to set the
+        whiskers at specific percentiles of the data. Finally, `whis`
+        can be the string ``'range'`` to force the whiskers to the
+        minimum and maximum of the data. In the edge case that the 25th
+        and 75th percentiles are equivalent, `whis` can be automatically
+        set to ``'range'`` via the `autorange` option.
 
-    bootstrap : int or None (default)
-        Number of times the confidence intervals around the median should
-        be bootstrapped (percentile method).
+    bootstrap : int, optional
+        Number of times the confidence intervals around the median
+        should be bootstrapped (percentile method).
 
-    labels : sequence
-        Labels for each dataset. Length must be compatible with dimensions
-        of `X`
+    labels : array-like, optional
+        Labels for each dataset. Length must be compatible with
+        dimensions of `X`.
+
+    autorange : bool, optional (False)
+        When `True` and the data are distributed such that the  25th and
+        75th percentiles are equal, ``whis`` is set to ``'range'`` such
+        that the whisker ends are at the minimum and maximum of the
+        data.
 
     Returns
     -------
@@ -1933,8 +1939,8 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None):
 
     Notes
     -----
-    Non-bootstrapping approach to confidence interval uses Gaussian-based
-    asymptotic approximation:
+    Non-bootstrapping approach to confidence interval uses Gaussian-
+    based asymptotic approximation:
 
     .. math::
 
@@ -1944,7 +1950,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None):
     McGill, R., Tukey, J.W., and Larsen, W.A. (1978) "Variations of
     Boxplots", The American Statistician, 32:12-16.
 
-    '''
+    """
 
     def _bootstrap_median(data, N=5000):
         # determine 95% confidence intervals of the median
@@ -2024,7 +2030,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None):
 
         # interquartile range
         stats['iqr'] = q3 - q1
-        if stats['iqr'] == 0:
+        if stats['iqr'] == 0 and autorange:
             whis = 'range'
 
         # conf. interval around median
@@ -2173,7 +2179,7 @@ def align_iterators(func, *iterables):
     # iteration
     iters = [myiter(it) for it in iterables]
     minvals = minkey = True
-    while 1:
+    while True:
         minvals = ([_f for _f in [it.key for it in iters] if _f])
         if minvals:
             minkey = min(minvals)
@@ -2251,7 +2257,7 @@ def _reshape_2D(X):
 
 
 def violin_stats(X, method, points=100):
-    '''
+    """
     Returns a list of dictionaries of data which can be used to draw a series
     of violin plots. See the `Returns` section below to view the required keys
     of the dictionary. Users can skip this function and pass a user-defined set
@@ -2288,7 +2294,7 @@ def violin_stats(X, method, points=100):
         - median: The median value for this column of data.
         - min: The minimum value for this column of data.
         - max: The maximum value for this column of data.
-    '''
+    """
 
     # List of dictionaries describing each of the violins.
     vpstats = []
@@ -2371,7 +2377,7 @@ def _step_validation(x, *args):
     args = tuple(np.asanyarray(y) for y in args)
     x = np.asanyarray(x)
     if x.ndim != 1:
-        raise ValueError("x must be 1 dimenional")
+        raise ValueError("x must be 1 dimensional")
     if len(args) == 0:
         raise ValueError("At least one Y value must be passed")
 
@@ -2539,9 +2545,126 @@ def index_of(y):
 
 def safe_first_element(obj):
     if isinstance(obj, collections.Iterator):
+        # needed to accept `array.flat` as input.
+        # np.flatiter reports as an instance of collections.Iterator
+        # but can still be indexed via [].
+        # This has the side effect of re-setting the iterator, but
+        # that is acceptable.
+        try:
+            return obj[0]
+        except TypeError:
+            pass
         raise RuntimeError("matplotlib does not support generators "
                            "as input")
     return next(iter(obj))
+
+
+def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
+                     allowed=None):
+    """Helper function to normalize kwarg inputs
+
+    The order they are resolved are:
+
+     1. aliasing
+     2. required
+     3. forbidden
+     4. allowed
+
+    This order means that only the canonical names need appear in
+    `allowed`, `forbidden`, `required`
+
+    Parameters
+    ----------
+
+    alias_mapping, dict, optional
+        A mapping between a canonical name to a list of
+        aliases, in order of precedence from lowest to highest.
+
+        If the canonical value is not in the list it is assumed to have
+        the highest priority.
+
+    required : iterable, optional
+        A tuple of fields that must be in kwargs.
+
+    forbidden : iterable, optional
+        A list of keys which may not be in kwargs
+
+    allowed : tuple, optional
+        A tuple of allowed fields.  If this not None, then raise if
+        `kw` contains any keys not in the union of `required`
+        and `allowed`.  To allow only the required fields pass in
+        ``()`` for `allowed`
+
+    Raises
+    ------
+    TypeError
+        To match what python raises if invalid args/kwargs are passed to
+        a callable.
+
+    """
+    # deal with default value of alias_mapping
+    if alias_mapping is None:
+        alias_mapping = dict()
+
+    # make a local so we can pop
+    kw = dict(kw)
+    # output dictionary
+    ret = dict()
+
+    # hit all alias mappings
+    for canonical, alias_list in six.iteritems(alias_mapping):
+
+        # the alias lists are ordered from lowest to highest priority
+        # so we know to use the last value in this list
+        tmp = []
+        seen = []
+        for a in alias_list:
+            try:
+                tmp.append(kw.pop(a))
+                seen.append(a)
+            except KeyError:
+                pass
+        # if canonical is not in the alias_list assume highest priority
+        if canonical not in alias_list:
+            try:
+                tmp.append(kw.pop(canonical))
+                seen.append(canonical)
+            except KeyError:
+                pass
+        # if we found anything in this set of aliases put it in the return
+        # dict
+        if tmp:
+            ret[canonical] = tmp[-1]
+            if len(tmp) > 1:
+                warnings.warn("Saw kwargs {seen!r} which are all aliases for "
+                              "{canon!r}.  Kept value from {used!r}".format(
+                                  seen=seen, canon=canonical, used=seen[-1]))
+
+    # at this point we know that all keys which are aliased are removed, update
+    # the return dictionary from the cleaned local copy of the input
+    ret.update(kw)
+
+    fail_keys = [k for k in required if k not in ret]
+    if fail_keys:
+        raise TypeError("The required keys {keys!r} "
+                        "are not in kwargs".format(keys=fail_keys))
+
+    fail_keys = [k for k in forbidden if k in ret]
+    if fail_keys:
+        raise TypeError("The forbidden keys {keys!r} "
+                        "are in kwargs".format(keys=fail_keys))
+
+    if allowed is not None:
+        allowed_set = set(required) | set(allowed)
+        fail_keys = [k for k in ret if k not in allowed_set]
+        if fail_keys:
+            raise TypeError("kwargs contains {keys!r} which are not in "
+                            "the required {req!r} or "
+                            "allowed {allow!r} keys".format(
+                                keys=fail_keys, req=required,
+                                allow=allowed))
+
+    return ret
 
 
 def get_label(y, default_name):
@@ -2566,3 +2689,66 @@ except AttributeError:
 else:
     def _putmask(a, mask, values):
         return np.copyto(a, values, where=mask)
+
+_lockstr = """\
+LOCKERROR: matplotlib is trying to acquire the lock
+    {!r}
+and has failed.  This maybe due to any other process holding this
+lock.  If you are sure no other matplotlib process is running try
+removing these folders and trying again.
+"""
+
+
+class Locked(object):
+    """
+    Context manager to handle locks.
+
+    Based on code from conda.
+
+    (c) 2012-2013 Continuum Analytics, Inc. / https://www.continuum.io/
+    All Rights Reserved
+
+    conda is distributed under the terms of the BSD 3-clause license.
+    Consult LICENSE_CONDA or https://opensource.org/licenses/BSD-3-Clause.
+    """
+    LOCKFN = '.matplotlib_lock'
+
+    class TimeoutError(RuntimeError):
+        pass
+
+    def __init__(self, path):
+        self.path = path
+        self.end = "-" + str(os.getpid())
+        self.lock_path = os.path.join(self.path, self.LOCKFN + self.end)
+        self.pattern = os.path.join(self.path, self.LOCKFN + '-*')
+        self.remove = True
+
+    def __enter__(self):
+        retries = 50
+        sleeptime = 0.1
+        while retries:
+            files = glob.glob(self.pattern)
+            if files and not files[0].endswith(self.end):
+                time.sleep(sleeptime)
+                retries -= 1
+            else:
+                break
+        else:
+            err_str = _lockstr.format(self.pattern)
+            raise self.TimeoutError(err_str)
+
+        if not files:
+            try:
+                os.makedirs(self.lock_path)
+            except OSError:
+                pass
+        else:  # PID lock already here --- someone else will remove it.
+            self.remove = False
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.remove:
+            for path in self.lock_path, self.path:
+                try:
+                    os.rmdir(path)
+                except OSError:
+                    pass

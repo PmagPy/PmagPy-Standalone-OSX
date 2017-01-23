@@ -32,7 +32,7 @@ themselves.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 import numpy as np
 from numpy import ma
@@ -47,6 +47,7 @@ try:
 except NameError:
     from sets import Set as set
 
+from . import cbook
 from .path import Path
 
 DEBUG = False
@@ -791,7 +792,7 @@ class Bbox(BboxBase):
             raise ValueError('Bbox points must be of the form '
                              '"[[x0, y0], [x1, y1]]".')
         self._points = points
-        self._minpos = np.array([0.0000001, 0.0000001])
+        self._minpos = np.array([np.inf, np.inf])
         self._ignore = True
         # it is helpful in some contexts to know if the bbox is a
         # default or has been mutated; we store the orig points to
@@ -859,19 +860,19 @@ class Bbox(BboxBase):
     def ignore(self, value):
         """
         Set whether the existing bounds of the box should be ignored
-        by subsequent calls to :meth:`update_from_data` or
-        :meth:`update_from_data_xy`.
+        by subsequent calls to :meth:`update_from_data_xy`.
 
         *value*:
 
-           - When True, subsequent calls to :meth:`update_from_data`
+           - When True, subsequent calls to :meth:`update_from_data_xy`
              will ignore the existing bounds of the :class:`Bbox`.
 
-           - When False, subsequent calls to :meth:`update_from_data`
+           - When False, subsequent calls to :meth:`update_from_data_xy`
              will include the existing bounds of the :class:`Bbox`.
         """
         self._ignore = value
 
+    @cbook.deprecated('2.0', alternative='update_from_data_xy')
     def update_from_data(self, x, y, ignore=None):
         """
         Update the bounds of the :class:`Bbox` based on the passed in
@@ -1089,9 +1090,30 @@ class TransformedBbox(BboxBase):
 
     def get_points(self):
         if self._invalid:
-            points = self._transform.transform(self._bbox.get_points())
+            p = self._bbox.get_points()
+            # Transform all four points, then make a new bounding box
+            # from the result, taking care to make the orientation the
+            # same.
+            points = self._transform.transform(
+                [[p[0, 0], p[0, 1]],
+                 [p[1, 0], p[0, 1]],
+                 [p[0, 0], p[1, 1]],
+                 [p[1, 0], p[1, 1]]])
             points = np.ma.filled(points, 0.0)
-            self._points = points
+
+            xs = min(points[:, 0]), max(points[:, 0])
+            if p[0, 0] > p[1, 0]:
+                xs = xs[::-1]
+
+            ys = min(points[:, 1]), max(points[:, 1])
+            if p[0, 1] > p[1, 1]:
+                ys = ys[::-1]
+
+            self._points = np.array([
+                [xs[0], ys[0]],
+                [xs[1], ys[1]]
+            ])
+
             self._invalid = 0
         return self._points
     get_points.__doc__ = Bbox.get_points.__doc__
@@ -2008,7 +2030,7 @@ class Affine2D(Affine2DBase):
 
 class IdentityTransform(Affine2DBase):
     """
-    A special class that does on thing, the identity transform, in a
+    A special class that does one thing, the identity transform, in a
     fast way.
     """
     _mtx = np.identity(3)

@@ -4,7 +4,7 @@ Render to gtk from agg
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 import os
 
@@ -75,7 +75,7 @@ class FigureCanvasGTKAgg(FigureCanvasGTK, FigureCanvasAgg):
         dpival = self.figure.dpi
         winch = w/dpival
         hinch = h/dpival
-        self.figure.set_size_inches(winch, hinch)
+        self.figure.set_size_inches(winch, hinch, forward=False)
         self._need_redraw = True
         self.resize_event()
         if DEBUG: print('FigureCanvasGTKAgg.configure_event end')

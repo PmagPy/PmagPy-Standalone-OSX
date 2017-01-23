@@ -5,7 +5,7 @@ Provides a collection of utilities for comparing (image) results.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from matplotlib.externals import six
+import six
 
 import hashlib
 import os
@@ -99,6 +99,14 @@ def get_file_hash(path, block_size=2 ** 20):
             if not data:
                 break
             md5.update(data)
+
+    if path.endswith('.pdf'):
+        from matplotlib import checkdep_ghostscript
+        md5.update(checkdep_ghostscript()[1].encode('utf-8'))
+    elif path.endswith('.svg'):
+        from matplotlib import checkdep_inkscape
+        md5.update(checkdep_inkscape().encode('utf-8'))
+
     return md5.hexdigest()
 
 
@@ -124,14 +132,14 @@ def _update_converter():
     gs, gs_v = matplotlib.checkdep_ghostscript()
     if gs_v is not None:
         def cmd(old, new):
-            return [gs, '-q', '-sDEVICE=png16m', '-dNOPAUSE', '-dBATCH',
+            return [str(gs), '-q', '-sDEVICE=png16m', '-dNOPAUSE', '-dBATCH',
              '-sOutputFile=' + new, old]
         converter['pdf'] = make_external_conversion_command(cmd)
         converter['eps'] = make_external_conversion_command(cmd)
 
     if matplotlib.checkdep_inkscape() is not None:
         def cmd(old, new):
-            return ['inkscape', '-z', old, '--export-png', new]
+            return [str('inkscape'), '-z', old, '--export-png', new]
         converter['svg'] = make_external_conversion_command(cmd)
 
 
@@ -242,6 +250,11 @@ def crop_to_same(actual_path, actual_image, expected_path, expected_image):
 
 def calculate_rms(expectedImage, actualImage):
     "Calculate the per-pixel errors, then compute the root mean square error."
+    if expectedImage.shape != actualImage.shape:
+        raise ImageComparisonFailure(
+            "image sizes do not match expected size: {0} "
+            "actual size {1}".format(expectedImage.shape, actualImage.shape))
+
     num_values = np.prod(expectedImage.shape)
     abs_diff_image = abs(expectedImage - actualImage)
 
@@ -318,6 +331,12 @@ def compare_images(expected, actual, tol, in_decorator=False):
     actualImage, expectedImage = crop_to_same(
         actual, actualImage, expected, expectedImage)
 
+    diff_image = make_test_filename(actual, 'failed-diff')
+
+    if tol <= 0.0:
+        if np.array_equal(expectedImage, actualImage):
+            return None
+
     # convert to signed integers, so that the images can be subtracted without
     # overflow
     expectedImage = expectedImage.astype(np.int16)
@@ -325,11 +344,7 @@ def compare_images(expected, actual, tol, in_decorator=False):
 
     rms = calculate_rms(expectedImage, actualImage)
 
-    diff_image = make_test_filename(actual, 'failed-diff')
-
     if rms <= tol:
-        if os.path.exists(diff_image):
-            os.unlink(diff_image)
         return None
 
     save_diff_image(expected, actual, diff_image)
