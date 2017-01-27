@@ -3,10 +3,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from collections import OrderedDict
-
-import six
-from six.moves import zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import zip
 
 import warnings
 
@@ -15,13 +13,13 @@ import numpy as np
 from matplotlib.path import Path
 from matplotlib import rcParams
 import matplotlib.font_manager as font_manager
-from matplotlib.ft2font import KERNING_DEFAULT, LOAD_NO_HINTING
+from matplotlib.ft2font import FT2Font, KERNING_DEFAULT, LOAD_NO_HINTING
 from matplotlib.ft2font import LOAD_TARGET_LIGHT
 from matplotlib.mathtext import MathTextParser
 import matplotlib.dviread as dviread
-from matplotlib.font_manager import FontProperties, get_font
+from matplotlib.font_manager import FontProperties
 from matplotlib.transforms import Affine2D
-from six.moves.urllib.parse import quote as urllib_quote
+from matplotlib.externals.six.moves.urllib.parse import quote as urllib_quote
 
 
 class TextToPath(object):
@@ -56,7 +54,7 @@ class TextToPath(object):
         find a ttf font.
         """
         fname = font_manager.findfont(prop)
-        font = get_font(fname)
+        font = FT2Font(fname)
         font.set_size(self.FONT_SCALE, self.DPI)
 
         return font
@@ -175,6 +173,7 @@ class TextToPath(object):
 
         # Mostly copied from backend_svg.py.
 
+        cmap = font.get_charmap()
         lastgind = None
 
         currx = 0
@@ -182,10 +181,10 @@ class TextToPath(object):
         glyph_ids = []
 
         if glyph_map is None:
-            glyph_map = OrderedDict()
+            glyph_map = dict()
 
         if return_new_glyphs_only:
-            glyph_map_new = OrderedDict()
+            glyph_map_new = dict()
         else:
             glyph_map_new = glyph_map
 
@@ -193,7 +192,7 @@ class TextToPath(object):
 
         for c in s:
             ccode = ord(c)
-            gind = font.get_char_index(ccode)
+            gind = cmap.get(ccode)
             if gind is None:
                 ccode = ord('?')
                 gind = 0
@@ -241,10 +240,10 @@ class TextToPath(object):
             s, self.DPI, prop)
 
         if not glyph_map:
-            glyph_map = OrderedDict()
+            glyph_map = dict()
 
         if return_new_glyphs_only:
-            glyph_map_new = OrderedDict()
+            glyph_map_new = dict()
         else:
             glyph_map_new = glyph_map
 
@@ -320,10 +319,10 @@ class TextToPath(object):
             dvi.close()
 
         if glyph_map is None:
-            glyph_map = OrderedDict()
+            glyph_map = dict()
 
         if return_new_glyphs_only:
-            glyph_map_new = OrderedDict()
+            glyph_map_new = dict()
         else:
             glyph_map_new = glyph_map
 
@@ -337,7 +336,7 @@ class TextToPath(object):
             font_bunch = self.tex_font_map[dvifont.texname]
 
             if font_and_encoding is None:
-                font = get_font(font_bunch.filename)
+                font = FT2Font(font_bunch.filename)
 
                 for charmap_name, charmap_code in [("ADOBE_CUSTOM",
                                                     1094992451),

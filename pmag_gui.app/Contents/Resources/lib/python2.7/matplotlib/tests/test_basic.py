@@ -1,19 +1,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-
-import warnings
+from matplotlib.externals import six
 
 from nose.tools import assert_equal
 
-from matplotlib.cbook import MatplotlibDeprecationWarning
 from matplotlib.testing.decorators import knownfailureif
-with warnings.catch_warnings():
-    warnings.filterwarnings('ignore',
-                            'The finance module has been deprecated in mpl 2',
-                            MatplotlibDeprecationWarning)
-    from pylab import *
+from pylab import *
 
 
 def test_simple():

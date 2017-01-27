@@ -9,10 +9,11 @@ it imports matplotlib only at runtime.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import xrange, zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import xrange, zip
 from itertools import repeat
 import collections
+
 import datetime
 import errno
 from functools import reduce
@@ -42,7 +43,7 @@ class MatplotlibDeprecationWarning(UserWarning):
     allow for the signaling of deprecation, but via UserWarnings which are not
     ignored by default.
 
-    https://docs.python.org/dev/whatsnew/2.7.html#the-future-for-python-2-x
+    http://docs.python.org/dev/whatsnew/2.7.html#the-future-for-python-2-x
     """
     pass
 
@@ -85,7 +86,7 @@ def warn_deprecated(
     Used to display deprecation warning in a standard way.
 
     Parameters
-    ----------
+    ------------
     since : str
         The release at which this API became deprecated.
 
@@ -142,7 +143,7 @@ def deprecated(since, message='', name='', alternative='', pending=False,
     Decorator to mark a function as deprecated.
 
     Parameters
-    ----------
+    ------------
     since : str
         The release at which this API became deprecated.  This is
         required.
@@ -191,7 +192,20 @@ def deprecated(since, message='', name='', alternative='', pending=False,
         import textwrap
 
         if isinstance(func, classmethod):
-            func = func.__func__
+            try:
+                func = func.__func__
+            except AttributeError:
+                # classmethods in Python2.6 and below lack the __func__
+                # attribute so we need to hack around to get it
+                method = func.__get__(None, object)
+                if hasattr(method, '__func__'):
+                    func = method.__func__
+                elif hasattr(method, 'im_func'):
+                    func = method.im_func
+                else:
+                    # Nothing we can do really...  just return the original
+                    # classmethod
+                    return func
             is_classmethod = True
         else:
             is_classmethod = False
@@ -277,13 +291,13 @@ class converter(object):
 
 
 class tostr(converter):
-    """convert to string or None"""
+    'convert to string or None'
     def __init__(self, missing='Null', missingval=''):
         converter.__init__(self, missing=missing, missingval=missingval)
 
 
 class todatetime(converter):
-    """convert to a datetime or None"""
+    'convert to a datetime or None'
     def __init__(self, fmt='%Y-%m-%d', missing='Null', missingval=None):
         'use a :func:`time.strptime` format string for conversion'
         converter.__init__(self, missing, missingval)
@@ -297,9 +311,9 @@ class todatetime(converter):
 
 
 class todate(converter):
-    """convert to a date or None"""
+    'convert to a date or None'
     def __init__(self, fmt='%Y-%m-%d', missing='Null', missingval=None):
-        """use a :func:`time.strptime` format string for conversion"""
+        'use a :func:`time.strptime` format string for conversion'
         converter.__init__(self, missing, missingval)
         self.fmt = fmt
 
@@ -311,7 +325,7 @@ class todate(converter):
 
 
 class tofloat(converter):
-    """convert to a float or None"""
+    'convert to a float or None'
     def __init__(self, missing='Null', missingval=None):
         converter.__init__(self, missing)
         self.missingval = missingval
@@ -323,7 +337,7 @@ class tofloat(converter):
 
 
 class toint(converter):
-    """convert to an int or None"""
+    'convert to an int or None'
     def __init__(self, missing='Null', missingval=None):
         converter.__init__(self, missing)
 
@@ -334,7 +348,7 @@ class toint(converter):
 
 
 class _BoundMethodProxy(object):
-    """
+    '''
     Our own proxy object which enables weak references to bound and unbound
     methods and arbitrary callables. Pulls information about the function,
     class, and instance out of a bound method. Stores a weak reference to the
@@ -345,7 +359,7 @@ class _BoundMethodProxy(object):
     @license: The BSD License
 
     Minor bugfixes by Michael Droettboom
-    """
+    '''
     def __init__(self, cb):
         self._hash = hash(cb)
         self._destroy_callbacks = []
@@ -394,13 +408,13 @@ class _BoundMethodProxy(object):
             self.inst = ref(inst)
 
     def __call__(self, *args, **kwargs):
-        """
+        '''
         Proxy for a call to the weak referenced object. Take
         arbitrary params to pass to the callable.
 
         Raises `ReferenceError`: When the weak reference refers to
         a dead object
-        """
+        '''
         if self.inst is not None and self.inst() is None:
             raise ReferenceError
         elif self.inst is not None:
@@ -416,10 +430,10 @@ class _BoundMethodProxy(object):
         return mtd(*args, **kwargs)
 
     def __eq__(self, other):
-        """
+        '''
         Compare the held function and instance with that held by
         another proxy.
-        """
+        '''
         try:
             if self.inst is None:
                 return self.func == other.func and other.inst is None
@@ -429,9 +443,9 @@ class _BoundMethodProxy(object):
             return False
 
     def __ne__(self, other):
-        """
+        '''
         Inverse of __eq__.
-        """
+        '''
         return not self.__eq__(other)
 
     def __hash__(self):
@@ -598,7 +612,7 @@ def local_over_kwdict(local_var, kwargs, *keys):
     kwargs dict in place.
 
     Parameters
-    ----------
+    ------------
         local_var: any object
             The local variable (highest priority)
 
@@ -610,12 +624,12 @@ def local_over_kwdict(local_var, kwargs, *keys):
             priority
 
     Returns
-    -------
+    ---------
         out: any object
             Either local_var or one of kwargs[key] for key in keys
 
     Raises
-    ------
+    --------
         IgnoredKeywordWarning
             For each key in keys that is removed from kwargs but not used as
             the output value
@@ -634,7 +648,7 @@ def local_over_kwdict(local_var, kwargs, *keys):
 
 
 def strip_math(s):
-    """remove latex formatting from mathtext"""
+    'remove latex formatting from mathtext'
     remove = (r'\mathdefault', r'\rm', r'\cal', r'\tt', r'\it', '\\', '{', '}')
     s = s[1:-1]
     for r in remove:
@@ -653,7 +667,7 @@ class Bunch(object):
       >>> point.datum
 
       By: Alex Martelli
-      From: https://code.activestate.com/recipes/121294/
+      From: http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/52308
     """
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -666,12 +680,12 @@ class Bunch(object):
 
 
 def unique(x):
-    """Return a list of unique elements of *x*"""
+    'Return a list of unique elements of *x*'
     return list(six.iterkeys(dict([(val, 1) for val in x])))
 
 
 def iterable(obj):
-    """return true if *obj* is iterable"""
+    'return true if *obj* is iterable'
     try:
         iter(obj)
     except TypeError:
@@ -680,7 +694,7 @@ def iterable(obj):
 
 
 def is_string_like(obj):
-    """Return True if *obj* looks like a string"""
+    'Return True if *obj* looks like a string'
     if isinstance(obj, six.string_types):
         return True
     # numpy strings are subclass of str, ma strings are not
@@ -697,7 +711,9 @@ def is_string_like(obj):
 
 
 def is_sequence_of_strings(obj):
-    """Returns true if *obj* is iterable and contains strings"""
+    """
+    Returns true if *obj* is iterable and contains strings
+    """
     if not iterable(obj):
         return False
     if is_string_like(obj) and not isinstance(obj, np.ndarray):
@@ -713,7 +729,9 @@ def is_sequence_of_strings(obj):
 
 
 def is_hashable(obj):
-    """Returns true if *obj* can be hashed"""
+    """
+    Returns true if *obj* can be hashed
+    """
     try:
         hash(obj)
     except TypeError:
@@ -722,7 +740,7 @@ def is_hashable(obj):
 
 
 def is_writable_file_like(obj):
-    """return true if *obj* looks like a file object with a *write* method"""
+    'return true if *obj* looks like a file object with a *write* method'
     return hasattr(obj, 'write') and six.callable(obj.write)
 
 
@@ -740,12 +758,12 @@ def file_requires_unicode(x):
 
 
 def is_scalar(obj):
-    """return true if *obj* is not string like and is not iterable"""
+    'return true if *obj* is not string like and is not iterable'
     return not is_string_like(obj) and not iterable(obj)
 
 
 def is_numlike(obj):
-    """return true if *obj* looks like a number"""
+    'return true if *obj* looks like a number'
     try:
         obj + 1
     except:
@@ -816,7 +834,8 @@ def get_sample_data(fname, asfileobj=True):
     if matplotlib.rcParams['examples.directory']:
         root = matplotlib.rcParams['examples.directory']
     else:
-        root = os.path.join(matplotlib._get_data_path(), 'sample_data')
+        root = os.path.join(os.path.dirname(__file__),
+                            "mpl-data", "sample_data")
     path = os.path.join(root, fname)
 
     if asfileobj:
@@ -847,7 +866,7 @@ def flatten(seq, scalarp=is_scalar_or_string):
         ['John', 'Hunter', 1, 23, 42, 5, 23]
 
     By: Composite of Holger Krekel and Luther Blissett
-    From: https://code.activestate.com/recipes/121294/
+    From: http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/121294
     and Recipe 1.12 in cookbook
     """
     for item in seq:
@@ -1036,7 +1055,7 @@ get_realpath_and_stat = GetRealpathAndStat()
 
 
 def dict_delall(d, keys):
-    """delete all of the *keys* from the :class:`dict` *d*"""
+    'delete all of the *keys* from the :class:`dict` *d*'
     for key in keys:
         try:
             del d[key]
@@ -1086,17 +1105,17 @@ def get_split_ind(seq, N):
     .
     """
 
-    s_len = 0
+    sLen = 0
     # todo: use Alex's xrange pattern from the cbook for efficiency
     for (word, ind) in zip(seq, xrange(len(seq))):
-        s_len += len(word) + 1  # +1 to account for the len(' ')
-        if s_len >= N:
+        sLen += len(word) + 1  # +1 to account for the len(' ')
+        if sLen >= N:
             return ind
     return len(seq)
 
 
 def wrap(prefix, text, cols):
-    """wrap *text* with *prefix* at length *cols*"""
+    'wrap *text* with *prefix* at length *cols*'
     pad = ' ' * len(prefix.expandtabs())
     available = cols - len(pad)
 
@@ -1210,7 +1229,7 @@ def get_recursive_filelist(args):
 
 
 def pieces(seq, num=2):
-    """Break up the *seq* into *num* tuples"""
+    "Break up the *seq* into *num* tuples"
     start = 0
     while 1:
         item = seq[start:start + num]
@@ -1286,7 +1305,7 @@ def allpairs(x):
 class maxdict(dict):
     """
     A dictionary with a maximum size; this doesn't override all the
-    relevant methods to constrain the size, just setitem, so use with
+    relevant methods to contrain size, just setitem, so use with
     caution
     """
     def __init__(self, maxsize):
@@ -1315,7 +1334,7 @@ class Stack(object):
         self._default = default
 
     def __call__(self):
-        """return the current element, or None"""
+        'return the current element, or None'
         if not len(self._elements):
             return self._default
         else:
@@ -1328,14 +1347,14 @@ class Stack(object):
         return self._elements.__getitem__(ind)
 
     def forward(self):
-        """move the position forward and return the current element"""
-        n = len(self._elements)
-        if self._pos < n - 1:
+        'move the position forward and return the current element'
+        N = len(self._elements)
+        if self._pos < N - 1:
             self._pos += 1
         return self()
 
     def back(self):
-        """move the position back and return the current element"""
+        'move the position back and return the current element'
         if self._pos > 0:
             self._pos -= 1
         return self()
@@ -1351,7 +1370,7 @@ class Stack(object):
         return self()
 
     def home(self):
-        """push the first element onto the top of the stack"""
+        'push the first element onto the top of the stack'
         if not len(self._elements):
             return
         self.push(self._elements[0])
@@ -1361,7 +1380,7 @@ class Stack(object):
         return len(self._elements) == 0
 
     def clear(self):
-        """empty the stack"""
+        'empty the stack'
         self._pos = -1
         self._elements = []
 
@@ -1419,7 +1438,7 @@ def finddir(o, match, case=False):
 
 
 def reverse_dict(d):
-    """reverse the dictionary -- may lose data if values are not unique!"""
+    'reverse the dictionary -- may lose data if values are not unique!'
     return dict([(v, k) for k, v in six.iteritems(d)])
 
 
@@ -1432,12 +1451,12 @@ def restrict_dict(d, keys):
 
 
 def report_memory(i=0):  # argument may go away
-    """return the memory consumed by process"""
+    'return the memory consumed by process'
     from matplotlib.compat.subprocess import Popen, PIPE
     pid = os.getpid()
     if sys.platform == 'sunos5':
         try:
-            a2 = Popen(str('ps -p %d -o osz') % pid, shell=True,
+            a2 = Popen('ps -p %d -o osz' % pid, shell=True,
                        stdout=PIPE).stdout.readlines()
         except OSError:
             raise NotImplementedError(
@@ -1446,7 +1465,7 @@ def report_memory(i=0):  # argument may go away
         mem = int(a2[-1].strip())
     elif sys.platform.startswith('linux'):
         try:
-            a2 = Popen(str('ps -p %d -o rss,sz') % pid, shell=True,
+            a2 = Popen('ps -p %d -o rss,sz' % pid, shell=True,
                        stdout=PIPE).stdout.readlines()
         except OSError:
             raise NotImplementedError(
@@ -1455,7 +1474,7 @@ def report_memory(i=0):  # argument may go away
         mem = int(a2[1].split()[1])
     elif sys.platform.startswith('darwin'):
         try:
-            a2 = Popen(str('ps -p %d -o rss,vsz') % pid, shell=True,
+            a2 = Popen('ps -p %d -o rss,vsz' % pid, shell=True,
                        stdout=PIPE).stdout.readlines()
         except OSError:
             raise NotImplementedError(
@@ -1464,7 +1483,7 @@ def report_memory(i=0):  # argument may go away
         mem = int(a2[1].split()[0])
     elif sys.platform.startswith('win'):
         try:
-            a2 = Popen([str("tasklist"), "/nh", "/fi", "pid eq %d" % pid],
+            a2 = Popen(["tasklist", "/nh", "/fi", "pid eq %d" % pid],
                        stdout=PIPE).stdout.read()
         except OSError:
             raise NotImplementedError(
@@ -1480,7 +1499,7 @@ _safezip_msg = 'In safezip, len(args[0])=%d but len(args[%d])=%d'
 
 
 def safezip(*args):
-    """make sure *args* are equal len before zipping"""
+    'make sure *args* are equal len before zipping'
     Nx = len(args[0])
     for i, arg in enumerate(args[1:]):
         if len(arg) != Nx:
@@ -1489,7 +1508,7 @@ def safezip(*args):
 
 
 def issubclass_safe(x, klass):
-    """return issubclass(x, klass) and return False on a TypeError"""
+    'return issubclass(x, klass) and return False on a TypeError'
 
     try:
         return issubclass(x, klass)
@@ -1499,13 +1518,6 @@ def issubclass_safe(x, klass):
 
 def safe_masked_invalid(x, copy=False):
     x = np.array(x, subok=True, copy=copy)
-    if not x.dtype.isnative:
-        # Note that the argument to `byteswap` is 'inplace',
-        # thus if we have already made a copy, do the byteswap in
-        # place, else make a copy with the byte order swapped.
-        # Be explicit that we are swapping the byte order of the dtype
-        x = x.byteswap(copy).newbyteorder('S')
-
     try:
         xm = np.ma.masked_invalid(x, copy=False)
         xm.shrink_mask()
@@ -2179,7 +2191,7 @@ def align_iterators(func, *iterables):
     # iteration
     iters = [myiter(it) for it in iterables]
     minvals = minkey = True
-    while True:
+    while 1:
         minvals = ([_f for _f in [it.key for it in iters] if _f])
         if minvals:
             minkey = min(minvals)
@@ -2257,7 +2269,7 @@ def _reshape_2D(X):
 
 
 def violin_stats(X, method, points=100):
-    """
+    '''
     Returns a list of dictionaries of data which can be used to draw a series
     of violin plots. See the `Returns` section below to view the required keys
     of the dictionary. Users can skip this function and pass a user-defined set
@@ -2294,7 +2306,7 @@ def violin_stats(X, method, points=100):
         - median: The median value for this column of data.
         - min: The minimum value for this column of data.
         - max: The maximum value for this column of data.
-    """
+    '''
 
     # List of dictionaries describing each of the violins.
     vpstats = []
@@ -2377,7 +2389,7 @@ def _step_validation(x, *args):
     args = tuple(np.asanyarray(y) for y in args)
     x = np.asanyarray(x)
     if x.ndim != 1:
-        raise ValueError("x must be 1 dimensional")
+        raise ValueError("x must be 1 dimenional")
     if len(args) == 0:
         raise ValueError("At least one Y value must be passed")
 
@@ -2545,15 +2557,6 @@ def index_of(y):
 
 def safe_first_element(obj):
     if isinstance(obj, collections.Iterator):
-        # needed to accept `array.flat` as input.
-        # np.flatiter reports as an instance of collections.Iterator
-        # but can still be indexed via [].
-        # This has the side effect of re-setting the iterator, but
-        # that is acceptable.
-        try:
-            return obj[0]
-        except TypeError:
-            pass
         raise RuntimeError("matplotlib does not support generators "
                            "as input")
     return next(iter(obj))
@@ -2689,66 +2692,3 @@ except AttributeError:
 else:
     def _putmask(a, mask, values):
         return np.copyto(a, values, where=mask)
-
-_lockstr = """\
-LOCKERROR: matplotlib is trying to acquire the lock
-    {!r}
-and has failed.  This maybe due to any other process holding this
-lock.  If you are sure no other matplotlib process is running try
-removing these folders and trying again.
-"""
-
-
-class Locked(object):
-    """
-    Context manager to handle locks.
-
-    Based on code from conda.
-
-    (c) 2012-2013 Continuum Analytics, Inc. / https://www.continuum.io/
-    All Rights Reserved
-
-    conda is distributed under the terms of the BSD 3-clause license.
-    Consult LICENSE_CONDA or https://opensource.org/licenses/BSD-3-Clause.
-    """
-    LOCKFN = '.matplotlib_lock'
-
-    class TimeoutError(RuntimeError):
-        pass
-
-    def __init__(self, path):
-        self.path = path
-        self.end = "-" + str(os.getpid())
-        self.lock_path = os.path.join(self.path, self.LOCKFN + self.end)
-        self.pattern = os.path.join(self.path, self.LOCKFN + '-*')
-        self.remove = True
-
-    def __enter__(self):
-        retries = 50
-        sleeptime = 0.1
-        while retries:
-            files = glob.glob(self.pattern)
-            if files and not files[0].endswith(self.end):
-                time.sleep(sleeptime)
-                retries -= 1
-            else:
-                break
-        else:
-            err_str = _lockstr.format(self.pattern)
-            raise self.TimeoutError(err_str)
-
-        if not files:
-            try:
-                os.makedirs(self.lock_path)
-            except OSError:
-                pass
-        else:  # PID lock already here --- someone else will remove it.
-            self.remove = False
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.remove:
-            for path in self.lock_path, self.path:
-                try:
-                    os.rmdir(path)
-                except OSError:
-                    pass

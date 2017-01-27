@@ -1,7 +1,7 @@
 from __future__ import print_function
-import warnings
+import os
+import tempfile
 import numpy as np
-from nose.tools import raises
 import sys
 from matplotlib import pyplot as plt
 from matplotlib.testing.decorators import cleanup
@@ -43,33 +43,6 @@ def test_quiver_key_memory_leak():
     assert sys.getrefcount(qk) == 3
     qk.remove()
     assert sys.getrefcount(qk) == 2
-
-
-@cleanup
-def test_no_warnings():
-    fig, ax = plt.subplots()
-
-    X, Y = np.meshgrid(np.arange(15), np.arange(10))
-    U = V = np.ones_like(X)
-
-    phi = (np.random.rand(15, 10) - .5) * 150
-    with warnings.catch_warnings(record=True) as w:
-        ax.quiver(X, Y, U, V, angles=phi)
-        fig.canvas.draw()
-    assert len(w) == 0
-
-
-@cleanup
-def test_zero_headlength():
-    # Based on report by Doug McNeil:
-    # http://matplotlib.1069221.n5.nabble.com/quiver-warnings-td28107.html
-    fig, ax = plt.subplots()
-    X, Y = np.meshgrid(np.arange(10), np.arange(10))
-    U, V = np.cos(X), np.sin(Y)
-    with warnings.catch_warnings(record=True) as w:
-        ax.quiver(U, V, headlength=0, headaxislength=0)
-        fig.canvas.draw()
-    assert len(w) == 0
 
 
 @image_comparison(baseline_images=['quiver_animated_test_image'],
@@ -133,32 +106,6 @@ def test_quiver_key_pivot():
     ax.quiverkey(q, 1, 0.5, 1, 'E', labelpos='E')
     ax.quiverkey(q, 0.5, 0, 1, 'S', labelpos='S')
     ax.quiverkey(q, 0, 0.5, 1, 'W', labelpos='W')
-
-
-@image_comparison(baseline_images=['barbs_test_image'],
-                  extensions=['png'], remove_text=True)
-def test_barbs():
-    x = np.linspace(-5, 5, 5)
-    X, Y = np.meshgrid(x, x)
-    U, V = 12*X, 12*Y
-    fig, ax = plt.subplots()
-    ax.barbs(X, Y, U, V, np.sqrt(U*U + V*V), fill_empty=True, rounding=False,
-             sizes=dict(emptybarb=0.25, spacing=0.2, height=0.3),
-             cmap='viridis')
-
-
-@cleanup
-@raises(ValueError)
-def test_bad_masked_sizes():
-    'Test error handling when given differing sized masked arrays'
-    x = np.arange(3)
-    y = np.arange(3)
-    u = np.ma.array(15. * np.ones((4,)))
-    v = np.ma.array(15. * np.ones_like(u))
-    u[1] = np.ma.masked
-    v[1] = np.ma.masked
-    fig, ax = plt.subplots()
-    ax.barbs(x, y, u, v)
 
 
 if __name__ == '__main__':

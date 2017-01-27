@@ -4,7 +4,7 @@ import itertools
 from weakref import ref
 import warnings
 
-import six
+from matplotlib.externals import six
 
 from datetime import datetime
 
@@ -86,7 +86,7 @@ class Test_delete_masked_points(object):
                        datetime(2008, 1, 5), datetime(2008, 1, 6)]
         self.arr_dt2 = np.array(self.arr_dt)
         self.arr_colors = ['r', 'g', 'b', 'c', 'm', 'y']
-        self.arr_rgba = mcolors.to_rgba_array(self.arr_colors)
+        self.arr_rgba = mcolors.colorConverter.to_rgba_array(self.arr_colors)
 
     @raises(ValueError)
     def test_bad_first_arg(self):
@@ -499,15 +499,3 @@ def test_grouper_private():
     base_set = mapping[ref(objs[0])]
     for o in objs[1:]:
         assert mapping[ref(o)] is base_set
-
-
-def test_flatiter():
-    x = np.arange(5)
-    it = x.flat
-    assert 0 == next(it)
-    assert 1 == next(it)
-    ret = cbook.safe_first_element(it)
-    assert ret == 0
-
-    assert 0 == next(it)
-    assert 1 == next(it)

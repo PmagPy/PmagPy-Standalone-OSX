@@ -17,7 +17,7 @@ the Quiver code.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 import weakref
 
 import numpy as np
@@ -392,12 +392,6 @@ def _parse_args(*args):
     return X, Y, U, V, C
 
 
-def _check_consistent_shapes(*arrays):
-    all_shapes = set(a.shape for a in arrays)
-    if len(all_shapes) != 1:
-        raise ValueError('The shapes of the passed in arrays do not match.')
-
-
 class Quiver(mcollections.PolyCollection):
     """
     Specialized PolyCollection for arrows.
@@ -612,13 +606,12 @@ class Quiver(mcollections.PolyCollection):
 
     def _make_verts(self, U, V):
         uv = (U + V * 1j)
-        str_angles = isinstance(self.angles, six.string_types)
-        if str_angles and (self.angles == 'xy' and self.scale_units == 'xy'):
+        if self.angles == 'xy' and self.scale_units == 'xy':
             # Here eps is 1 so that if we get U, V by diffing
             # the X, Y arrays, the vectors will connect the
             # points, regardless of the axis scaling (including log).
             angles, lengths = self._angles_lengths(U, V, eps=1)
-        elif str_angles and (self.angles == 'xy' or self.scale_units == 'xy'):
+        elif self.angles == 'xy' or self.scale_units == 'xy':
             # Calculate eps based on the extents of the plot
             # so that we don't end up with roundoff error from
             # adding a small number to a large.
@@ -651,9 +644,9 @@ class Quiver(mcollections.PolyCollection):
                 self.scale = scale * widthu_per_lenu
         length = a * (widthu_per_lenu / (self.scale * self.width))
         X, Y = self._h_arrows(length)
-        if str_angles and (self.angles == 'xy'):
+        if self.angles == 'xy':
             theta = angles
-        elif str_angles and (self.angles == 'uv'):
+        elif self.angles == 'uv':
             theta = np.angle(uv)
         else:
             # Make a copy to avoid changing the input array.
@@ -702,7 +695,7 @@ class Quiver(mcollections.PolyCollection):
         X0 = x0.take(ii)
         Y0 = y0.take(ii)
         Y0[3:-1] *= -1
-        shrink = length / minsh if minsh != 0. else 0.
+        shrink = length / minsh
         X0 = shrink * X0[np.newaxis, :]
         Y0 = shrink * Y0[np.newaxis, :]
         short = np.repeat(length < minsh, 8, axis=1)
@@ -929,11 +922,6 @@ class Barbs(mcollections.PolyCollection):
             kw['edgecolors'] = barbcolor
             kw['facecolors'] = flagcolor
 
-        # Explicitly set a line width if we're not given one, otherwise
-        # polygons are not outlined and we get no barbs
-        if 'linewidth' not in kw and 'lw' not in kw:
-            kw['linewidth'] = 1
-
         # Parse out the data arrays from the various configurations supported
         x, y, u, v, c = _parse_args(*args)
         self.x = x
@@ -1130,11 +1118,9 @@ class Barbs(mcollections.PolyCollection):
             x, y, u, v, c = delete_masked_points(self.x.ravel(),
                                                  self.y.ravel(),
                                                  self.u, self.v, c)
-            _check_consistent_shapes(x, y, u, v, c)
         else:
             x, y, u, v = delete_masked_points(self.x.ravel(), self.y.ravel(),
                                               self.u, self.v)
-            _check_consistent_shapes(x, y, u, v)
 
         magnitude = np.hypot(u, v)
         flags, barbs, halves, empty = self._find_tails(magnitude,
@@ -1159,9 +1145,9 @@ class Barbs(mcollections.PolyCollection):
 
     def set_offsets(self, xy):
         """
-        Set the offsets for the barb polygons.  This saves the offsets passed
-        in and actually sets version masked as appropriate for the existing
-        U/V data. *offsets* should be a sequence.
+        Set the offsets for the barb polygons.  This saves the offets passed in
+        and actually sets version masked as appropriate for the existing U/V
+        data. *offsets* should be a sequence.
 
         ACCEPTS: sequence of pairs of floats
         """
@@ -1169,7 +1155,6 @@ class Barbs(mcollections.PolyCollection):
         self.y = xy[:, 1]
         x, y, u, v = delete_masked_points(self.x.ravel(), self.y.ravel(),
                                           self.u, self.v)
-        _check_consistent_shapes(x, y, u, v)
         xy = np.hstack((x[:, np.newaxis], y[:, np.newaxis]))
         mcollections.PolyCollection.set_offsets(self, xy)
         self.stale = True

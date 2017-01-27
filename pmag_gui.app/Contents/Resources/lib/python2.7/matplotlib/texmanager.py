@@ -37,7 +37,7 @@ your script::
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import copy
 import glob
@@ -53,7 +53,7 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib import rcParams
 from matplotlib._png import read_png
-from matplotlib.cbook import mkdirs, Locked
+from matplotlib.cbook import mkdirs
 from matplotlib.compat.subprocess import Popen, PIPE, STDOUT
 import matplotlib.dviread as dviread
 import re
@@ -68,7 +68,7 @@ else:
 
 def dvipng_hack_alpha():
     try:
-        p = Popen([str('dvipng'), '-version'], stdin=PIPE, stdout=PIPE,
+        p = Popen(['dvipng', '-version'], stdin=PIPE, stdout=PIPE,
                   stderr=STDOUT, close_fds=(sys.platform != 'win32'))
         stdout, stderr = p.communicate()
     except OSError:
@@ -403,8 +403,7 @@ Could not rename old TeX cache dir "%s": a suitable configuration
                 'latex -interaction=nonstopmode %s > "%s"' %
                 (os.path.split(texfile)[-1], outfile))
             mpl.verbose.report(command, 'debug')
-            with Locked(self.texcache):
-                exit_status = os.system(command)
+            exit_status = os.system(command)
             try:
                 with open(outfile) as fh:
                     report = fh.read()

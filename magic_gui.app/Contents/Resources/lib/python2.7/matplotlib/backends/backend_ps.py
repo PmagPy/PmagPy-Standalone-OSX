@@ -5,8 +5,8 @@ A PostScript backend, which can produce both PostScript .ps and .eps
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import StringIO
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import StringIO
 
 import glob, math, os, shutil, sys, time
 def _fn_name(): return sys._getframe(1).f_code.co_name
@@ -28,8 +28,8 @@ from matplotlib.cbook import is_string_like, get_realpath_and_stat, \
     is_writable_file_like, maxdict, file_requires_unicode
 from matplotlib.figure import Figure
 
-from matplotlib.font_manager import findfont, is_opentype_cff_font, get_font
-from matplotlib.ft2font import KERNING_DEFAULT, LOAD_NO_HINTING
+from matplotlib.font_manager import findfont, is_opentype_cff_font
+from matplotlib.ft2font import FT2Font, KERNING_DEFAULT, LOAD_NO_HINTING
 from matplotlib.ttconv import convert_ttf_to_ps
 from matplotlib.mathtext import MathTextParser
 from matplotlib._mathtext_data import uni2type1
@@ -200,6 +200,7 @@ class RendererPS(RendererBase):
     context instance that controls the colors/styles.
     """
 
+    fontd = maxdict(50)
     afmfontd = maxdict(50)
 
     def __init__(self, width, height, pswriter, imagedpi=72):
@@ -277,16 +278,14 @@ class RendererPS(RendererBase):
     def set_linedash(self, offset, seq, store=1):
         if self.linedash is not None:
             oldo, oldseq = self.linedash
-            if seq_allequal(seq, oldseq) and oldo == offset:
-                return
+            if seq_allequal(seq, oldseq): return
 
         if seq is not None and len(seq):
             s="[%s] %d setdash\n"%(_nums_to_str(*seq), offset)
             self._pswriter.write(s)
         else:
             self._pswriter.write("[] 0 setdash\n")
-        if store:
-            self.linedash = (offset, seq)
+        if store: self.linedash = (offset,seq)
 
     def set_font(self, fontname, fontsize, store=1):
         if rcParams['ps.useafm']: return
@@ -304,8 +303,6 @@ class RendererPS(RendererBase):
         if hatch in self._hatches:
             return self._hatches[hatch]
         name = 'H%d' % len(self._hatches)
-        linewidth = rcParams['hatch.linewidth']
-        pageheight = self.height * 72
         self._pswriter.write("""\
   << /PatternType 1
      /PaintType 2
@@ -316,18 +313,16 @@ class RendererPS(RendererBase):
 
      /PaintProc {
         pop
-        %(linewidth)f setlinewidth
+        0 setlinewidth
 """ % locals())
         self._pswriter.write(
-            self._convert_path(Path.hatch(hatch), Affine2D().scale(sidelen),
+            self._convert_path(Path.hatch(hatch), Affine2D().scale(72.0),
                                simplify=False))
         self._pswriter.write("""\
-        fill
-        stroke
+          stroke
      } bind
    >>
    matrix
-   0.0 %(pageheight)f translate
    makepattern
    /%(name)s exch def
 """ % locals())
@@ -336,7 +331,7 @@ class RendererPS(RendererBase):
 
     def get_canvas_width_height(self):
         'return the canvas width and height in display coords'
-        return self.width * 72.0, self.height * 72.0
+        return self.width, self.height
 
     def get_text_width_height_descent(self, s, prop, ismath):
         """
@@ -399,17 +394,42 @@ class RendererPS(RendererBase):
         return font
 
     def _get_font_ttf(self, prop):
-        fname = findfont(prop)
-        font = get_font(fname)
+        key = hash(prop)
+        font = self.fontd.get(key)
+        if font is None:
+            fname = findfont(prop)
+            font = self.fontd.get(fname)
+            if font is None:
+                font = FT2Font(fname)
+                self.fontd[fname] = font
+            self.fontd[key] = font
         font.clear()
         size = prop.get_size_in_points()
         font.set_size(size, 72.0)
         return font
 
-    def _rgb(self, rgba):
-        h, w = rgba.shape[:2]
-        rgb = rgba[::-1, :, :3]
+    def _rgba(self, im):
+        return im.as_rgba_str()
+
+    def _rgb(self, im):
+        h,w,s = im.as_rgba_str()
+
+        rgba = np.fromstring(s, np.uint8)
+        rgba.shape = (h, w, 4)
+        rgb = rgba[::-1,:,:3]
         return h, w, rgb.tostring()
+
+    def _gray(self, im, rc=0.3, gc=0.59, bc=0.11):
+        rgbat = im.as_rgba_str()
+        rgba = np.fromstring(rgbat[2], np.uint8)
+        rgba.shape = (rgbat[0], rgbat[1], 4)
+        rgba = rgba[::-1]
+        rgba_f = rgba.astype(np.float32)
+        r = rgba_f[:,:,0]
+        g = rgba_f[:,:,1]
+        b = rgba_f[:,:,2]
+        gray = (r*rc + g*gc + b*bc).astype(np.uint8)
+        return rgbat[0], rgbat[1], gray.tostring()
 
     def _hex_lines(self, s, chars_per_line=128):
         s = binascii.b2a_hex(s)
@@ -442,31 +462,46 @@ class RendererPS(RendererBase):
         return not rcParams['image.composite_image']
 
     def _get_image_h_w_bits_command(self, im):
-        h, w, bits = self._rgb(im)
-        imagecmd = "false 3 colorimage"
+        if im.is_grayscale:
+            h, w, bits = self._gray(im)
+            imagecmd = "image"
+        else:
+            h, w, bits = self._rgb(im)
+            imagecmd = "false 3 colorimage"
 
         return h, w, bits, imagecmd
 
-    def draw_image(self, gc, x, y, im, transform=None):
+    def draw_image(self, gc, x, y, im, dx=None, dy=None, transform=None):
         """
         Draw the Image instance into the current axes; x is the
         distance in pixels from the left hand side of the canvas and y
         is the distance from bottom
+
+        dx, dy is the width and height of the image.  If a transform
+        (which must be an affine transform) is given, x, y, dx, dy are
+        interpreted as the coordinate of the transform.
         """
 
         h, w, bits, imagecmd = self._get_image_h_w_bits_command(im)
         hexlines = b'\n'.join(self._hex_lines(bits)).decode('ascii')
 
+        if dx is None:
+            xscale = w / self.image_magnification
+        else:
+            xscale = dx
+
+        if dy is None:
+            yscale = h/self.image_magnification
+        else:
+            yscale = dy
+
+
         if transform is None:
             matrix = "1 0 0 1 0 0"
-            xscale = w / self.image_magnification
-            yscale = h / self.image_magnification
         else:
-            matrix = " ".join(map(str, transform.frozen().to_values()))
-            xscale = 1.0
-            yscale = 1.0
+            matrix = " ".join(map(str, transform.to_values()))
 
-        figh = self.height * 72
+        figh = self.height*72
         #print 'values', origin, flipud, figh, h, y
 
         bbox = gc.get_clip_rectangle()
@@ -484,8 +519,8 @@ class RendererPS(RendererBase):
         #y = figh-(y+h)
         ps = """gsave
 %(clip)s
-%(x)s %(y)s translate
 [%(matrix)s] concat
+%(x)s %(y)s translate
 %(xscale)s %(yscale)s scale
 /DataString %(w)s string def
 %(w)s %(h)s 8 [ %(w)s 0 0 -%(h)s 0 %(h)s ]
@@ -736,6 +771,7 @@ grestore
             ps_name = ps_name.encode('ascii', 'replace').decode('ascii')
             self.set_font(ps_name, prop.get_size_in_points())
 
+            cmap = font.get_charmap()
             lastgind = None
             #print 'text', s
             lines = []
@@ -743,7 +779,7 @@ grestore
             thisy = 0
             for c in s:
                 ccode = ord(c)
-                gind = font.get_char_index(ccode)
+                gind = cmap.get(ccode)
                 if gind is None:
                     ccode = ord('?')
                     name = '.notdef'
@@ -864,7 +900,6 @@ grestore
         stroke = stroke and mightstroke
         fill = (fill and rgbFace is not None and
                 (len(rgbFace) <= 3 or rgbFace[3] != 0.0))
-        hatch = gc.get_hatch()
 
         if mightstroke:
             self.set_linewidth(gc.get_linewidth())
@@ -890,18 +925,19 @@ grestore
         write("\n")
 
         if fill:
-            if stroke or hatch:
+            if stroke:
                 write("gsave\n")
             self.set_color(store=0, *rgbFace[:3])
             write("fill\n")
-            if stroke or hatch:
+            if stroke:
                 write("grestore\n")
 
+        hatch = gc.get_hatch()
         if hatch:
             hatch_name = self.create_hatch(hatch)
             write("gsave\n")
-            write("%f %f %f " % gc.get_hatch_color()[:3])
-            write("%s setpattern fill grestore\n" % hatch_name)
+            write("[/Pattern [/DeviceRGB]] setcolorspace %f %f %f " % gc.get_rgb()[:3])
+            write("%s setcolor fill grestore\n" % hatch_name)
 
         if stroke:
             write("stroke\n")
@@ -1110,10 +1146,11 @@ class FigureCanvasPS(FigureCanvasBase):
             if not rcParams['ps.useafm']:
                 for font_filename, chars in six.itervalues(ps_renderer.used_characters):
                     if len(chars):
-                        font = get_font(font_filename)
+                        font = FT2Font(font_filename)
+                        cmap = font.get_charmap()
                         glyph_ids = []
                         for c in chars:
-                            gind = font.get_char_index(c)
+                            gind = cmap.get(c) or 0
                             glyph_ids.append(gind)
 
                         fonttype = rcParams['ps.fonttype']
@@ -1143,6 +1180,8 @@ class FigureCanvasPS(FigureCanvasBase):
             print("%s translate"%_nums_to_str(xo, yo), file=fh)
             if rotation: print("%d rotate"%rotation, file=fh)
             print("%s clipbox"%_nums_to_str(width*72, height*72, 0, 0), file=fh)
+            # Disable any sort of miter limit
+            print("%s setmiterlimit" % 100000, file=fh)
 
             # write the figure
             content = self._pswriter.getvalue()
@@ -1292,6 +1331,8 @@ class FigureCanvasPS(FigureCanvasBase):
             #print >>fh, "gsave"
             print("%s translate"%_nums_to_str(xo, yo), file=fh)
             print("%s clipbox"%_nums_to_str(width*72, height*72, 0, 0), file=fh)
+            # Disable any sort of miter limit
+            print("%d setmiterlimit" % 100000, file=fh)
 
             # write the figure
             print(self._pswriter.getvalue(), file=fh)

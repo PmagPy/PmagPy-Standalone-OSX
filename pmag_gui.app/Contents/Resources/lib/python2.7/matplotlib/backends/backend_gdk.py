@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import math
 import os
@@ -26,7 +26,7 @@ from matplotlib import rcParams
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import RendererBase, GraphicsContextBase, \
      FigureManagerBase, FigureCanvasBase
-from matplotlib.cbook import is_string_like, restrict_dict, warn_deprecated
+from matplotlib.cbook import is_string_like, restrict_dict
 from matplotlib.figure import Figure
 from matplotlib.mathtext import MathTextParser
 from matplotlib.transforms import Affine2D
@@ -91,7 +91,7 @@ class RendererGDK(RendererBase):
         for polygon in polygons:
             # draw_polygon won't take an arbitrary sequence -- it must be a list
             # of tuples
-            polygon = [(int(np.round(x)), int(np.round(y))) for x, y in polygon]
+            polygon = [(int(round(x)), int(round(y))) for x, y in polygon]
             if rgbFace is not None:
                 saveColor = gc.gdkGC.foreground
                 gc.gdkGC.foreground = gc.rgb_to_gdk_color(rgbFace)
@@ -109,14 +109,17 @@ class RendererGDK(RendererBase):
             #             int(w), int(h))
             # set clip rect?
 
-        rows, cols = im.shape[:2]
+        rows, cols, image_str = im.as_rgba_str()
+
+        image_array = np.fromstring(image_str, np.uint8)
+        image_array.shape = rows, cols, 4
 
         pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB,
                                 has_alpha=True, bits_per_sample=8,
                                 width=cols, height=rows)
 
         array = pixbuf_get_pixels_array(pixbuf)
-        array[:, :, :] = im[::-1]
+        array[:,:,:] = image_array[::-1]
 
         gc = self.new_gc()
 
@@ -278,7 +281,7 @@ class RendererGDK(RendererBase):
             return value
 
         size = prop.get_size_in_points() * self.dpi / 96.0
-        size = np.round(size)
+        size = round(size)
 
         font_str = '%s, %s %i' % (prop.get_name(), prop.get_style(), size,)
         font = pango.FontDescription(font_str)
@@ -384,7 +387,7 @@ class GraphicsContextGDK(GraphicsContextBase):
             self.gdkGC.line_style = gdk.LINE_SOLID
         else:
             pixels = self.renderer.points_to_pixels(np.asarray(dash_list))
-            dl = [max(1, int(np.round(val))) for val in pixels]
+            dl = [max(1, int(round(val))) for val in pixels]
             self.gdkGC.set_dashes(dash_offset, dl)
             self.gdkGC.line_style = gdk.LINE_ON_OFF_DASH
 
@@ -410,7 +413,7 @@ class GraphicsContextGDK(GraphicsContextBase):
             self.gdkGC.line_width = 0
         else:
             pixels = self.renderer.points_to_pixels(w)
-            self.gdkGC.line_width = max(1, int(np.round(pixels)))
+            self.gdkGC.line_width = max(1, int(round(pixels)))
 
 
 def new_figure_manager(num, *args, **kwargs):
@@ -434,14 +437,7 @@ def new_figure_manager_given_figure(num, figure):
 class FigureCanvasGDK (FigureCanvasBase):
     def __init__(self, figure):
         FigureCanvasBase.__init__(self, figure)
-        if self.__class__ == matplotlib.backends.backend_gdk.FigureCanvasGDK:
-            warn_deprecated('2.0', message="The GDK backend is "
-                            "deprecated. It is untested, known to be "
-                            "broken and will be removed in Matplotlib 2.2. "
-                            "Use the Agg backend instead. "
-                            "See Matplotlib usage FAQ for"
-                            " more info on backends.",
-                            alternative="Agg")
+
         self._renderer_init()
 
     def _renderer_init(self):

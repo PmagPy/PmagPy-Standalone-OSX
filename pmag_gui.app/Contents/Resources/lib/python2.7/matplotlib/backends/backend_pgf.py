@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import math
 import os
@@ -36,16 +36,17 @@ from matplotlib.compat.subprocess import check_output
 system_fonts = []
 if sys.platform.startswith('win'):
     from matplotlib import font_manager
+    from matplotlib.ft2font import FT2Font
     for f in font_manager.win32InstalledFonts():
         try:
-            system_fonts.append(font_manager.get_font(str(f)).family_name)
+            system_fonts.append(FT2Font(str(f)).family_name)
         except:
             pass # unknown error, skip this font
 else:
     # assuming fontconfig is installed and the command 'fc-list' exists
     try:
         # list scalable (non-bitmap) fonts
-        fc_list = check_output([str('fc-list'), ':outline,scalable', 'family'])
+        fc_list = check_output(['fc-list', ':outline,scalable', 'family'])
         fc_list = fc_list.decode('utf8')
         system_fonts = [f.split(',')[0] for f in fc_list.splitlines()]
         system_fonts = list(set(system_fonts))
@@ -179,7 +180,7 @@ def make_pdf_to_png_converter():
     tools_available = []
     # check for pdftocairo
     try:
-        check_output([str("pdftocairo"), "-v"], stderr=subprocess.STDOUT)
+        check_output(["pdftocairo", "-v"], stderr=subprocess.STDOUT)
         tools_available.append("pdftocairo")
     except:
         pass
@@ -191,14 +192,14 @@ def make_pdf_to_png_converter():
     # pick converter
     if "pdftocairo" in tools_available:
         def cairo_convert(pdffile, pngfile, dpi):
-            cmd = [str("pdftocairo"), "-singlefile", "-png",
+            cmd = ["pdftocairo", "-singlefile", "-png",
                    "-r %d" % dpi, pdffile, os.path.splitext(pngfile)[0]]
             # for some reason this doesn't work without shell
-            check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+            check_output(" ".join(cmd), shell=True, stderr=subprocess.STDOUT)
         return cairo_convert
     elif "gs" in tools_available:
         def gs_convert(pdffile, pngfile, dpi):
-            cmd = [str(gs), '-dQUIET', '-dSAFER', '-dBATCH', '-dNOPAUSE', '-dNOPROMPT',
+            cmd = [gs, '-dQUIET', '-dSAFER', '-dBATCH', '-dNOPAUSE', '-dNOPROMPT',
                    '-sDEVICE=png16m', '-dUseCIEColor', '-dTextAlphaBits=4',
                    '-dGraphicsAlphaBits=4', '-dDOINTERPOLATE', '-sOutputFile=%s' % pngfile,
                    '-r%d' % dpi, pdffile]
@@ -235,6 +236,23 @@ class LatexManagerFactory(object):
             LatexManagerFactory.previous_instance = new_inst
             return new_inst
 
+class WeakSet(object):
+    # TODO: Poor man's weakref.WeakSet.
+    #       Remove this once python 2.6 support is dropped from matplotlib.
+
+    def __init__(self):
+        self.weak_key_dict = weakref.WeakKeyDictionary()
+
+    def add(self, item):
+        self.weak_key_dict[item] = None
+
+    def discard(self, item):
+        if item in self.weak_key_dict:
+            del self.weak_key_dict[item]
+
+    def __iter__(self):
+        return six.iterkeys(self.weak_key_dict)
+
 
 class LatexManager(object):
     """
@@ -242,7 +260,7 @@ class LatexManager(object):
     determining the metrics of text elements. The LaTeX environment can be
     modified by setting fonts and/or a custem preamble in the rc parameters.
     """
-    _unclean_instances = weakref.WeakSet()
+    _unclean_instances = WeakSet()
 
     @staticmethod
     def _build_latex_header():
@@ -300,7 +318,7 @@ class LatexManager(object):
         self.latex_header = LatexManager._build_latex_header()
         latex_end = "\n\\makeatletter\n\\@@end\n"
         try:
-            latex = subprocess.Popen([str(self.texcommand), "-halt-on-error"],
+            latex = subprocess.Popen([self.texcommand, "-halt-on-error"],
                                      stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
                                      cwd=self.tmpdir)
@@ -318,7 +336,7 @@ class LatexManager(object):
             raise LatexError("LaTeX returned an error, probably missing font or error in preamble:\n%s" % stdout)
 
         # open LaTeX process for real work
-        latex = subprocess.Popen([str(self.texcommand), "-halt-on-error"],
+        latex = subprocess.Popen([self.texcommand, "-halt-on-error"],
                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                  cwd=self.tmpdir)
         self.latex = latex
@@ -609,51 +627,23 @@ class RendererPgf(RendererBase):
             actions.append("fill")
         writeln(self.fh, r"\pgfusepath{%s}" % ",".join(actions))
 
-    def option_scale_image(self):
-        """
-        pgf backend supports affine transform of image.
-        """
-        return True
-
-    def option_image_nocomposite(self):
-        """
-        return whether to generate a composite image from multiple images on
-        a set of axes
-        """
-        return not rcParams['image.composite_image']
-
-    def draw_image(self, gc, x, y, im, transform=None):
-        h, w = im.shape[:2]
-        if w == 0 or h == 0:
-            return
+    def draw_image(self, gc, x, y, im):
+        # TODO: Almost no documentation for the behavior of this function.
+        #       Something missing?
 
         # save the images to png files
         path = os.path.dirname(self.fh.name)
         fname = os.path.splitext(os.path.basename(self.fh.name))[0]
         fname_img = "%s-img%d.png" % (fname, self.image_counter)
         self.image_counter += 1
-        _png.write_png(im[::-1], os.path.join(path, fname_img))
+        _png.write_png(np.array(im)[::-1], os.path.join(path, fname_img))
 
         # reference the image in the pgf picture
         writeln(self.fh, r"\begin{pgfscope}")
         self._print_pgf_clip(gc)
+        h, w = im.get_size_out()
         f = 1. / self.dpi  # from display coords to inch
-        if transform is None:
-            writeln(self.fh,
-                    r"\pgfsys@transformshift{%fin}{%fin}" % (x * f, y * f))
-            w, h = w * f, h * f
-        else:
-            tr1, tr2, tr3, tr4, tr5, tr6 = transform.frozen().to_values()
-            writeln(self.fh,
-                    r"\pgfsys@transformcm{%f}{%f}{%f}{%f}{%fin}{%fin}" %
-                    (tr1 * f, tr2 * f, tr3 * f, tr4 * f,
-                     (tr5 + x) * f, (tr6 + y) * f))
-            w = h = 1  # scale is already included in the transform
-        interp = str(transform is None).lower()  # interpolation in PDF reader
-        writeln(self.fh,
-                r"\pgftext[left,bottom]"
-                r"{\pgfimage[interpolate=%s,width=%fin,height=%fin]{%s}}" %
-                (interp, w, h, fname_img))
+        writeln(self.fh, r"\pgftext[at=\pgfqpoint{%fin}{%fin},left,bottom]{\pgfimage[interpolate=true,width=%fin,height=%fin]{%s}}" % (x * f, y * f, w * f, h * f, fname_img))
         writeln(self.fh, r"\end{pgfscope}")
 
     def draw_tex(self, gc, x, y, s, prop, angle, ismath="TeX!", mtext=None):
@@ -681,10 +671,7 @@ class RendererPgf(RendererBase):
 
         f = 1.0 / self.figure.dpi
         text_args = []
-        if mtext and (
-                (angle == 0 or
-                 mtext.get_rotation_mode() == "anchor") and
-                mtext.get_va() != "center_baseline"):
+        if mtext and (angle == 0 or mtext.get_rotation_mode() == "anchor"):
             # if text anchoring can be supported, get the original coordinates
             # and add alignment information
             x, y = mtext.get_transform().transform_point(mtext.get_position())
@@ -895,7 +882,7 @@ class FigureCanvasPgf(FigureCanvasBase):
                 fh_tex.write(latexcode)
 
             texcommand = get_texcommand()
-            cmdargs = [str(texcommand), "-interaction=nonstopmode",
+            cmdargs = [texcommand, "-interaction=nonstopmode",
                        "-halt-on-error", "figure.tex"]
             try:
                 check_output(cmdargs, stderr=subprocess.STDOUT, cwd=tmpdir)

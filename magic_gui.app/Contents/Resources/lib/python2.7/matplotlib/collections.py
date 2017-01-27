@@ -11,18 +11,11 @@ line segemnts)
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import zip
-try:
-    from math import gcd
-except ImportError:
-    # LPy workaround
-    from fractions import gcd
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import zip
 import warnings
-
 import numpy as np
 import numpy.ma as ma
-
 import matplotlib as mpl
 import matplotlib.cbook as cbook
 import matplotlib.colors as mcolors
@@ -31,16 +24,13 @@ from matplotlib import docstring
 import matplotlib.transforms as transforms
 import matplotlib.artist as artist
 from matplotlib.artist import allow_rasterization
+import matplotlib.backend_bases as backend_bases
 import matplotlib.path as mpath
 from matplotlib import _path
 import matplotlib.mlab as mlab
-import matplotlib.lines as mlines
+
 
 CIRCLE_AREA_FACTOR = 1.0 / np.sqrt(np.pi)
-
-
-_color_aliases = {'facecolors': ['facecolor'],
-                  'edgecolors': ['edgecolor']}
 
 
 class Collection(artist.Artist, cm.ScalarMappable):
@@ -98,10 +88,6 @@ class Collection(artist.Artist, cm.ScalarMappable):
     #: Each kind of collection defines this based on its arguments.
     _transforms = np.empty((0, 3, 3))
 
-    # Whether to draw an edge by default.  Set on a
-    # subclass-by-subclass basis.
-    _edge_default = False
-
     def __init__(self,
                  edgecolors=None,
                  facecolors=None,
@@ -126,18 +112,9 @@ class Collection(artist.Artist, cm.ScalarMappable):
         """
         artist.Artist.__init__(self)
         cm.ScalarMappable.__init__(self, norm, cmap)
-        # list of un-scaled dash patterns
-        # this is needed scaling the dash pattern by linewidth
-        self._us_linestyles = [(None, None)]
-        # list of dash patterns
-        self._linestyles = [(None, None)]
-        # list of unbroadcast/scaled linewidths
-        self._us_lw = [0]
-        self._linewidths = [0]
-        self._is_filled = True  # May be modified by set_facecolor().
 
-        self.set_facecolor(facecolors)
         self.set_edgecolor(edgecolors)
+        self.set_facecolor(facecolors)
         self.set_linewidth(linewidths)
         self.set_linestyle(linestyles)
         self.set_antialiased(antialiaseds)
@@ -331,7 +308,7 @@ class Collection(artist.Artist, cm.ScalarMappable):
         if do_single_path_optimization:
             gc.set_foreground(tuple(edgecolors[0]))
             gc.set_linewidth(self._linewidths[0])
-            gc.set_dashes(*self._linestyles[0])
+            gc.set_linestyle(self._linestyles[0])
             gc.set_antialiased(self._antialiaseds[0])
             gc.set_url(self._urls[0])
             renderer.draw_markers(
@@ -500,14 +477,7 @@ class Collection(artist.Artist, cm.ScalarMappable):
         """
         if lw is None:
             lw = mpl.rcParams['patch.linewidth']
-            if lw is None:
-                lw = mpl.rcParams['lines.linewidth']
-        # get the un-scaled/broadcast lw
-        self._us_lw = self._get_value(lw)
-
-        # scale all of the dash patterns.
-        self._linewidths, self._linestyles = self._bcast_lwls(
-            self._us_lw, self._us_linestyles)
+        self._linewidths = self._get_value(lw)
         self.stale = True
 
     def set_linewidths(self, lw):
@@ -549,65 +519,38 @@ class Collection(artist.Artist, cm.ScalarMappable):
             The line style.
         """
         try:
+            dashd = backend_bases.GraphicsContextBase.dashd
             if cbook.is_string_like(ls) and cbook.is_hashable(ls):
                 ls = cbook.ls_mapper.get(ls, ls)
-                dashes = [mlines._get_dash_pattern(ls)]
-            else:
+                if ls in dashd:
+                    dashes = [dashd[ls]]
+                else:
+                    raise ValueError()
+            elif cbook.iterable(ls):
                 try:
-                    dashes = [mlines._get_dash_pattern(ls)]
+                    dashes = []
+                    for x in ls:
+                        if cbook.is_string_like(x):
+                            x = cbook.ls_mapper.get(x, x)
+                            if x in dashd:
+                                dashes.append(dashd[x])
+                            else:
+                                raise ValueError()
+                        elif cbook.iterable(x) and len(x) == 2:
+                            dashes.append(x)
+                        else:
+                            raise ValueError()
                 except ValueError:
-                    dashes = [mlines._get_dash_pattern(x) for x in ls]
-
+                    if len(ls) == 2:
+                        dashes = [ls]
+                    else:
+                        raise ValueError()
+            else:
+                raise ValueError()
         except ValueError:
-            raise ValueError(
-                'Do not know how to convert {!r} to dashes'.format(ls))
-
-        # get the list of raw 'unscaled' dash patterns
-        self._us_linestyles = dashes
-
-        # broadcast and scale the lw and dash patterns
-        self._linewidths, self._linestyles = self._bcast_lwls(
-            self._us_lw, self._us_linestyles)
-
-    @staticmethod
-    def _bcast_lwls(linewidths, dashes):
-        '''Internal helper function to broadcast + scale ls/lw
-
-        In the collection drawing code the linewidth and linestyle are
-        cycled through as circular buffers (via v[i % len(v)]).  Thus,
-        if we are going to scale the dash pattern at set time (not
-        draw time) we need to do the broadcasting now and expand both
-        lists to be the same length.
-
-        Parameters
-        ----------
-        linewidths : list
-            line widths of collection
-
-        dashes : list
-            dash specification (offset, (dash pattern tuple))
-
-        Returns
-        -------
-        linewidths, dashes : list
-             Will be the same length, dashes are scaled by paired linewidth
-
-        '''
-        if mpl.rcParams['_internal.classic_mode']:
-            return linewidths, dashes
-        # make sure they are the same length so we can zip them
-        if len(dashes) != len(linewidths):
-            l_dashes = len(dashes)
-            l_lw = len(linewidths)
-            GCD = gcd(l_dashes, l_lw)
-            dashes = list(dashes) * (l_lw // GCD)
-            linewidths = list(linewidths) * (l_dashes // GCD)
-
-        # scale the dash patters
-        dashes = [mlines._scale_dashes(o, d, lw)
-                  for (o, d), lw in zip(dashes, linewidths)]
-
-        return linewidths, dashes
+            raise ValueError('Do not know how to convert %s to dashes' % ls)
+        self._linestyles = dashes
+        self.stale = True
 
     def set_linestyles(self, ls):
         """alias for set_linestyle"""
@@ -646,19 +589,6 @@ class Collection(artist.Artist, cm.ScalarMappable):
         self.set_facecolor(c)
         self.set_edgecolor(c)
 
-    def _set_facecolor(self, c):
-        if c is None:
-            c = mpl.rcParams['patch.facecolor']
-
-        self._is_filled = True
-        try:
-            if c.lower() == 'none':
-                self._is_filled = False
-        except AttributeError:
-            pass
-        self._facecolors = mcolors.to_rgba_array(c, self._alpha)
-        self.stale = True
-
     def set_facecolor(self, c):
         """
         Set the facecolor(s) of the collection.  *c* can be a
@@ -670,8 +600,17 @@ class Collection(artist.Artist, cm.ScalarMappable):
 
         ACCEPTS: matplotlib color spec or sequence of specs
         """
-        self._original_facecolor = c
-        self._set_facecolor(c)
+        self._is_filled = True
+        try:
+            if c.lower() == 'none':
+                self._is_filled = False
+        except AttributeError:
+            pass
+        if c is None:
+            c = mpl.rcParams['patch.facecolor']
+        self._facecolors_original = c
+        self._facecolors = mcolors.colorConverter.to_rgba_array(c, self._alpha)
+        self.stale = True
 
     def set_facecolors(self, c):
         """alias for set_facecolor"""
@@ -689,29 +628,6 @@ class Collection(artist.Artist, cm.ScalarMappable):
             return self._edgecolors
     get_edgecolors = get_edgecolor
 
-    def _set_edgecolor(self, c):
-        if c is None:
-            if (mpl.rcParams['patch.force_edgecolor'] or
-                    not self._is_filled or self._edge_default):
-                c = mpl.rcParams['patch.edgecolor']
-            else:
-                c = 'none'
-        self._is_stroked = True
-        try:
-            if c.lower() == 'none':
-                self._is_stroked = False
-        except AttributeError:
-            pass
-
-        try:
-            if c.lower() == 'face':   # Special case: lookup in "get" method.
-                self._edgecolors = 'face'
-                return
-        except AttributeError:
-            pass
-        self._edgecolors = mcolors.to_rgba_array(c, self._alpha)
-        self.stale = True
-
     def set_edgecolor(self, c):
         """
         Set the edgecolor(s) of the collection. *c* can be a
@@ -725,8 +641,24 @@ class Collection(artist.Artist, cm.ScalarMappable):
 
         ACCEPTS: matplotlib color spec or sequence of specs
         """
-        self._original_edgecolor = c
-        self._set_edgecolor(c)
+        self._is_stroked = True
+        try:
+            if c.lower() == 'none':
+                self._is_stroked = False
+        except AttributeError:
+            pass
+        try:
+            if c.lower() == 'face':
+                self._edgecolors = 'face'
+                self._edgecolors_original = 'face'
+                return
+        except AttributeError:
+            pass
+        if c is None:
+            c = mpl.rcParams['patch.edgecolor']
+        self._edgecolors_original = c
+        self._edgecolors = mcolors.colorConverter.to_rgba_array(c, self._alpha)
+        self.stale = True
 
     def set_edgecolors(self, c):
         """alias for set_edgecolor"""
@@ -745,8 +677,18 @@ class Collection(artist.Artist, cm.ScalarMappable):
             except TypeError:
                 raise TypeError('alpha must be a float or None')
         artist.Artist.set_alpha(self, alpha)
-        self._set_facecolor(self._original_facecolor)
-        self._set_edgecolor(self._original_edgecolor)
+        try:
+            self._facecolors = mcolors.colorConverter.to_rgba_array(
+                self._facecolors_original, self._alpha)
+        except (AttributeError, TypeError, IndexError):
+            pass
+        try:
+            if (not isinstance(self._edgecolors_original, six.string_types)
+                             or self._edgecolors_original != str('face')):
+                self._edgecolors = mcolors.colorConverter.to_rgba_array(
+                    self._edgecolors_original, self._alpha)
+        except (AttributeError, TypeError, IndexError):
+            pass
 
     def get_linewidths(self):
         return self._linewidths
@@ -782,13 +724,12 @@ class Collection(artist.Artist, cm.ScalarMappable):
 
         artist.Artist.update_from(self, other)
         self._antialiaseds = other._antialiaseds
-        self._original_edgecolor = other._original_edgecolor
+        self._edgecolors_original = other._edgecolors_original
         self._edgecolors = other._edgecolors
-        self._original_facecolor = other._original_facecolor
+        self._facecolors_original = other._facecolors_original
         self._facecolors = other._facecolors
         self._linewidths = other._linewidths
         self._linestyles = other._linestyles
-        self._us_linestyles = other._us_linestyles
         self._pickradius = other._pickradius
         self._hatch = other._hatch
 
@@ -1105,8 +1046,6 @@ class LineCollection(Collection):
     number of segments.
     """
 
-    _edge_default = True
-
     def __init__(self, segments,     # Can be None.
                  linewidths=None,
                  colors=None,
@@ -1190,7 +1129,7 @@ class LineCollection(Collection):
         if antialiaseds is None:
             antialiaseds = (mpl.rcParams['lines.antialiased'],)
 
-        colors = mcolors.to_rgba_array(colors)
+        colors = mcolors.colorConverter.to_rgba_array(colors)
 
         Collection.__init__(
             self,
@@ -1277,8 +1216,6 @@ class EventCollection(LineCollection):
     an axis, such as time or length.  Events do not have an amplitude.  They
     are displayed as v
     '''
-
-    _edge_default = True
 
     def __init__(self,
                  positions,     # Can be None.

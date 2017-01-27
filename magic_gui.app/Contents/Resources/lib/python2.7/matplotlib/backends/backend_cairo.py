@@ -21,7 +21,7 @@ Naming Conventions
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import os, sys, warnings, gzip
 
@@ -66,21 +66,6 @@ if sys.byteorder == 'little':
     BYTE_FORMAT = 0 # BGRA
 else:
     BYTE_FORMAT = 1 # ARGB
-
-
-class ArrayWrapper:
-    """Thin wrapper around numpy ndarray to expose the interface
-       expected by cairocffi. Basically replicates the
-       array.array interface.
-    """
-    def __init__(self, myarray):
-        self.__array = myarray
-        self.__data = myarray.ctypes.data
-        self.__size = len(myarray.flatten())
-        self.itemsize = myarray.itemsize
-
-    def buffer_info(self):
-        return (self.__data, self.__size)
 
 
 class RendererCairo(RendererBase):
@@ -186,34 +171,14 @@ class RendererCairo(RendererBase):
         # bbox - not currently used
         if _debug: print('%s.%s()' % (self.__class__.__name__, _fn_name()))
 
-        if sys.byteorder == 'little':
-            im = im[:, :, (2, 1, 0, 3)]
-        else:
-            im = im[:, :, (3, 0, 1, 2)]
-        if HAS_CAIRO_CFFI:
-            # cairocffi tries to use the buffer_info from array.array
-            # that we replicate in ArrayWrapper and alternatively falls back
-            # on ctypes to get a pointer to the numpy array. This works
-            # correctly on a numpy array in python3 but not 2.7. We replicate
-            # the array.array functionality here to get cross version support.
-            imbuffer = ArrayWrapper(im.flatten())
-        else:
-            # py2cairo uses PyObject_AsWriteBuffer
-            # to get a pointer to the numpy array this works correctly
-            # on a regular numpy array but not on a memory view.
-            # At the time of writing the latest release version of
-            # py3cairo still does not support create_for_data
-            imbuffer = im.flatten()
-        surface = cairo.ImageSurface.create_for_data(imbuffer,
-                                                     cairo.FORMAT_ARGB32,
-                                                     im.shape[1],
-                                                     im.shape[0],
-                                                     im.shape[1]*4)
+        rows, cols, buf = im.color_conv (BYTE_FORMAT)
+        surface = cairo.ImageSurface.create_for_data (
+                      buf, cairo.FORMAT_ARGB32, cols, rows, cols*4)
         ctx = gc.ctx
-        y = self.height - y - im.shape[0]
+        y = self.height - y - rows
 
         ctx.save()
-        ctx.set_source_surface(surface, float(x), float(y))
+        ctx.set_source_surface (surface, x, y)
         if gc.get_alpha() != 1.0:
             ctx.paint_with_alpha(gc.get_alpha())
         else:
@@ -394,7 +359,7 @@ class GraphicsContextCairo(GraphicsContextBase):
         if not rectangle: return
         x,y,w,h = rectangle.bounds
         # pixel-aligned clip-regions are faster
-        x,y,w,h = np.round(x), np.round(y), np.round(w), np.round(h)
+        x,y,w,h = round(x), round(y), round(w), round(h)
         ctx = self.ctx
         ctx.new_path()
         ctx.rectangle (x, self.renderer.height - h - y, w, h)

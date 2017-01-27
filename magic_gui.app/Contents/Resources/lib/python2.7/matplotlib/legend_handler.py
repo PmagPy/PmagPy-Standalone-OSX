@@ -27,8 +27,8 @@ derived from the base class (HandlerBase) with the following method.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import zip
 
 import numpy as np
 
@@ -265,12 +265,13 @@ class HandlerLineCollection(HandlerLine2D):
             return self._numpoints
 
     def _default_update_prop(self, legend_handle, orig_handle):
-        lw = orig_handle.get_linewidths()[0]
-        dashes = orig_handle._us_linestyles[0]
+        lw = orig_handle.get_linewidth()[0]
+        dashes = orig_handle.get_dashes()[0]
         color = orig_handle.get_colors()[0]
         legend_handle.set_color(color)
-        legend_handle.set_linestyle(dashes)
         legend_handle.set_linewidth(lw)
+        if dashes[0] is not None: # dashed line
+            legend_handle.set_dashes(dashes[1])
 
     def create_artists(self, legend, orig_handle,
                        xdescent, ydescent, width, height, fontsize, trans):
@@ -313,7 +314,7 @@ class HandlerRegularPolyCollection(HandlerNpointsYoffsets):
             numpoints = self.get_numpoints(legend)
             if numpoints < 4:
                 sizes = [.5 * (size_max + size_min), size_max,
-                         size_min][:numpoints]
+                         size_min]
             else:
                 rng = (size_max - size_min)
                 sizes = rng * np.linspace(0, 1, numpoints) + size_min
@@ -592,7 +593,7 @@ class HandlerPolyCollection(HandlerBase):
     """
     def _update_prop(self, legend_handle, orig_handle):
         def first_color(colors):
-            colors = mcolors.to_rgba_array(colors)
+            colors = mcolors.colorConverter.to_rgba_array(colors)
             if len(colors):
                 return colors[0]
             else:

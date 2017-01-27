@@ -1,12 +1,13 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 import warnings
 
 import numpy as np
 from numpy.testing import assert_almost_equal
 from nose.tools import eq_, assert_raises
+from nose.plugins.skip import SkipTest
 
 from matplotlib.transforms import Bbox
 import matplotlib
@@ -286,6 +287,10 @@ def test_get_rotation_int():
 
 def test_get_rotation_raises():
     from matplotlib import text
+    import sys
+    if sys.version_info[:2] < (2, 7):
+        raise SkipTest("assert_raises as context manager "
+                       "not supported with Python < 2.7")
     with assert_raises(ValueError):
         text.get_rotation('hozirontal')
 
@@ -388,26 +393,3 @@ def test_text_stale():
     assert not ax1.stale
     assert not ax2.stale
     assert not fig.stale
-
-
-@image_comparison(baseline_images=['agg_text_clip'],
-                  extensions=['png'])
-def test_agg_text_clip():
-    np.random.seed(1)
-    fig, (ax1, ax2) = plt.subplots(2)
-    for x, y in np.random.rand(10, 2):
-        ax1.text(x, y, "foo", clip_on=True)
-        ax2.text(x, y, "foo")
-    plt.show()
-
-
-@cleanup
-def test_text_size_binding():
-    from matplotlib.font_manager import FontProperties
-
-    matplotlib.rcParams['font.size'] = 10
-    fp = FontProperties(size='large')
-    sz1 = fp.get_size_in_points()
-    matplotlib.rcParams['font.size'] = 100
-
-    assert sz1 == fp.get_size_in_points()

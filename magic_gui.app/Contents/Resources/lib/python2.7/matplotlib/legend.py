@@ -24,8 +24,8 @@ for more information.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import xrange
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import xrange
 
 import warnings
 
@@ -180,8 +180,6 @@ class Legend(Artist):
                  title=None,  # set a title for the legend
 
                  framealpha=None,  # set frame alpha
-                 edgecolor=None,  # frame patch edgecolor
-                 facecolor=None,  # frame patch facecolor
 
                  bbox_to_anchor=None,  # bbox that the legend will be anchored.
                  bbox_transform=None,  # transform for the bbox
@@ -199,20 +197,21 @@ class Legend(Artist):
         ================   ====================================================
         Keyword            Description
         ================   ====================================================
-        loc                Location code string, or tuple (see below).
+        loc                a location code
         prop               the font property
         fontsize           the font size (used only if prop is not specified)
         markerscale        the relative size of legend markers vs. original
-        markerfirst        If True (default), marker is to left of the label.
+        markerfirst        If true, place legend marker to left of label
+                           If false, place legend marker to right of label
         numpoints          the number of points in the legend for line
         scatterpoints      the number of points in the legend for scatter plot
         scatteryoffsets    a list of yoffsets for scatter symbols in legend
-        frameon            If True, draw the legend on a patch (frame).
-        fancybox           If True, draw the frame with a round fancybox.
-        shadow             If True, draw a shadow behind legend.
-        framealpha         Transparency of the frame.
-        edgecolor          Frame edgecolor.
-        facecolor          Frame facecolor.
+        frameon            if True, draw a frame around the legend.
+                           If None, use rc
+        fancybox           if True, draw a frame with a round fancybox.
+                           If None, use rc
+        shadow             if True, draw a shadow behind legend
+        framealpha         If not None, alpha channel for the frame.
         ncol               number of columns
         borderpad          the fractional whitespace inside the legend border
         labelspacing       the vertical space between the legend entries
@@ -346,15 +345,15 @@ class Legend(Artist):
         # We use FancyBboxPatch to draw a legend frame. The location
         # and size of the box will be updated during the drawing time.
 
-        if facecolor is None:
-            facecolor = rcParams["legend.facecolor"]
-        if facecolor == 'inherit':
+        if rcParams["legend.facecolor"] == 'inherit':
             facecolor = rcParams["axes.facecolor"]
+        else:
+            facecolor = rcParams["legend.facecolor"]
 
-        if edgecolor is None:
-            edgecolor = rcParams["legend.edgecolor"]
-        if edgecolor == 'inherit':
+        if rcParams["legend.edgecolor"] == 'inherit':
             edgecolor = rcParams["axes.edgecolor"]
+        else:
+            edgecolor = rcParams["legend.edgecolor"]
 
         self.legendPatch = FancyBboxPatch(
             xy=(0.0, 0.0), width=1., height=1.,
@@ -738,7 +737,6 @@ class Legend(Artist):
         ax = self.parent
         bboxes = []
         lines = []
-        offsets = []
 
         for handle in ax.lines:
             assert isinstance(handle, Line2D)
@@ -757,19 +755,12 @@ class Legend(Artist):
                 transform = handle.get_transform()
                 bboxes.append(handle.get_path().get_extents(transform))
 
-        for handle in ax.collections:
-            transform, transOffset, hoffsets, paths = handle._prepare_points()
-
-            if len(hoffsets):
-                for offset in transOffset.transform(hoffsets):
-                    offsets.append(offset)
-
         try:
             vertices = np.concatenate([l.vertices for l in lines])
         except ValueError:
             vertices = np.array([])
 
-        return [vertices, bboxes, lines, offsets]
+        return [vertices, bboxes, lines]
 
     def draw_frame(self, b):
         'b is a boolean.  Set draw frame to b'
@@ -929,7 +920,7 @@ class Legend(Artist):
         # should always hold because function is only called internally
         assert self.isaxes
 
-        verts, bboxes, lines, offsets = self._auto_legend_data()
+        verts, bboxes, lines = self._auto_legend_data()
 
         bbox = Bbox.from_bounds(0, 0, width, height)
         if consider is None:
@@ -948,7 +939,6 @@ class Legend(Artist):
             # take their into account when checking vertex overlaps in
             # the next line.
             badness = legendBox.count_contains(verts)
-            badness += legendBox.count_contains(offsets)
             badness += legendBox.count_overlaps(bboxes)
             for line in lines:
                 # FIXME: the following line is ill-suited for lines

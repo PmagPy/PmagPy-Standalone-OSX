@@ -7,11 +7,12 @@ and :class:`~matplotlib.patches.Patch`.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 from matplotlib.backend_bases import RendererBase
-from matplotlib import (
-    colors as mcolors, patches as mpatches, transforms as mtransforms)
+import matplotlib.transforms as mtransforms
+from matplotlib.colors import colorConverter
+import matplotlib.patches as mpatches
 
 
 class AbstractPathEffect(object):
@@ -240,7 +241,7 @@ class SimplePatchShadow(AbstractPathEffect):
         if shadow_rgbFace is None:
             self._shadow_rgbFace = shadow_rgbFace
         else:
-            self._shadow_rgbFace = mcolors.to_rgba(shadow_rgbFace)
+            self._shadow_rgbFace = colorConverter.to_rgba(shadow_rgbFace)
 
         if alpha is None:
             alpha = 0.3
@@ -321,7 +322,7 @@ class SimpleLineShadow(AbstractPathEffect):
         if shadow_color is None:
             self._shadow_color = shadow_color
         else:
-            self._shadow_color = mcolors.to_rgba(shadow_color)
+            self._shadow_color = colorConverter.to_rgba(shadow_color)
         self._alpha = alpha
         self._rho = rho
 

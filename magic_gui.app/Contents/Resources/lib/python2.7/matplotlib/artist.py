@@ -1,8 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from collections import OrderedDict, namedtuple
+from matplotlib.externals import six
 
 import re
 import warnings
@@ -76,9 +75,6 @@ def _stale_axes_callback(self, val):
         self.axes.stale = val
 
 
-_XYPair = namedtuple("_XYPair", "x y")
-
-
 class Artist(object):
     """
     Abstract base class for someone who renders into a
@@ -87,10 +83,6 @@ class Artist(object):
 
     aname = 'Artist'
     zorder = 0
-    # order of precedence when bulk setting/updating properties
-    # via update.  The keys should be property names and the values
-    # integers
-    _prop_order = dict(color=-1)
 
     def __init__(self):
         self._stale = True
@@ -126,7 +118,6 @@ class Artist(object):
         self._snap = None
         self._sketch = rcParams['path.sketch']
         self._path_effects = rcParams['path.effects']
-        self._sticky_edges = _XYPair([], [])
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -429,7 +420,9 @@ class Artist(object):
 
     def pick(self, mouseevent):
         """
-        Process pick event
+        call signature::
+
+          pick(mouseevent)
 
         each child artist will fire a pick event if *mouseevent* is over
         the artist and the artist has picker set
@@ -853,43 +846,23 @@ class Artist(object):
         Update the properties of this :class:`Artist` from the
         dictionary *prop*.
         """
-        def _update_property(self, k, v):
-            """sorting out how to update property (setter or setattr)
+        store = self.eventson
+        self.eventson = False
+        changed = False
 
-            Parameters
-            ----------
-            k : str
-                The name of property to update
-            v : obj
-                The value to assign to the property
-            Returns
-            -------
-            ret : obj or None
-                If using a `set_*` method return it's return, else None.
-            """
-            k = k.lower()
-            # white list attributes we want to be able to update through
-            # art.update, art.set, setp
-            if k in {'axes'}:
-                return setattr(self, k, v)
+        for k, v in six.iteritems(props):
+            if k in ['axes']:
+                setattr(self, k, v)
             else:
                 func = getattr(self, 'set_' + k, None)
                 if func is None or not six.callable(func):
                     raise AttributeError('Unknown property %s' % k)
-                return func(v)
-
-        store = self.eventson
-        self.eventson = False
-        try:
-            ret = [_update_property(self, k, v)
-                   for k, v in props.items()]
-        finally:
-            self.eventson = store
-
-        if len(ret):
+                func(v)
+            changed = True
+        self.eventson = store
+        if changed:
             self.pchanged()
             self.stale = True
-        return ret
 
     def get_label(self):
         """
@@ -927,29 +900,6 @@ class Artist(object):
         self.pchanged()
         self.stale = True
 
-    @property
-    def sticky_edges(self):
-        """
-        `x` and `y` sticky edge lists.
-
-        When performing autoscaling, if a data limit coincides with a value in
-        the corresponding sticky_edges list, then no margin will be added--the
-        view limit "sticks" to the edge. A typical usecase is histograms,
-        where one usually expects no margin on the bottom edge (0) of the
-        histogram.
-
-        This attribute cannot be assigned to; however, the `x` and `y` lists
-        can be modified in place as needed.
-
-        Examples
-        --------
-
-        >>> artist.sticky_edges.x[:] = (xmin, xmax)
-        >>> artist.sticky_edges.y[:] = (ymin, ymax)
-
-        """
-        return self._sticky_edges
-
     def update_from(self, other):
         'Copy properties from *other* to *self*.'
         self._transform = other._transform
@@ -962,8 +912,6 @@ class Artist(object):
         self._label = other._label
         self._sketch = other._sketch
         self._path_effects = other._path_effects
-        self.sticky_edges.x[:] = other.sticky_edges.x[:]
-        self.sticky_edges.y[:] = other.sticky_edges.y[:]
         self.pchanged()
         self.stale = True
 
@@ -974,13 +922,23 @@ class Artist(object):
         return ArtistInspector(self).properties()
 
     def set(self, **kwargs):
-        """A property batch setter. Pass *kwargs* to set properties.
         """
-        props = OrderedDict(
-            sorted(kwargs.items(), reverse=True,
-                   key=lambda x: (self._prop_order.get(x[0], 0), x[0])))
+        A property batch setter. Pass *kwargs* to set properties.
+        Will handle property name collisions (e.g., if both
+        'color' and 'facecolor' are specified, the property
+        with higher priority gets set last).
 
-        return self.update(props)
+        """
+        ret = []
+        for k, v in sorted(kwargs.items(), reverse=True):
+            k = k.lower()
+            funcName = "set_%s" % k
+            func = getattr(self, funcName, None)
+            if func is None:
+               raise TypeError('There is no %s property "%s"' %
+                               (self.__class__.__name__, k))
+            ret.extend([func(v)])
+        return ret
 
     def findobj(self, match=None, include_self=True):
         """
@@ -1202,7 +1160,8 @@ class ArtistInspector(object):
 
         if s in self.aliasd:
             return s + ''.join([' or %s' % x
-                                for x in sorted(self.aliasd[s])])
+                                for x
+                                in six.iterkeys(self.aliasd[s])])
         else:
             return s
 
@@ -1218,7 +1177,8 @@ class ArtistInspector(object):
 
         if s in self.aliasd:
             aliases = ''.join([' or %s' % x
-                               for x in sorted(self.aliasd[s])])
+                               for x
+                               in six.iterkeys(self.aliasd[s])])
         else:
             aliases = ''
         return ':meth:`%s <%s>`%s' % (s, target, aliases)
@@ -1490,18 +1450,26 @@ def setp(obj, *args, **kwargs):
     if not cbook.iterable(obj):
         objs = [obj]
     else:
-        objs = list(cbook.flatten(obj))
+        objs = cbook.flatten(obj)
 
     if len(args) % 2:
         raise ValueError('The set args must be string, value pairs')
 
-    # put args into ordereddict to maintain order
-    funcvals = OrderedDict()
+    funcvals = []
     for i in range(0, len(args) - 1, 2):
-        funcvals[args[i]] = args[i + 1]
+        funcvals.append((args[i], args[i + 1]))
+    funcvals.extend(sorted(kwargs.items(), reverse=True))
 
-    ret = [o.update(funcvals) for o in objs]
-    ret.extend([o.set(**kwargs) for o in objs])
+    ret = []
+    for o in objs:
+        for s, val in funcvals:
+            s = s.lower()
+            funcName = "set_%s" % s
+            func = getattr(o, funcName, None)
+            if func is None:
+                raise TypeError('There is no %s property "%s"' %
+                                (o.__class__.__name__, s))
+            ret.extend([func(val)])
     return [x for x in cbook.flatten(ret)]
 
 

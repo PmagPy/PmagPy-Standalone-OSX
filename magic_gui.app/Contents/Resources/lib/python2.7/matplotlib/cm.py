@@ -7,20 +7,20 @@ and a mixin class for adding color mapping functionality.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import os
-import warnings as _warnings  # To remove once spectral is removed
+
 import numpy as np
 from numpy import ma
 import matplotlib as mpl
 import matplotlib.colors as colors
 import matplotlib.cbook as cbook
-from matplotlib._cm import datad, _deprecation_datad
+from matplotlib._cm import datad
 from matplotlib._cm import cubehelix
 from matplotlib._cm_listed import cmaps as cmaps_listed
 
-cmap_d = _deprecation_datad()
+cmap_d = dict()
 
 # reverse all the colormaps.
 # reversed colormaps have '_r' appended to the name.
@@ -53,9 +53,6 @@ def _reverse_cmap_spec(spec):
     """Reverses cmap specification *spec*, can handle both dict and tuple
     type specs."""
 
-    if 'listed' in spec:
-        return {'listed': spec['listed'][::-1]}
-
     if 'red' in spec:
         return revcmap(spec)
     else:
@@ -66,7 +63,7 @@ def _reverse_cmap_spec(spec):
 
 
 def _generate_cmap(name, lutsize):
-    """Generates the requested cmap from its *name*.  The lut size is
+    """Generates the requested cmap from it's name *name*.  The lut size is
     *lutsize*."""
 
     spec = datad[name]
@@ -74,29 +71,22 @@ def _generate_cmap(name, lutsize):
     # Generate the colormap object.
     if 'red' in spec:
         return colors.LinearSegmentedColormap(name, spec, lutsize)
-    elif 'listed' in spec:
-        return colors.ListedColormap(spec['listed'], name)
     else:
         return colors.LinearSegmentedColormap.from_list(name, spec, lutsize)
 
 LUTSIZE = mpl.rcParams['image.lut']
 
-# We silence warnings here to avoid raising the deprecation warning for
-# spectral/spectral_r when this module is imported.
-with _warnings.catch_warnings():
-    _warnings.simplefilter("ignore")
-    # Generate the reversed specifications ...
-    for cmapname in list(six.iterkeys(datad)):
-        spec = datad[cmapname]
-        spec_reversed = _reverse_cmap_spec(spec)
-        datad[cmapname + '_r'] = spec_reversed
+# Generate the reversed specifications ...
+for cmapname in list(six.iterkeys(datad)):
+    spec = datad[cmapname]
+    spec_reversed = _reverse_cmap_spec(spec)
+    datad[cmapname + '_r'] = spec_reversed
 
-    # Precache the cmaps with ``lutsize = LUTSIZE`` ...
+# Precache the cmaps with ``lutsize = LUTSIZE`` ...
 
-    # Use datad.keys() to also add the reversed ones added in the section
-    # above:
-    for cmapname in six.iterkeys(datad):
-        cmap_d[cmapname] = _generate_cmap(cmapname, LUTSIZE)
+# Use datad.keys() to also add the reversed ones added in the section above:
+for cmapname in six.iterkeys(datad):
+    cmap_d[cmapname] = _generate_cmap(cmapname, LUTSIZE)
 
 cmap_d.update(cmaps_listed)
 
@@ -213,7 +203,7 @@ class ScalarMappable(object):
         self.colorbar = None
         self.update_dict = {'array': False}
 
-    def to_rgba(self, x, alpha=None, bytes=False, norm=True):
+    def to_rgba(self, x, alpha=None, bytes=False):
         """
         Return a normalized rgba array corresponding to *x*.
 
@@ -235,9 +225,6 @@ class ScalarMappable(object):
         In either case, if *bytes* is *False* (default), the rgba
         array will be floats in the 0-1 range; if it is *True*,
         the returned rgba array will be uint8 in the 0 to 255 range.
-
-        If norm is False, no normalization of the input data is
-        performed, and it is assumed to already be in the range (0-1).
 
         Note: this method assumes the input is well-behaved; it does
         not check for anomalies such as *x* being a masked rgba
@@ -271,10 +258,9 @@ class ScalarMappable(object):
 
         # This is the normal case, mapping a scalar array:
         x = ma.asarray(x)
-        if norm:
-            x = self.norm(x)
-        rgba = self.cmap(x, alpha=alpha, bytes=bytes)
-        return rgba
+        x = self.norm(x)
+        x = self.cmap(x, alpha=alpha, bytes=bytes)
+        return x
 
     def set_array(self, A):
         'Set the image array from numpy array *A*'

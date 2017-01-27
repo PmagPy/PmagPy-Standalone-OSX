@@ -1,22 +1,15 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.testing.decorators import image_comparison, cleanup
+from matplotlib.testing.decorators import image_comparison
 
 from matplotlib.table import CustomCell
 from matplotlib.path import Path
 from nose.tools import assert_equal
-
-
-@cleanup
-def test_non_square():
-    # Check that creating a non-square table works
-    cellcolors = ['b', 'r']
-    plt.table(cellColours=cellcolors)
 
 
 @image_comparison(baseline_images=['table_zorder'],

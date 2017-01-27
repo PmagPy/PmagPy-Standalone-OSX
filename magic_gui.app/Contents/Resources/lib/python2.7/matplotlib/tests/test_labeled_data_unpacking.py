@@ -7,10 +7,17 @@ try:
     # 3.2+ versions
     from nose.tools import assert_regex, assert_not_regex
 except ImportError:
-    # 2.7 versions
-    from nose.tools import assert_regexp_matches, assert_not_regexp_matches
-    assert_regex = assert_regexp_matches
-    assert_not_regex = assert_not_regexp_matches
+    try:
+        # 2.7 versions
+        from nose.tools import assert_regexp_matches, assert_not_regexp_matches
+        assert_regex = assert_regexp_matches
+        assert_not_regex = assert_not_regexp_matches
+    except ImportError:
+        # 2.6 versions
+        def noop(txt, regex):
+            raise SkipTest("No assert for regex matching in py2.6")
+        assert_regex = noop
+        assert_not_regex = noop
 
 from ..testing import assert_produces_warning
 

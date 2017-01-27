@@ -7,7 +7,7 @@ Author: Jouni K Seppänen <jks@iki.fi>
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import codecs
 import os
@@ -20,7 +20,7 @@ import zlib
 from io import BytesIO
 
 import numpy as np
-from six import unichr
+from matplotlib.externals.six import unichr
 
 
 from datetime import datetime
@@ -29,18 +29,18 @@ from math import ceil, cos, floor, pi, sin
 import matplotlib
 from matplotlib import __version__, rcParams
 from matplotlib._pylab_helpers import Gcf
-from matplotlib.backend_bases import (RendererBase, GraphicsContextBase,
-                                      FigureManagerBase, FigureCanvasBase)
+from matplotlib.backend_bases import RendererBase, GraphicsContextBase,\
+    FigureManagerBase, FigureCanvasBase
 from matplotlib.backends.backend_mixed import MixedModeRenderer
-from matplotlib.cbook import (Bunch, is_string_like, get_realpath_and_stat,
-                              is_writable_file_like, maxdict)
+from matplotlib.cbook import Bunch, is_string_like, \
+    get_realpath_and_stat, is_writable_file_like, maxdict
 from matplotlib.figure import Figure
-from matplotlib.font_manager import findfont, is_opentype_cff_font, get_font
+from matplotlib.font_manager import findfont, is_opentype_cff_font
 from matplotlib.afm import AFM
 import matplotlib.type1font as type1font
 import matplotlib.dviread as dviread
-from matplotlib.ft2font import (FIXED_WIDTH, ITALIC, LOAD_NO_SCALE,
-                                LOAD_NO_HINTING, KERNING_UNFITTED)
+from matplotlib.ft2font import FT2Font, FIXED_WIDTH, ITALIC, LOAD_NO_SCALE, \
+    LOAD_NO_HINTING, KERNING_UNFITTED
 from matplotlib.mathtext import MathTextParser
 from matplotlib.transforms import Affine2D, BboxBase
 from matplotlib.path import Path
@@ -476,7 +476,7 @@ class PdfFile(object):
         self.nextHatch = 1
         self.gouraudTriangles = []
 
-        self._images = {}
+        self.images = {}
         self.nextImage = 1
 
         self.markers = {}
@@ -550,7 +550,7 @@ class PdfFile(object):
                                for val in six.itervalues(self.alphaStates)]))
         self.writeHatches()
         self.writeGouraudTriangles()
-        xobjects = dict(x[1:] for x in six.itervalues(self._images))
+        xobjects = dict(six.itervalues(self.images))
         for tup in six.itervalues(self.markers):
             xobjects[tup[0]] = tup[1]
         for name, value in six.iteritems(self.multi_byte_charprocs):
@@ -757,7 +757,7 @@ class PdfFile(object):
         if 0:
             flags |= 1 << 18
 
-        ft2font = get_font(fontfile)
+        ft2font = FT2Font(fontfile)
 
         descriptor = {
             'Type':        Name('FontDescriptor'),
@@ -817,14 +817,14 @@ end"""
     def embedTTF(self, filename, characters):
         """Embed the TTF font from the named file into the document."""
 
-        font = get_font(filename)
+        font = FT2Font(filename)
         fonttype = rcParams['pdf.fonttype']
 
         def cvt(length, upe=font.units_per_EM, nearest=True):
             "Convert font coordinates to PDF glyph coordinates"
             value = length / upe * 1000
             if nearest:
-                return np.round(value)
+                return round(value)
             # Perhaps best to round away from zero for bounding
             # boxes and the like
             if value < 0:
@@ -883,12 +883,13 @@ end"""
             # Make the "Differences" array, sort the ccodes < 255 from
             # the multi-byte ccodes, and build the whole set of glyph ids
             # that we need from this font.
+            cmap = font.get_charmap()
             glyph_ids = []
             differences = []
             multi_byte_chars = set()
             for c in characters:
                 ccode = c
-                gind = font.get_char_index(ccode)
+                gind = cmap.get(ccode) or 0
                 glyph_ids.append(gind)
                 glyph_name = font.get_glyph_name(gind)
                 if ccode <= 255:
@@ -998,11 +999,12 @@ end"""
             # Make the 'W' (Widths) array, CidToGidMap and ToUnicode CMap
             # at the same time
             cid_to_gid_map = ['\u0000'] * 65536
+            cmap = font.get_charmap()
             widths = []
             max_ccode = 0
             for c in characters:
                 ccode = c
-                gind = font.get_char_index(ccode)
+                gind = cmap.get(ccode) or 0
                 glyph = font.load_char(ccode, flags=LOAD_NO_HINTING)
                 widths.append((ccode, glyph.horiAdvance / 6))
                 if ccode < 65536:
@@ -1141,12 +1143,12 @@ end"""
     def hatchPattern(self, hatch_style):
         # The colors may come in as numpy arrays, which aren't hashable
         if hatch_style is not None:
-            edge, face, hatch = hatch_style
-            if edge is not None:
-                edge = tuple(edge)
+            face, edge, hatch = hatch_style
             if face is not None:
                 face = tuple(face)
-            hatch_style = (edge, face, hatch)
+            if edge is not None:
+                edge = tuple(edge)
+            hatch_style = (face, edge, hatch)
 
         pattern = self.hatchPatterns.get(hatch_style, None)
         if pattern is not None:
@@ -1171,9 +1173,7 @@ end"""
                  'PatternType': 1, 'PaintType': 1, 'TilingType': 1,
                  'BBox': [0, 0, sidelen, sidelen],
                  'XStep': sidelen, 'YStep': sidelen,
-                 'Resources': res,
-                 # Change origin to match Agg at top-left.
-                 'Matrix': [1, 0, 0, 1, 0, self.height * 72]})
+                 'Resources': res})
 
             stroke_rgb, fill_rgb, path = hatch_style
             self.output(stroke_rgb[0], stroke_rgb[1], stroke_rgb[2],
@@ -1184,13 +1184,15 @@ end"""
                             0, 0, sidelen, sidelen, Op.rectangle,
                             Op.fill)
 
-            self.output(rcParams['hatch.linewidth'], Op.setlinewidth)
+            self.output(0.1, Op.setlinewidth)
 
+            # TODO: We could make this dpi-dependent, but that would be
+            # an API change
             self.output(*self.pathOperations(
                 Path.hatch(path),
                 Affine2D().scale(sidelen),
                 simplify=False))
-            self.output(Op.fill_stroke)
+            self.output(Op.stroke)
 
             self.endStream()
         self.writeObject(self.hatchObject, hatchDict)
@@ -1241,14 +1243,14 @@ end"""
     def imageObject(self, image):
         """Return name of an image XObject representing the given image."""
 
-        entry = self._images.get(id(image), None)
-        if entry is not None:
-            return entry[1]
+        pair = self.images.get(image, None)
+        if pair is not None:
+            return pair[0]
 
         name = Name('I%d' % self.nextImage)
         ob = self.reserveObject('image %d' % self.nextImage)
         self.nextImage += 1
-        self._images[id(image)] = (image, name, ob)
+        self.images[image] = (name, ob)
         return name
 
     def _unpack(self, im):
@@ -1257,22 +1259,23 @@ end"""
         where data and alpha are HxWx3 (RGB) or HxWx1 (grayscale or alpha)
         arrays, except alpha is None if the image is fully opaque.
         """
-        h, w = im.shape[:2]
-        im = im[::-1]
-        if im.ndim == 2:
-            return h, w, im, None
+
+        h, w, s = im.as_rgba_str()
+        rgba = np.fromstring(s, np.uint8)
+        rgba.shape = (h, w, 4)
+        rgba = rgba[::-1]
+        rgb = rgba[:, :, :3]
+        alpha = rgba[:, :, 3][..., None]
+        if np.all(alpha == 255):
+            alpha = None
         else:
-            rgb = im[:, :, :3]
+            alpha = np.array(alpha, order='C')
+        if im.is_grayscale:
+            r, g, b = rgb.astype(np.float32).transpose(2, 0, 1)
+            gray = (0.3 * r + 0.59 * g + 0.11 * b).astype(np.uint8)[..., None]
+            return h, w, gray, alpha
+        else:
             rgb = np.array(rgb, order='C')
-            # PDF needs a separate alpha image
-            if im.shape[2] == 4:
-                alpha = im[:, :, 3][..., None]
-                if np.all(alpha == 255):
-                    alpha = None
-                else:
-                    alpha = np.array(alpha, order='C')
-            else:
-                alpha = None
             return h, w, rgb, alpha
 
     def _writePng(self, data):
@@ -1338,15 +1341,15 @@ end"""
         self.endStream()
 
     def writeImages(self):
-        for img, name, ob in six.itervalues(self._images):
+        for img, pair in six.iteritems(self.images):
             height, width, data, adata = self._unpack(img)
             if adata is not None:
                 smaskObject = self.reserveObject("smask")
                 self._writeImg(adata, height, width, True, smaskObject.id)
             else:
                 smaskObject = None
-            self._writeImg(data, height, width, False,
-                           ob.id, smaskObject)
+            self._writeImg(data, height, width, img.is_grayscale,
+                           pair[1].id, smaskObject)
 
     def markerObject(self, path, trans, fill, stroke, lw, joinstyle,
                      capstyle):
@@ -1523,12 +1526,11 @@ end"""
 
 
 class RendererPdf(RendererBase):
+    truetype_font_cache = maxdict(50)
     afm_font_cache = maxdict(50)
 
-    def __init__(self, file, image_dpi, height, width):
+    def __init__(self, file, image_dpi):
         RendererBase.__init__(self)
-        self.height = height
-        self.width = width
         self.file = file
         self.gc = self.new_gc()
         self.mathtext_parser = MathTextParser("Pdf")
@@ -1599,19 +1601,20 @@ class RendererPdf(RendererBase):
         """
         return not rcParams['image.composite_image']
 
-    def draw_image(self, gc, x, y, im, transform=None):
-        h, w = im.shape[:2]
-        if w == 0 or h == 0:
-            return
-
-        if transform is None:
-            # If there's no transform, alpha has already been applied
-            gc.set_alpha(1.0)
-
+    def draw_image(self, gc, x, y, im, dx=None, dy=None, transform=None):
         self.check_gc(gc)
 
-        w = 72.0 * w / self.image_dpi
-        h = 72.0 * h / self.image_dpi
+        h, w = im.get_size_out()
+
+        if dx is None:
+            w = 72.0*w/self.image_dpi
+        else:
+            w = dx
+
+        if dy is None:
+            h = 72.0*h/self.image_dpi
+        else:
+            h = dy
 
         imob = self.file.imageObject(im)
 
@@ -1620,11 +1623,11 @@ class RendererPdf(RendererBase):
                              w, 0, 0, h, x, y, Op.concat_matrix,
                              imob, Op.use_xobject, Op.grestore)
         else:
-            tr1, tr2, tr3, tr4, tr5, tr6 = transform.frozen().to_values()
+            tr1, tr2, tr3, tr4, tr5, tr6 = transform.to_values()
 
             self.file.output(Op.gsave,
-                             1, 0, 0, 1, x, y, Op.concat_matrix,
                              tr1, tr2, tr3, tr4, tr5, tr6, Op.concat_matrix,
+                             w, 0, 0, h, x, y, Op.concat_matrix,
                              imob, Op.use_xobject, Op.grestore)
 
     def draw_path(self, gc, path, transform, rgbFace=None):
@@ -2009,6 +2012,7 @@ class RendererPdf(RendererBase):
             between chunks of 1-byte characters and 2-byte characters.
             Only used for Type 3 fonts."""
             chunks = [(a, ''.join(b)) for a, b in chunks]
+            cmap = font.get_charmap()
 
             # Do the rotation and global translation as a single matrix
             # concatenation up front
@@ -2038,7 +2042,7 @@ class RendererPdf(RendererBase):
                     lastgind = None
                     for c in chunk:
                         ccode = ord(c)
-                        gind = font.get_char_index(ccode)
+                        gind = cmap.get(ccode)
                         if gind is not None:
                             if mode == 2 and chunk_type == 2:
                                 glyph_name = font.get_glyph_name(gind)
@@ -2123,8 +2127,15 @@ class RendererPdf(RendererBase):
         return font
 
     def _get_font_ttf(self, prop):
-        filename = findfont(prop)
-        font = get_font(filename)
+        key = hash(prop)
+        font = self.truetype_font_cache.get(key)
+        if font is None:
+            filename = findfont(prop)
+            font = self.truetype_font_cache.get(filename)
+            if font is None:
+                font = FT2Font(filename)
+                self.truetype_font_cache[filename] = font
+            self.truetype_font_cache[key] = font
         font.clear()
         font.set_size(prop.get_size_in_points(), 72)
         return font
@@ -2133,7 +2144,7 @@ class RendererPdf(RendererBase):
         return False
 
     def get_canvas_width_height(self):
-        return self.file.width * 72.0, self.file.height * 72.0
+        return self.file.width / 72.0, self.file.height / 72.0
 
     def new_gc(self):
         return GraphicsContextPdf(self.file)
@@ -2217,7 +2228,7 @@ class GraphicsContextPdf(GraphicsContextBase):
             else:
                 return [Name('DeviceRGB'), Op.setcolorspace_nonstroke]
         else:
-            hatch_style = (self._hatch_color, self._fillcolor, hatch)
+            hatch_style = (self._rgb, self._fillcolor, hatch)
             name = self.file.hatchPattern(hatch_style)
             return [Name('Pattern'), Op.setcolorspace_nonstroke,
                     name, Op.setcolor_nonstroke]
@@ -2520,7 +2531,7 @@ class FigureCanvasPdf(FigureCanvasBase):
             _bbox_inches_restore = kwargs.pop("bbox_inches_restore", None)
             renderer = MixedModeRenderer(
                 self.figure, width, height, image_dpi,
-                RendererPdf(file, image_dpi, height, width),
+                RendererPdf(file, image_dpi),
                 bbox_inches_restore=_bbox_inches_restore)
             self.figure.draw(renderer)
             renderer.finalize()

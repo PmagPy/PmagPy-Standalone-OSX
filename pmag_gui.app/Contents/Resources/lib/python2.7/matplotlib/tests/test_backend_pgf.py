@@ -2,7 +2,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import os
 import shutil
@@ -15,8 +15,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.compat import subprocess
 from matplotlib.testing.compare import compare_images, ImageComparisonFailure
-from matplotlib.testing.decorators import (_image_directories, switch_backend,
-                                           cleanup)
+from matplotlib.testing.decorators import _image_directories, switch_backend
+
+
 baseline_dir, result_dir = _image_directories(lambda: 'dummy func')
 
 
@@ -30,7 +31,7 @@ def check_for(texsystem):
     \\@@end
     """
     try:
-        latex = subprocess.Popen([str(texsystem), "-halt-on-error"],
+        latex = subprocess.Popen(["xelatex", "-halt-on-error"],
                                  stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE)
         stdout, stderr = latex.communicate(header.encode("utf8"))
@@ -40,15 +41,16 @@ def check_for(texsystem):
     return latex.returncode == 0
 
 
-def compare_figure(fname, savefig_kwargs={}, tol=0):
+def compare_figure(fname, savefig_kwargs={}):
     actual = os.path.join(result_dir, fname)
     plt.savefig(actual, **savefig_kwargs)
 
     expected = os.path.join(result_dir, "expected_%s" % fname)
     shutil.copyfile(os.path.join(baseline_dir, fname), expected)
-    err = compare_images(expected, actual, tol=tol)
+    err = compare_images(expected, actual, tol=14)
     if err:
-        raise ImageComparisonFailure(err)
+        raise ImageComparisonFailure('images not close: %s vs. '
+                                     '%s' % (actual, expected))
 
 
 def create_figure():
@@ -78,7 +80,6 @@ def create_figure():
 
 
 # test compiling a figure to pdf with xelatex
-@cleanup(style='classic')
 @switch_backend('pgf')
 def test_xelatex():
     if not check_for('xelatex'):
@@ -88,11 +89,10 @@ def test_xelatex():
                   'pgf.rcfonts': False}
     mpl.rcParams.update(rc_xelatex)
     create_figure()
-    compare_figure('pgf_xelatex.pdf', tol=0)
+    compare_figure('pgf_xelatex.pdf')
 
 
 # test compiling a figure to pdf with pdflatex
-@cleanup(style='classic')
 @switch_backend('pgf')
 def test_pdflatex():
     if not check_for('pdflatex'):
@@ -105,11 +105,10 @@ def test_pdflatex():
                                     '\\usepackage[T1]{fontenc}']}
     mpl.rcParams.update(rc_pdflatex)
     create_figure()
-    compare_figure('pgf_pdflatex.pdf', tol=0)
+    compare_figure('pgf_pdflatex.pdf')
 
 
 # test updating the rc parameters for each figure
-@cleanup(style='classic')
 @switch_backend('pgf')
 def test_rcupdate():
     if not check_for('xelatex') or not check_for('pdflatex'):
@@ -131,18 +130,14 @@ def test_rcupdate():
                     'pgf.preamble': ['\\usepackage[utf8x]{inputenc}',
                                      '\\usepackage[T1]{fontenc}',
                                      '\\usepackage{sfmath}']})
-    tol = (6, 0)
-    original_params = mpl.rcParams.copy()
+
     for i, rc_set in enumerate(rc_sets):
-        mpl.rcParams.clear()
-        mpl.rcParams.update(original_params)
         mpl.rcParams.update(rc_set)
         create_figure()
-        compare_figure('pgf_rcupdate%d.pdf' % (i + 1), tol=tol[i])
+        compare_figure('pgf_rcupdate%d.pdf' % (i + 1))
 
 
 # test backend-side clipping, since large numbers are not supported by TeX
-@cleanup(style='classic')
 @switch_backend('pgf')
 def test_pathclip():
     if not check_for('xelatex'):
@@ -161,7 +156,6 @@ def test_pathclip():
 
 
 # test mixed mode rendering
-@cleanup(style='classic')
 @switch_backend('pgf')
 def test_mixedmode():
     if not check_for('xelatex'):
@@ -174,11 +168,10 @@ def test_mixedmode():
     Y, X = np.ogrid[-1:1:40j, -1:1:40j]
     plt.figure()
     plt.pcolor(X**2 + Y**2).set_rasterized(True)
-    compare_figure('pgf_mixedmode.pdf', tol=0)
+    compare_figure('pgf_mixedmode.pdf')
 
 
 # test bbox_inches clipping
-@cleanup(style='classic')
 @switch_backend('pgf')
 def test_bbox_inches():
     if not check_for('xelatex'):
@@ -197,8 +190,7 @@ def test_bbox_inches():
     plt.tight_layout()
 
     bbox = ax1.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    compare_figure('pgf_bbox_inches.pdf', savefig_kwargs={'bbox_inches': bbox},
-                   tol=0)
+    compare_figure('pgf_bbox_inches.pdf', savefig_kwargs={'bbox_inches': bbox})
 
 
 if __name__ == '__main__':

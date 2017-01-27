@@ -102,7 +102,7 @@ to MATLAB&reg;, a registered trademark of The MathWorks, Inc.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 import sys
 import distutils.version
 from itertools import chain
@@ -126,8 +126,8 @@ from matplotlib.rcsetup import (defaultParams,
                                 cycler)
 
 import numpy
-from six.moves.urllib.request import urlopen
-from six.moves import reload_module as reload
+from matplotlib.externals.six.moves.urllib.request import urlopen
+from matplotlib.externals.six.moves import reload_module as reload
 
 # Get the version from the _version.py versioneer file. For a git checkout,
 # this is computed based on the number of commits since the last tag.
@@ -135,22 +135,7 @@ from ._version import get_versions
 __version__ = str(get_versions()['version'])
 del get_versions
 
-__version__numpy__ = str('1.7.1')  # minimum required numpy version
-
-__bibtex__ = """@Article{Hunter:2007,
-  Author    = {Hunter, J. D.},
-  Title     = {Matplotlib: A 2D graphics environment},
-  Journal   = {Computing In Science \& Engineering},
-  Volume    = {9},
-  Number    = {3},
-  Pages     = {90--95},
-  abstract  = {Matplotlib is a 2D graphics package used for Python
-  for application development, interactive scripting, and
-  publication-quality image generation across user
-  interfaces and operating systems.},
-  publisher = {IEEE COMPUTER SOC},
-  year      = 2007
-}"""
+__version__numpy__ = str('1.6')  # minimum required numpy version
 
 try:
     import dateutil
@@ -212,11 +197,10 @@ if not hasattr(sys, 'argv'):  # for modpython
 
 
 major, minor1, minor2, s, tmp = sys.version_info
-_python27 = (major == 2 and minor1 >= 7)
-_python34 = (major == 3 and minor1 >= 4)
+_python26 = (major == 2 and minor1 >= 6) or major >= 3
 
-if not (_python27 or _python34):
-    raise ImportError('matplotlib requires Python 2.7 or 3.4 or later')
+if not _python26:
+    raise ImportError('matplotlib requires Python 2.6 or later')
 
 
 if not compare_versions(numpy.__version__, __version__numpy__):
@@ -354,8 +338,7 @@ verbose = Verbose()
 
 def checkdep_dvipng():
     try:
-        s = subprocess.Popen([str('dvipng'), '-version'],
-                             stdout=subprocess.PIPE,
+        s = subprocess.Popen(['dvipng', '-version'], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = s.communicate()
         line = stdout.decode('ascii').split('\n')[1]
@@ -366,32 +349,27 @@ def checkdep_dvipng():
 
 
 def checkdep_ghostscript():
-    if checkdep_ghostscript.executable is None:
-        if sys.platform == 'win32':
-            # mgs is the name in miktex
-            gs_execs = ['gswin32c', 'gswin64c', 'mgs', 'gs']
-        else:
-            gs_execs = ['gs']
-        for gs_exec in gs_execs:
-            try:
-                s = subprocess.Popen(
-                    [str(gs_exec), '--version'], stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-                stdout, stderr = s.communicate()
-                if s.returncode == 0:
-                    v = stdout[:-1].decode('ascii')
-                    checkdep_ghostscript.executable = gs_exec
-                    checkdep_ghostscript.version = v
-            except (IndexError, ValueError, OSError):
-                pass
-    return checkdep_ghostscript.executable, checkdep_ghostscript.version
-checkdep_ghostscript.executable = None
-checkdep_ghostscript.version = None
+    if sys.platform == 'win32':
+        gs_execs = ['gswin32c', 'gswin64c', 'gs']
+    else:
+        gs_execs = ['gs']
+    for gs_exec in gs_execs:
+        try:
+            s = subprocess.Popen(
+                [gs_exec, '--version'], stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
+            stdout, stderr = s.communicate()
+            if s.returncode == 0:
+                v = stdout[:-1].decode('ascii')
+                return gs_exec, v
+        except (IndexError, ValueError, OSError):
+            pass
+    return None, None
 
 
 def checkdep_tex():
     try:
-        s = subprocess.Popen([str('tex'), '-version'], stdout=subprocess.PIPE,
+        s = subprocess.Popen(['tex', '-version'], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = s.communicate()
         line = stdout.decode('ascii').split('\n')[0]
@@ -405,7 +383,7 @@ def checkdep_tex():
 
 def checkdep_pdftops():
     try:
-        s = subprocess.Popen([str('pdftops'), '-v'], stdout=subprocess.PIPE,
+        s = subprocess.Popen(['pdftops', '-v'], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = s.communicate()
         lines = stderr.decode('ascii').split('\n')
@@ -418,28 +396,23 @@ def checkdep_pdftops():
 
 
 def checkdep_inkscape():
-    if checkdep_inkscape.version is None:
-        try:
-            s = subprocess.Popen([str('inkscape'), '-V'],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-            stdout, stderr = s.communicate()
-            lines = stdout.decode('ascii').split('\n')
-            for line in lines:
-                if 'Inkscape' in line:
-                    v = line.split()[1]
-                    break
-            checkdep_inkscape.version = v
-        except (IndexError, ValueError, UnboundLocalError, OSError):
-            pass
-    return checkdep_inkscape.version
-checkdep_inkscape.version = None
+    try:
+        s = subprocess.Popen(['inkscape', '-V'], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        stdout, stderr = s.communicate()
+        lines = stdout.decode('ascii').split('\n')
+        for line in lines:
+            if 'Inkscape' in line:
+                v = line.split()[1]
+                break
+        return v
+    except (IndexError, ValueError, UnboundLocalError, OSError):
+        return None
 
 
 def checkdep_xmllint():
     try:
-        s = subprocess.Popen([str('xmllint'), '--version'],
-                             stdout=subprocess.PIPE,
+        s = subprocess.Popen(['xmllint', '--version'], stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
         stdout, stderr = s.communicate()
         lines = stderr.decode('ascii').split('\n')
@@ -579,14 +552,16 @@ def _create_tmp_config_dir():
         # Some restricted platforms (such as Google App Engine) do not provide
         # gettempdir.
         return None
+
     try:
         username = getpass.getuser()
     except KeyError:
         username = str(os.getuid())
-
-    tempdir = tempfile.mkdtemp(prefix='matplotlib-%s-' % username, dir=tempdir)
+    tempdir = os.path.join(tempdir, 'matplotlib-%s' % username)
 
     os.environ['MPLCONFIGDIR'] = tempdir
+
+    mkdirs(tempdir)
 
     return tempdir
 
@@ -866,20 +841,14 @@ _deprecated_map = {
     'savefig.extension': ('savefig.format', lambda x: x, None),
     'axes.color_cycle': ('axes.prop_cycle', lambda x: cycler('color', x),
                          lambda x: [c.get('color', None) for c in x]),
-    'svg.image_noscale': ('image.interpolation', None, None),
     }
 
 _deprecated_ignore_map = {
     }
 
-_obsolete_set = set(['tk.pythoninspect', 'legend.isaxes'])
-
-# The following may use a value of None to suppress the warning.
-_deprecated_set = set(['axes.hold'])  # do NOT include in _all_deprecated
-
+_obsolete_set = set(['tk.pythoninspect', ])
 _all_deprecated = set(chain(_deprecated_ignore_map,
-                            _deprecated_map,
-                            _obsolete_set))
+                            _deprecated_map, _obsolete_set))
 
 
 class RcParams(dict):
@@ -895,11 +864,7 @@ class RcParams(dict):
                     six.iteritems(defaultParams)
                     if key not in _all_deprecated)
     msg_depr = "%s is deprecated and replaced with %s; please use the latter."
-    msg_depr_set = ("%s is deprecated. Please remove it from your "
-                    "matplotlibrc and/or style files.")
     msg_depr_ignore = "%s is deprecated and ignored. Use %s"
-    msg_obsolete = ("%s is obsolete. Please remove it from your matplotlibrc "
-                    "and/or style files.")
 
     # validate values on the way in
     def __init__(self, *args, **kwargs):
@@ -913,14 +878,9 @@ class RcParams(dict):
                 warnings.warn(self.msg_depr % (key, alt_key))
                 key = alt_key
                 val = alt_val(val)
-            elif key in _deprecated_set and val is not None:
-                warnings.warn(self.msg_depr_set % key)
             elif key in _deprecated_ignore_map:
                 alt = _deprecated_ignore_map[key]
                 warnings.warn(self.msg_depr_ignore % (key, alt))
-                return
-            elif key in _obsolete_set:
-                warnings.warn(self.msg_obsolete % (key,))
                 return
             try:
                 cval = self.validate[key](val)
@@ -942,10 +902,6 @@ See rcParams.keys() for a list of valid parameters.' % (key,))
             alt = _deprecated_ignore_map[key]
             warnings.warn(self.msg_depr_ignore % (key, alt))
             key = alt
-
-        elif key in _obsolete_set:
-            warnings.warn(self.msg_obsolete % (key,))
-            return None
 
         val = dict.__getitem__(self, key)
         if inverse_alt is not None:
@@ -1495,7 +1451,6 @@ default_test_modules = [
     'matplotlib.tests.test_contour',
     'matplotlib.tests.test_dates',
     'matplotlib.tests.test_delaunay',
-    'matplotlib.tests.test_dviread',
     'matplotlib.tests.test_figure',
     'matplotlib.tests.test_font_manager',
     'matplotlib.tests.test_gridspec',
@@ -1512,10 +1467,8 @@ default_test_modules = [
     'matplotlib.tests.test_png',
     'matplotlib.tests.test_quiver',
     'matplotlib.tests.test_rcparams',
-    'matplotlib.tests.test_sankey',
     'matplotlib.tests.test_scale',
     'matplotlib.tests.test_simplification',
-    'matplotlib.tests.test_skew',
     'matplotlib.tests.test_spines',
     'matplotlib.tests.test_streamplot',
     'matplotlib.tests.test_style',
@@ -1527,8 +1480,6 @@ default_test_modules = [
     'matplotlib.tests.test_tightlayout',
     'matplotlib.tests.test_transforms',
     'matplotlib.tests.test_triangulation',
-    'matplotlib.tests.test_type1font',
-    'matplotlib.tests.test_ttconv',
     'matplotlib.tests.test_units',
     'matplotlib.tests.test_widgets',
     'matplotlib.tests.test_cycles',
@@ -1540,36 +1491,9 @@ default_test_modules = [
     ]
 
 
-def _init_tests():
-    try:
-        import faulthandler
-    except ImportError:
-        pass
-    else:
-        faulthandler.enable()
-
+def verify_test_dependencies():
     if not os.path.isdir(os.path.join(os.path.dirname(__file__), 'tests')):
         raise ImportError("matplotlib test data is not installed")
-
-    # The version of FreeType to install locally for running the
-    # tests.  This must match the value in `setupext.py`
-    LOCAL_FREETYPE_VERSION = '2.6.1'
-
-    from matplotlib import ft2font
-    if (ft2font.__freetype_version__ != LOCAL_FREETYPE_VERSION or
-        ft2font.__freetype_build_type__ != 'local'):
-        warnings.warn(
-            "matplotlib is not built with the correct FreeType version to run "
-            "tests.  Set local_freetype=True in setup.cfg and rebuild. "
-            "Expect many image comparison failures below. "
-            "Expected freetype version {0}. "
-            "Found freetype version {1}. "
-            "Freetype build type is {2}local".format(
-                ft2font.__freetype_version__,
-                LOCAL_FREETYPE_VERSION,
-                "" if ft2font.__freetype_build_type__ == 'local' else "not "
-            )
-        )
 
     try:
         import nose
@@ -1582,36 +1506,37 @@ def _init_tests():
         raise
 
 
-def _get_extra_test_plugins():
-    from .testing.noseclasses import KnownFailure
-    from nose.plugins import attrib
-
-    return [KnownFailure, attrib.Plugin]
-
-
 def test(verbosity=1):
     """run the matplotlib test suite"""
-    _init_tests()
+    verify_test_dependencies()
+    try:
+        import faulthandler
+    except ImportError:
+        pass
+    else:
+        faulthandler.enable()
 
     old_backend = rcParams['backend']
     try:
         use('agg')
         import nose
         import nose.plugins.builtin
+        from .testing.noseclasses import KnownFailure
         from nose.plugins.manager import PluginManager
         from nose.plugins import multiprocess
 
         # store the old values before overriding
-        plugins = _get_extra_test_plugins()
+        plugins = []
+        plugins.append(KnownFailure())
         plugins.extend([plugin() for plugin in nose.plugins.builtin.plugins])
 
-        manager = PluginManager(plugins=[x() for x in plugins])
+        manager = PluginManager(plugins=plugins)
         config = nose.config.Config(verbosity=verbosity, plugins=manager)
 
         # Nose doesn't automatically instantiate all of the plugins in the
         # child processes, so we have to provide the multiprocess plugin with
         # a list.
-        multiprocess._instantiate_plugins = plugins
+        multiprocess._instantiate_plugins = [KnownFailure]
 
         success = nose.run(
             defaultTest=default_test_modules,
@@ -1640,12 +1565,14 @@ def _replacer(data, key):
 
 _DATA_DOC_APPENDIX = """
 
-.. note::
-    In addition to the above described arguments, this function can take a
-    **data** keyword argument. If such a **data** argument is given, the
-    following arguments are replaced by **data[<arg>]**:
+Notes
+-----
 
-    {replaced}
+In addition to the above described arguments, this function can take a
+**data** keyword argument. If such a **data** argument is given, the
+following arguments are replaced by **data[<arg>]**:
+
+{replaced}
 """
 
 
@@ -1755,7 +1682,7 @@ def unpack_labeled_data(replace_names=None, replace_all_args=False,
                 arg_names = []
             elif len(_arg_names) > 1 and (positional_parameter_names is None):
                 # we got no manual parameter names but more than an 'ax' ...
-                if len(replace_names - set(_arg_names[1:])) == 0:
+                if len(set(replace_names) - set(_arg_names[1:])) == 0:
                     # all to be replaced arguments are in the list
                     arg_names = _arg_names[1:]
                 else:
@@ -1903,7 +1830,7 @@ def unpack_labeled_data(replace_names=None, replace_all_args=False,
                 _repl = "* All arguments with the following names: '{names}'."
             if replace_all_args:
                 _repl += "\n* All positional arguments."
-            _repl = _repl.format(names="', '".join(sorted(replace_names)))
+            _repl = _repl.format(names="', '".join(replace_names))
         inner.__doc__ = (pre_doc +
                          _DATA_DOC_APPENDIX.format(replaced=_repl))
         if not python_has_wrapped:

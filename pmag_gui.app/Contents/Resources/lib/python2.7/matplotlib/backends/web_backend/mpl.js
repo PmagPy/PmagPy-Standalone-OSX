@@ -1,7 +1,6 @@
 /* Put everything inside the global mpl namespace */
 window.mpl = {};
 
-
 mpl.get_websocket_type = function() {
     if (typeof(WebSocket) !== 'undefined') {
         return WebSocket;
@@ -60,9 +59,6 @@ mpl.figure = function(figure_id, websocket, ondownload, parent_element) {
     this.ws.onopen =  function () {
             fig.send_message("supports_binary", {value: fig.supports_binary});
             fig.send_message("send_image_mode", {});
-            if (mpl.ratio != 1) {
-                fig.send_message("set_dpi_ratio", {'dpi_ratio': mpl.ratio});
-            }
             fig.send_message("refresh", {});
         }
 
@@ -132,15 +128,6 @@ mpl.figure.prototype._init_canvas = function() {
     this.canvas = canvas[0];
     this.context = canvas[0].getContext("2d");
 
-    var backingStore = this.context.backingStorePixelRatio ||
-	this.context.webkitBackingStorePixelRatio ||
-	this.context.mozBackingStorePixelRatio ||
-	this.context.msBackingStorePixelRatio ||
-	this.context.oBackingStorePixelRatio ||
-	this.context.backingStorePixelRatio || 1;
-
-    mpl.ratio = (window.devicePixelRatio || 1) / backingStore;
-
     var rubberband = $('<canvas/>');
     rubberband.attr('style', "position: absolute; left: 0; top: 0; z-index: 1;")
 
@@ -197,9 +184,8 @@ mpl.figure.prototype._init_canvas = function() {
         canvas_div.css('width', width)
         canvas_div.css('height', height)
 
-        canvas.attr('width', width * mpl.ratio);
-        canvas.attr('height', height * mpl.ratio);
-        canvas.attr('style', 'width: ' + width + 'px; height: ' + height + 'px;');
+        canvas.attr('width', width);
+        canvas.attr('height', height);
 
         rubberband.attr('width', width);
         rubberband.attr('height', height);
@@ -332,10 +318,10 @@ mpl.figure.prototype.handle_resize = function(fig, msg) {
 }
 
 mpl.figure.prototype.handle_rubberband = function(fig, msg) {
-    var x0 = msg['x0'] / mpl.ratio;
-    var y0 = (fig.canvas.height - msg['y0']) / mpl.ratio;
-    var x1 = msg['x1'] / mpl.ratio;
-    var y1 = (fig.canvas.height - msg['y1']) / mpl.ratio;
+    var x0 = msg['x0'];
+    var y0 = fig.canvas.height - msg['y0'];
+    var x1 = msg['x1'];
+    var y1 = fig.canvas.height - msg['y1'];
     x0 = Math.floor(x0) + 0.5;
     y0 = Math.floor(y0) + 0.5;
     x1 = Math.floor(x1) + 0.5;
@@ -491,8 +477,8 @@ mpl.figure.prototype.mouse_event = function(event, name) {
         this.canvas_div.focus();
     }
 
-    var x = canvas_pos.x * mpl.ratio;
-    var y = canvas_pos.y * mpl.ratio;
+    var x = canvas_pos.x;
+    var y = canvas_pos.y;
 
     this.send_message(name, {x: x, y: y, button: event.button,
                              step: event.step,

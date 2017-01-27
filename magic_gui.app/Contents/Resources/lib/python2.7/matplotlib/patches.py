@@ -3,8 +3,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import map, zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import map, zip
 
 import math
 
@@ -17,7 +17,6 @@ import matplotlib.colors as colors
 from matplotlib import docstring
 import matplotlib.transforms as transforms
 from matplotlib.path import Path
-import matplotlib.lines as mlines
 
 from matplotlib.bezier import split_bezier_intersecting_with_closedpath
 from matplotlib.bezier import get_intersection, inside_circle, get_parallels
@@ -56,14 +55,6 @@ docstring.interpd.update(Patch="""
 
           """)
 
-_patch_alias_map = {
-        'antialiased': ['aa'],
-        'edgecolor': ['ec'],
-        'facecolor': ['fc'],
-        'linewidth': ['lw'],
-        'linestyle': ['ls']
-    }
-
 
 class Patch(artist.Artist):
     """
@@ -75,10 +66,6 @@ class Patch(artist.Artist):
     zorder = 1
     validCap = ('butt', 'round', 'projecting')
     validJoin = ('miter', 'round', 'bevel')
-
-    # Whether to draw an edge by default.  Set on a
-    # subclass-by-subclass basis.
-    _edge_default = False
 
     def __str__(self):
         return str(self.__class__).split('.')[-1]
@@ -123,15 +110,11 @@ class Patch(artist.Artist):
         else:
             self.set_edgecolor(edgecolor)
             self.set_facecolor(facecolor)
-        # unscaled dashes.  Needed to scale dash patterns by lw
-        self._us_dashes = None
-        self._linewidth = 0
-
-        self.set_fill(fill)
-        self.set_linestyle(linestyle)
         self.set_linewidth(linewidth)
+        self.set_linestyle(linestyle)
         self.set_antialiased(antialiased)
         self.set_hatch(hatch)
+        self.set_fill(fill)
         self.set_capstyle(capstyle)
         self.set_joinstyle(joinstyle)
         self._combined_transform = transforms.IdentityTransform()
@@ -154,18 +137,6 @@ class Patch(artist.Artist):
             return polygons[0]
         return []
 
-    def _process_radius(self, radius):
-        if radius is not None:
-            return radius
-        if cbook.is_numlike(self._picker):
-            _radius = self._picker
-        else:
-            if self.get_edgecolor()[3] == 0:
-                _radius = 0
-            else:
-                _radius = self.get_linewidth()
-        return _radius
-
     def contains(self, mouseevent, radius=None):
         """Test whether the mouse event occurred in the patch.
 
@@ -173,7 +144,11 @@ class Patch(artist.Artist):
         """
         if six.callable(self._contains):
             return self._contains(self, mouseevent)
-        radius = self._process_radius(radius)
+        if radius is None:
+            if cbook.is_numlike(self._picker):
+                radius = self._picker
+            else:
+                radius = self.get_linewidth()
         inside = self.get_path().contains_point(
             (mouseevent.x, mouseevent.y), self.get_transform(), radius)
         return inside, {}
@@ -183,7 +158,11 @@ class Patch(artist.Artist):
         Returns *True* if the given point is inside the path
         (transformed with its transform attribute).
         """
-        radius = self._process_radius(radius)
+        if radius is None:
+            if cbook.is_numlike(self._picker):
+                radius = self._picker
+            else:
+                radius = self.get_linewidth()
         return self.get_path().contains_point(point,
                                               self.get_transform(),
                                               radius)
@@ -193,16 +172,14 @@ class Patch(artist.Artist):
         Updates this :class:`Patch` from the properties of *other*.
         """
         artist.Artist.update_from(self, other)
-        # For some properties we don't need or don't want to go through the
-        # getters/setters, so we just copy them directly.
-        self._edgecolor = other._edgecolor
-        self._facecolor = other._facecolor
-        self._fill = other._fill
-        self._hatch = other._hatch
-        # copy the unscaled dash pattern
-        self._us_dashes = other._us_dashes
-        self.set_linewidth(other._linewidth)  # also sets dash properties
+        self.set_edgecolor(other.get_edgecolor())
+        self.set_facecolor(other.get_facecolor())
+        self.set_fill(other.get_fill())
+        self.set_hatch(other.get_hatch())
+        self.set_linewidth(other.get_linewidth())
+        self.set_linestyle(other.get_linestyle())
         self.set_transform(other.get_data_transform())
+        self.set_alpha(other.get_alpha())
 
     def get_extents(self):
         """
@@ -287,35 +264,21 @@ class Patch(artist.Artist):
         """alias for set_antialiased"""
         return self.set_antialiased(aa)
 
-    def _set_edgecolor(self, color):
-        if color is None:
-            if (mpl.rcParams['patch.force_edgecolor'] or
-                    not self._fill or self._edge_default):
-                color = mpl.rcParams['patch.edgecolor']
-            else:
-                color = 'none'
-        self._edgecolor = colors.to_rgba(color, self._alpha)
-        self.stale = True
-
     def set_edgecolor(self, color):
         """
         Set the patch edge color
 
-        ACCEPTS: mpl color spec, None, 'none', or 'auto'
+        ACCEPTS: mpl color spec, or None for default, or 'none' for no color
         """
+        if color is None:
+            color = mpl.rcParams['patch.edgecolor']
         self._original_edgecolor = color
-        self._set_edgecolor(color)
+        self._edgecolor = colors.colorConverter.to_rgba(color, self._alpha)
+        self.stale = True
 
     def set_ec(self, color):
         """alias for set_edgecolor"""
         return self.set_edgecolor(color)
-
-    def _set_facecolor(self, color):
-        if color is None:
-            color = mpl.rcParams['patch.facecolor']
-        alpha = self._alpha if self._fill else 0
-        self._facecolor = colors.to_rgba(color, alpha)
-        self.stale = True
 
     def set_facecolor(self, color):
         """
@@ -323,8 +286,15 @@ class Patch(artist.Artist):
 
         ACCEPTS: mpl color spec, or None for default, or 'none' for no color
         """
+        if color is None:
+            color = mpl.rcParams['patch.facecolor']
+        # save: otherwise changing _fill may lose alpha information
         self._original_facecolor = color
-        self._set_facecolor(color)
+        self._facecolor = colors.colorConverter.to_rgba(color, self._alpha)
+        if not self._fill:
+            self._facecolor = list(self._facecolor)
+            self._facecolor[3] = 0
+        self.stale = True
 
     def set_fc(self, color):
         """alias for set_facecolor"""
@@ -356,9 +326,10 @@ class Patch(artist.Artist):
             except TypeError:
                 raise TypeError('alpha must be a float or None')
         artist.Artist.set_alpha(self, alpha)
-        self._set_facecolor(self._original_facecolor)
-        self._set_edgecolor(self._original_edgecolor)
-        # stale is already True
+        # using self._fill and self._alpha
+        self.set_facecolor(self._original_facecolor)
+        self.set_edgecolor(self._original_edgecolor)
+        self.stale = True
 
     def set_linewidth(self, w):
         """
@@ -368,14 +339,9 @@ class Patch(artist.Artist):
         """
         if w is None:
             w = mpl.rcParams['patch.linewidth']
-            if w is None:
-                w = mpl.rcParams['axes.linewidth']
 
         self._linewidth = float(w)
-        # scale the dash pattern by the linewidth
-        offset, ls = self._us_dashes
-        self._dashoffset, self._dashes = mlines._scale_dashes(
-            offset, ls, self._linewidth)
+
         self.stale = True
 
     def set_lw(self, lw):
@@ -414,12 +380,9 @@ class Patch(artist.Artist):
         """
         if ls is None:
             ls = "solid"
+
+        ls = cbook.ls_mapper.get(ls, ls)
         self._linestyle = ls
-        # get the unscalled dash pattern
-        offset, ls = self._us_dashes = mlines._get_dash_pattern(ls)
-        # scale the dash pattern by the linewidth
-        self._dashoffset, self._dashes = mlines._scale_dashes(
-            offset, ls, self._linewidth)
         self.stale = True
 
     def set_ls(self, ls):
@@ -433,8 +396,7 @@ class Patch(artist.Artist):
         ACCEPTS: [True | False]
         """
         self._fill = bool(b)
-        self._set_facecolor(self._original_facecolor)
-        self._set_edgecolor(self._original_edgecolor)
+        self.set_facecolor(self._original_facecolor)
         self.stale = True
 
     def get_fill(self):
@@ -528,7 +490,7 @@ class Patch(artist.Artist):
         if self._edgecolor[3] == 0:
             lw = 0
         gc.set_linewidth(lw)
-        gc.set_dashes(0, self._dashes)
+        gc.set_linestyle(self._linestyle)
         gc.set_capstyle(self._capstyle)
         gc.set_joinstyle(self._joinstyle)
 
@@ -611,7 +573,8 @@ class Shadow(Patch):
         if self.props is not None:
             self.update(self.props)
         else:
-            r, g, b, a = colors.to_rgba(self.patch.get_facecolor())
+            r, g, b, a = colors.colorConverter.to_rgba(
+                                self.patch.get_facecolor())
             rho = 0.3
             r = rho * r
             g = rho * g
@@ -884,8 +847,6 @@ class PathPatch(Patch):
     """
     A general polycurve path patch.
     """
-    _edge_default = True
-
     def __str__(self):
         return "Poly((%g, %g) ...)" % tuple(self._path.vertices[0])
 
@@ -1158,8 +1119,6 @@ class FancyArrow(Polygon):
     Like Arrow, but lets you set head width and head height independently.
     """
 
-    _edge_default = True
-
     def __str__(self):
         return "FancyArrow()"
 
@@ -1197,7 +1156,7 @@ class FancyArrow(Polygon):
 
         """
         if head_width is None:
-            head_width = 3 * width
+            head_width = 20 * width
         if head_length is None:
             head_length = 1.5 * head_width
 
@@ -1236,7 +1195,7 @@ class FancyArrow(Polygon):
                     # The half-arrows contain the midpoint of the stem,
                     # which we can omit from the full arrow. Including it
                     # twice caused a problem with xpdf.
-                    coords = np.concatenate([left_half_arrow[:-2],
+                    coords = np.concatenate([left_half_arrow[:-1],
                                              right_half_arrow[-2::-1]])
                 else:
                     raise ValueError("Got unknown shape: %s" % shape)
@@ -2315,9 +2274,9 @@ class BoxStyle(_Style):
 
             # the sizes of the vertical and horizontal sawtooth are
             # separately adjusted to fit the given box size.
-            dsx_n = int(np.round((width - tooth_size) / (tooth_size * 2))) * 2
+            dsx_n = int(round((width - tooth_size) / (tooth_size * 2))) * 2
             dsx = (width - tooth_size) / dsx_n
-            dsy_n = int(np.round((height - tooth_size) / (tooth_size * 2))) * 2
+            dsy_n = int(round((height - tooth_size) / (tooth_size * 2))) * 2
             dsy = (height - tooth_size) / dsy_n
 
             x0, y0 = x0 - pad + tooth_size2, y0 - pad + tooth_size2
@@ -2437,8 +2396,6 @@ class FancyBboxPatch(Patch):
 
     """
 
-    _edge_default = True
-
     def __str__(self):
         return self.__class__.__name__ \
                            + "(%g,%g;%gx%g)" % (self._x, self._y,
@@ -2491,7 +2448,6 @@ class FancyBboxPatch(Patch):
 
         self._mutation_scale = mutation_scale
         self._mutation_aspect = mutation_aspect
-
         self.stale = True
 
     @docstring.dedent_interpd
@@ -3984,7 +3940,6 @@ class FancyArrowPatch(Patch):
     """
     A fancy arrow patch. It draws an arrow using the :class:ArrowStyle.
     """
-    _edge_default = True
 
     def __str__(self):
 
@@ -4081,7 +4036,7 @@ class FancyArrowPatch(Patch):
     def set_dpi_cor(self, dpi_cor):
         """
         dpi_cor is currently used for linewidth-related things and
-        shrink factor. Mutation scale is affected by this.
+        shrink factor. Mutation scale is not affected by this.
         """
 
         self._dpi_cor = dpi_cor
@@ -4090,7 +4045,7 @@ class FancyArrowPatch(Patch):
     def get_dpi_cor(self):
         """
         dpi_cor is currently used for linewidth-related things and
-        shrink factor. Mutation scale is affected by this.
+        shrink factor. Mutation scale is not affected by this.
         """
 
         return self._dpi_cor
@@ -4242,16 +4197,15 @@ class FancyArrowPatch(Patch):
                                                patchB=self.patchB,
                                                shrinkA=self.shrinkA * dpi_cor,
                                                shrinkB=self.shrinkB * dpi_cor
-                                               )
+                                              )
         else:
             _path = self.get_transform().transform_path(self._path_original)
 
-        _path, fillable = self.get_arrowstyle()(
-                                        _path,
-                                        self.get_mutation_scale() * dpi_cor,
-                                        self.get_linewidth() * dpi_cor,
-                                        self.get_mutation_aspect()
-                                        )
+        _path, fillable = self.get_arrowstyle()(_path,
+                                                self.get_mutation_scale(),
+                                                self.get_linewidth() * dpi_cor,
+                                                self.get_mutation_aspect()
+                                               )
 
         #if not fillable:
         #    self._fill = False
@@ -4271,7 +4225,7 @@ class FancyArrowPatch(Patch):
         if self._edgecolor[3] == 0:
             lw = 0
         gc.set_linewidth(lw)
-        gc.set_dashes(self._dashoffset, self._dashes)
+        gc.set_linestyle(self._linestyle)
 
         gc.set_antialiased(self._antialiased)
         self._set_gc_clip(gc)
@@ -4561,14 +4515,13 @@ class ConnectionPatch(FancyArrowPatch):
                                            patchB=self.patchB,
                                            shrinkA=self.shrinkA * dpi_cor,
                                            shrinkB=self.shrinkB * dpi_cor
-                                           )
+                                          )
 
-        _path, fillable = self.get_arrowstyle()(
-                                        _path,
-                                        self.get_mutation_scale() * dpi_cor,
-                                        self.get_linewidth() * dpi_cor,
-                                        self.get_mutation_aspect()
-                                        )
+        _path, fillable = self.get_arrowstyle()(_path,
+                                                self.get_mutation_scale(),
+                                                self.get_linewidth() * dpi_cor,
+                                                self.get_mutation_aspect()
+                                               )
 
         return _path, fillable
 

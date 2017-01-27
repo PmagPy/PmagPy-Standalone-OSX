@@ -1,7 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 """
 Core functions and attributes for the matplotlib style library:
@@ -18,11 +18,10 @@ Core functions and attributes for the matplotlib style library:
 import os
 import re
 import contextlib
-import warnings
 
 import matplotlib as mpl
 from matplotlib import cbook
-from matplotlib import rc_params_from_file, rcParamsDefault
+from matplotlib import rc_params_from_file
 
 
 __all__ = ['use', 'context', 'available', 'library', 'reload_library']
@@ -35,34 +34,9 @@ STYLE_EXTENSION = 'mplstyle'
 STYLE_FILE_PATTERN = re.compile('([\S]+).%s$' % STYLE_EXTENSION)
 
 
-# A list of rcParams that should not be applied from styles
-STYLE_BLACKLIST = set([
-    'interactive', 'backend', 'backend.qt4', 'webagg.port',
-    'webagg.port_retries', 'webagg.open_in_browser', 'backend_fallback',
-    'toolbar', 'timezone', 'datapath', 'figure.max_open_warning',
-    'savefig.directory', 'tk.window_focus', 'docstring.hardcopy'])
-
-
-def _remove_blacklisted_style_params(d, warn=True):
-    o = {}
-    for key, val in d.items():
-        if key in STYLE_BLACKLIST:
-            if warn:
-                warnings.warn(
-                    "Style includes a parameter, '{0}', that is not related "
-                    "to style.  Ignoring".format(key))
-        else:
-            o[key] = val
-    return o
-
-
 def is_style_file(filename):
     """Return True if the filename looks like a style file."""
     return STYLE_FILE_PATTERN.match(filename) is not None
-
-
-def _apply_style(d, warn=True):
-    mpl.rcParams.update(_remove_blacklisted_style_params(d, warn=warn))
 
 
 def use(style):
@@ -97,15 +71,18 @@ def use(style):
 
     for style in styles:
         if not cbook.is_string_like(style):
-            _apply_style(style)
+            mpl.rcParams.update(style)
+            continue
         elif style == 'default':
-            _apply_style(rcParamsDefault, warn=False)
-        elif style in library:
-            _apply_style(library[style])
+            mpl.rcdefaults()
+            continue
+
+        if style in library:
+            mpl.rcParams.update(library[style])
         else:
             try:
                 rc = rc_params_from_file(style, use_default_template=False)
-                _apply_style(rc)
+                mpl.rcParams.update(rc)
             except IOError:
                 msg = ("'%s' not found in the style library and input is "
                        "not a valid URL or path. See `style.available` for "

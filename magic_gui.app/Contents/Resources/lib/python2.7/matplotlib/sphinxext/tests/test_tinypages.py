@@ -42,7 +42,7 @@ class TestTinyPages(object):
             cls.html_dir = pjoin(cls.page_build, 'html')
             cls.doctree_dir = pjoin(cls.page_build, 'doctrees')
             # Build the pages with warnings turned into errors
-            cmd = [str('sphinx-build'), '-W', '-b', 'html',
+            cmd = ['sphinx-build', '-W', '-b', 'html',
                    '-d', cls.doctree_dir,
                    TINY_PAGES,
                    cls.html_dir]
@@ -80,6 +80,6 @@ class TestTinyPages(object):
         # Plot 13 shows close-figs in action
         assert_true(file_same(range_4, plot_file(13)))
         # Plot 14 has included source
-        with open(pjoin(self.html_dir, 'some_plots.html'), 'rb') as fobj:
+        with open(pjoin(self.html_dir, 'some_plots.html'), 'rt') as fobj:
             html_contents = fobj.read()
-        assert_true(b'# Only a comment' in html_contents)
+        assert_true('# Only a comment' in html_contents)

@@ -16,7 +16,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from six.moves import xrange
+from matplotlib.externals.six.moves import xrange
 
 import sys
 import os
@@ -35,8 +35,7 @@ from matplotlib.backend_bases import ShowBase
 from matplotlib.backend_bases import _has_pil
 
 from matplotlib._pylab_helpers import Gcf
-from matplotlib.cbook import (is_string_like, is_writable_file_like,
-                              warn_deprecated)
+from matplotlib.cbook import is_string_like, is_writable_file_like
 from matplotlib.figure import Figure
 from matplotlib.path import Path
 from matplotlib.transforms import Affine2D
@@ -189,12 +188,6 @@ class RendererWx(RendererBase):
         """
         Initialise a wxWindows renderer instance.
         """
-        warn_deprecated('2.0', message="The WX backend is "
-                        "deprecated. It's untested "
-                        "and will be removed in Matplotlib 2.2. "
-                        "Use the WXAgg backend instead. "
-                        "See Matplotlib usage FAQ for more info on backends.",
-                        alternative='WXAgg')
         RendererBase.__init__(self)
         DEBUG_MSG("__init__()", 1, self)
         self.width = bitmap.GetWidth()
@@ -287,8 +280,10 @@ class RendererWx(RendererBase):
             b = 0
             w = self.width
             h = self.height
-        rows, cols = im.shape[:2]
-        bitmap = wxc.BitmapFromBuffer(cols, rows, im.tostring())
+        rows, cols, image_str = im.as_rgba_str()
+        image_array = np.fromstring(image_str, np.uint8)
+        image_array.shape = rows, cols, 4
+        bitmap = wxc.BitmapFromBuffer(cols, rows, image_array)
         gc = self.get_gc()
         gc.select()
         gc.gfx_ctx.DrawBitmap(bitmap, int(l), int(self.height - b),
@@ -770,6 +765,10 @@ class FigureCanvasWx(FigureCanvasBase, wx.Panel):
         confused with the main GUI event loop, which is always running
         and has nothing to do with this.
 
+        Call signature::
+
+        start_event_loop(self,timeout=0)
+
         This call blocks until a callback function triggers
         stop_event_loop() or *timeout* is reached.  If *timeout* is
         <=0, never timeout.
@@ -795,6 +794,9 @@ class FigureCanvasWx(FigureCanvasBase, wx.Panel):
         loop so that interactive functions, such as ginput and
         waitforbuttonpress, can wait for events.
 
+        Call signature::
+
+        stop_event_loop_default(self)
         """
         if hasattr(self, '_event_loop'):
             if self._event_loop.IsRunning():
@@ -983,7 +985,7 @@ class FigureCanvasWx(FigureCanvasBase, wx.Panel):
         dpival = self.figure.dpi
         winch = self._width / dpival
         hinch = self._height / dpival
-        self.figure.set_size_inches(winch, hinch, forward=False)
+        self.figure.set_size_inches(winch, hinch)
 
         # Rendering will happen on the associated paint event
         # so no need to do anything here except to make sure

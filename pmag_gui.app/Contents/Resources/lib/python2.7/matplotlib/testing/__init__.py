@@ -73,12 +73,6 @@ def assert_produces_warning(expected_warning=Warning, filter_level="always",
                                     % extra_warnings)
 
 
-def set_font_settings_for_testing():
-    rcParams['font.family'] = 'DejaVu Sans'
-    rcParams['text.hinting'] = False
-    rcParams['text.hinting_factor'] = 8
-
-
 def setup():
     # The baseline images are created in this locale, so we should use
     # it during all of the tests.
@@ -102,5 +96,12 @@ def setup():
     # tests and are not necessarily the default values as specified in
     # rcsetup.py
     rcdefaults()  # Start with all defaults
+    rcParams['font.family'] = 'Bitstream Vera Sans'
+    rcParams['text.hinting'] = False
+    rcParams['text.hinting_factor'] = 8
 
-    set_font_settings_for_testing()
+    # Clear the font caches.  Otherwise, the hinting mode can travel
+    # from one test to another.
+    backend_agg.RendererAgg._fontd.clear()
+    backend_pdf.RendererPdf.truetype_font_cache.clear()
+    backend_svg.RendererSVG.fontd.clear()

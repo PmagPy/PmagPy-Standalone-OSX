@@ -1,11 +1,12 @@
+#!/usr/bin/env python
 """
 Module for creating Sankey diagrams using matplotlib
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import zip
 
 # Original version by Yannick Copin (ycopin@ipnl.in2p3.fr) 10/2/2010, available
 # at:
@@ -44,7 +45,6 @@ from matplotlib.patches import PathPatch
 from matplotlib.transforms import Affine2D
 from matplotlib import verbose
 from matplotlib import docstring
-from matplotlib import rcParams
 
 __author__ = "Kevin L. Davies"
 __credits__ = ["Yannick Copin"]
@@ -66,7 +66,7 @@ class Sankey(object):
       the width of the arrows is shown proportionally to the flow
       quantity.  They are typically used to visualize energy or
       material or cost transfers between processes.
-      `Wikipedia (6/1/2011) <https://en.wikipedia.org/wiki/Sankey_diagram>`_
+      `Wikipedia (6/1/2011) <http://en.wikipedia.org/wiki/Sankey_diagram>`_
 
     """
 
@@ -770,15 +770,11 @@ class Sankey(object):
             print("lrpath\n", self._revert(lrpath))
             xs, ys = list(zip(*vertices))
             self.ax.plot(xs, ys, 'go-')
-        if rcParams['_internal.classic_mode']:
-            fc = kwargs.pop('fc', kwargs.pop('facecolor', '#bfd1d4'))
-            lw = kwargs.pop('lw', kwargs.pop('linewidth', 0.5))
-        else:
-            fc = kwargs.pop('fc', kwargs.pop('facecolor', None))
-            lw = kwargs.pop('lw', kwargs.pop('linewidth', None))
-        if fc is None:
-            fc = six.next(self.ax._get_patches_for_fill.prop_cycler)['color']
-        patch = PathPatch(Path(vertices, codes), fc=fc, lw=lw, **kwargs)
+        patch = PathPatch(Path(vertices, codes),
+                          fc=kwargs.pop('fc', kwargs.pop('facecolor',
+                                        '#bfd1d4')),  # Custom defaults
+                          lw=kwargs.pop('lw', kwargs.pop('linewidth', 0.5)),
+                          **kwargs)
         self.ax.add_patch(patch)
 
         # Add the path labels.

@@ -13,8 +13,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import copy
-import six
-from six.moves import zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import zip
 
 import numpy as np
 
@@ -197,7 +197,7 @@ class Button(AxesWidget):
         self.connect_event('button_release_event', self._release)
         self.connect_event('motion_notify_event', self._motion)
         ax.set_navigate(False)
-        ax.set_facecolor(color)
+        ax.set_axis_bgcolor(color)
         ax.set_xticks([])
         ax.set_yticks([])
         self.color = color
@@ -236,7 +236,7 @@ class Button(AxesWidget):
         else:
             c = self.color
         if c != self._lastcolor:
-            self.ax.set_facecolor(c)
+            self.ax.set_axis_bgcolor(c)
             self._lastcolor = c
             if self.drawon:
                 self.ax.figure.canvas.draw()
@@ -523,7 +523,7 @@ class CheckButtons(AxesWidget):
             ys = [0.5]
 
         cnt = 0
-        axcolor = ax.get_facecolor()
+        axcolor = ax.get_axis_bgcolor()
 
         self.labels = []
         self.lines = []
@@ -671,7 +671,7 @@ class RadioButtons(AxesWidget):
         dy = 1. / (len(labels) + 1)
         ys = np.linspace(1 - dy, dy, len(labels))
         cnt = 0
-        axcolor = ax.get_facecolor()
+        axcolor = ax.get_axis_bgcolor()
 
         self.labels = []
         self.circles = []
@@ -740,7 +740,7 @@ class RadioButtons(AxesWidget):
             if i == index:
                 color = self.activecolor
             else:
-                color = self.ax.get_facecolor()
+                color = self.ax.get_axis_bgcolor()
             p.set_facecolor(color)
 
         if self.drawon:
@@ -1364,67 +1364,61 @@ class _SelectorWidget(AxesWidget):
 
 class SpanSelector(_SelectorWidget):
     """
-    Visually select a min/max range on a single axis and call a function with
-    those values.
+    Select a min/max range of the x or y axes for a matplotlib Axes.
 
-    To guarantee that the selector remains responsive, keep a reference to
+    For the selector to remain responsive you must keep a reference to
     it.
 
-    In order to turn off the SpanSelector, set `span_selector.active=False`. To
-    turn it back on, set `span_selector.active=True`.
+    Example usage::
 
-    Parameters
-    ----------
-    ax :  :class:`matplotlib.axes.Axes` object
+        ax = subplot(111)
+        ax.plot(x,y)
 
-    onselect : func(min, max), min/max are floats
-
-    direction : "horizontal" or "vertical"
-      The axis along which to draw the span selector
-
-    minspan : float, default is None
-     If selection is less than *minspan*, do not call *onselect*
-
-    useblit : bool, default is False
-      If True, use the backend-dependent blitting features for faster
-      canvas updates. Only available for GTKAgg right now.
-
-    rectprops : dict, default is None
-      Dictionary of :class:`matplotlib.patches.Patch` properties
-
-    onmove_callback : func(min, max), min/max are floats, default is None
-      Called on mouse move while the span is being selected
-
-    span_stays : bool, default is False
-      If True, the span stays visible after the mouse is released
-
-    button : int or list of ints
-      Determines which mouse buttons activate the span selector
-        1 = left mouse button\n
-        2 = center mouse button (scroll wheel)\n
-        3 = right mouse button\n
-
-    Examples
-    --------
-    >>> import matplotlib.pyplot as plt
-    >>> import matplotlib.widgets as mwidgets
-    >>> fig, ax = plt.subplots()
-    >>> ax.plot([1, 2, 3], [10, 50, 100])
-    >>> def onselect(vmin, vmax):
+        def onselect(vmin, vmax):
             print(vmin, vmax)
-    >>> rectprops = dict(facecolor='blue', alpha=0.5)
-    >>> span = mwidgets.SpanSelector(ax, onselect, 'horizontal',
-                                     rectprops=rectprops)
-    >>> fig.show()
+        span = SpanSelector(ax, onselect, 'horizontal')
 
-    See also: :ref:`widgets-span_selector`
+    *onmove_callback* is an optional callback that is called on mouse
+    move within the span range
 
     """
 
     def __init__(self, ax, onselect, direction, minspan=None, useblit=False,
                  rectprops=None, onmove_callback=None, span_stays=False,
                  button=None):
+        """
+        Create a span selector in *ax*.  When a selection is made, clear
+        the span and call *onselect* with::
 
+            onselect(vmin, vmax)
+
+        and clear the span.
+
+        *direction* must be 'horizontal' or 'vertical'
+
+        If *minspan* is not *None*, ignore events smaller than *minspan*
+
+        The span rectangle is drawn with *rectprops*; default::
+
+          rectprops = dict(facecolor='red', alpha=0.5)
+
+        Set the visible attribute to *False* if you want to turn off
+        the functionality of the span selector
+
+        If *span_stays* is True, the span stays visble after making
+        a valid selection.
+
+        *button* is a list of integers indicating which mouse buttons should
+        be used for selection.  You can also specify a single
+        integer if only a single button is desired.  Default is *None*,
+        which does not limit which button can be used.
+
+        Note, typically:
+         1 = left mouse button
+         2 = center mouse button (scroll wheel)
+         3 = right mouse button
+
+        """
         _SelectorWidget.__init__(self, ax, onselect, useblit=useblit,
                                  button=button)
 
@@ -1454,7 +1448,6 @@ class SpanSelector(_SelectorWidget):
         self.new_axes(ax)
 
     def new_axes(self, ax):
-        """Set SpanSelector to operate on a new Axes"""
         self.ax = ax
         if self.canvas is not ax.figure.canvas:
             if self.canvas is not None:
@@ -2171,8 +2164,7 @@ class LassoSelector(_SelectorWidget):
 
     def __init__(self, ax, onselect=None, useblit=True, lineprops=None,
             button=None):
-        _SelectorWidget.__init__(self, ax, onselect, useblit=useblit,
-            button=button)
+        _SelectorWidget.__init__(self, ax, onselect, useblit=useblit, button=button)
 
         self.verts = None
 

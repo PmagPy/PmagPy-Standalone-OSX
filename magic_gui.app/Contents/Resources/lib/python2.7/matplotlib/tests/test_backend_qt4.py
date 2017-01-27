@@ -1,13 +1,13 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six import unichr
+from matplotlib.externals import six
+from matplotlib.externals.six import unichr
 from matplotlib import pyplot as plt
 from matplotlib.testing.decorators import cleanup, switch_backend
 from matplotlib.testing.decorators import knownfailureif
 from matplotlib._pylab_helpers import Gcf
-import matplotlib
+import matplotlib.style as mstyle
 import copy
 
 try:
@@ -17,7 +17,7 @@ except ImportError:
     import mock
 
 try:
-    with matplotlib.rc_context(rc={'backend': 'Qt4Agg'}):
+    with mstyle.context({'backend': 'Qt4Agg'}):
         from matplotlib.backends.qt_compat import QtCore
 
     from matplotlib.backends.backend_qt4 import (MODIFIER_KEYS,

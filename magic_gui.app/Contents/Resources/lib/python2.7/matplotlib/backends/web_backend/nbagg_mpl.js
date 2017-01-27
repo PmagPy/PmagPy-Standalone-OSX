@@ -55,7 +55,6 @@ mpl.mpl_figure_comm = function(comm, msg) {
 };
 
 mpl.figure.prototype.handle_close = function(fig, msg) {
-    var width = fig.canvas.width/mpl.ratio
     fig.root.unbind('remove')
 
     // Update the output cell to use the data from the current canvas.
@@ -64,7 +63,7 @@ mpl.figure.prototype.handle_close = function(fig, msg) {
     // Re-enable the keyboard manager in IPython - without this line, in FF,
     // the notebook keyboard shortcuts fail.
     IPython.keyboard_manager.enable()
-    $(fig.parent_element).html('<img src="' + dataURL + '" width="' + width + '">');
+    $(fig.parent_element).html('<img src="' + dataURL + '">');
     fig.close_ws(fig, msg);
 }
 
@@ -75,9 +74,8 @@ mpl.figure.prototype.close_ws = function(fig, msg){
 
 mpl.figure.prototype.push_to_output = function(remove_interactive) {
     // Turn the data on the canvas into data in the output cell.
-    var width = this.canvas.width/mpl.ratio
     var dataURL = this.canvas.toDataURL();
-    this.cell_info[1]['text/html'] = '<img src="' + dataURL + '" width="' + width + '">';
+    this.cell_info[1]['text/html'] = '<img src="' + dataURL + '">';
 }
 
 mpl.figure.prototype.updated_canvas_event = function() {

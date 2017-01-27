@@ -4,8 +4,8 @@ Classes for including text in a figure.
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
-from six.moves import zip
+from matplotlib.externals import six
+from matplotlib.externals.six.moves import zip
 
 import math
 import warnings
@@ -121,8 +121,7 @@ docstring.interpd.update(Text="""
     transform                  a matplotlib.transform transformation instance
     usetex                     [True | False | None]
     variant                    ['normal' | 'small-caps']
-    verticalalignment or va    ['center' | 'top' | 'bottom' | 'baseline' |
-                                'center_baseline' ]
+    verticalalignment or va    ['center' | 'top' | 'bottom' | 'baseline']
     visible                    [True | False]
     weight or fontweight       ['normal' | 'bold' | 'heavy' | 'light' |
                                 'ultrabold' | 'ultralight']
@@ -332,7 +331,7 @@ class Text(Artist):
         multiple-alignment information. Note that it returns an extent
         of a rotated text when necessary.
         """
-        key = self.get_prop_tup(renderer=renderer)
+        key = self.get_prop_tup()
         if key in self._cached:
             return self._cached[key]
 
@@ -355,7 +354,7 @@ class Text(Artist):
 
         baseline = 0
         for i, line in enumerate(lines):
-            clean_line, ismath = self.is_math_text(line, self.get_usetex())
+            clean_line, ismath = self.is_math_text(line)
             if clean_line:
                 w, h, d = renderer.get_text_width_height_descent(clean_line,
                                                         self._fontproperties,
@@ -437,8 +436,6 @@ class Text(Artist):
                 offsety = (ymin + height)
             elif valign == 'baseline':
                 offsety = (ymin + height) - baseline
-            elif valign == 'center_baseline':
-                offsety = ymin + height - baseline / 2.0
             else:
                 offsety = ymin
         else:
@@ -458,8 +455,6 @@ class Text(Artist):
                 offsety = ymax1
             elif valign == 'baseline':
                 offsety = ymax1 - baseline
-            elif valign == 'center_baseline':
-                offsety = (ymin1 + ymax1 - baseline) / 2.0
             else:
                 offsety = ymin1
 
@@ -782,8 +777,7 @@ class Text(Artist):
                 y = y + posy
                 if renderer.flipy():
                     y = canvash - y
-                clean_line, ismath = textobj.is_math_text(line,
-                                                          self.get_usetex())
+                clean_line, ismath = textobj.is_math_text(line)
 
                 if textobj.get_path_effects():
                     from matplotlib.patheffects import PathEffectRenderer
@@ -898,7 +892,7 @@ class Text(Artist):
         # specified with 'set_x' and 'set_y'.
         return self._x, self._y
 
-    def get_prop_tup(self, renderer=None):
+    def get_prop_tup(self):
         """
         Return a hashable tuple of properties.
 
@@ -911,7 +905,7 @@ class Text(Artist):
                 self._verticalalignment, self._horizontalalignment,
                 hash(self._fontproperties),
                 self._rotation, self._rotation_mode,
-                self.figure.dpi, id(renderer or self._renderer),
+                self.figure.dpi, id(self._renderer),
                 )
 
     def get_text(self):
@@ -1213,7 +1207,7 @@ class Text(Artist):
         self.stale = True
 
     @staticmethod
-    def is_math_text(s, usetex=None):
+    def is_math_text(s):
         """
         Returns a cleaned string and a boolean flag.
         The flag indicates if the given string *s* contains any mathtext,
@@ -1223,9 +1217,7 @@ class Text(Artist):
         """
         # Did we find an even number of non-escaped dollar signs?
         # If so, treat is as math text.
-        if usetex is None:
-            usetex = rcParams['text.usetex']
-        if usetex:
+        if rcParams['text.usetex']:
             if s == ' ':
                 s = r'\ '
             return s, 'TeX'
@@ -1259,7 +1251,7 @@ class Text(Artist):
         `rcParams['text.usetex']`
         """
         if usetex is None:
-            self._usetex = rcParams['text.usetex']
+            self._usetex = None
         else:
             self._usetex = bool(usetex)
         self.stale = True
@@ -1396,7 +1388,7 @@ class TextWithDash(Text):
         # specified with set_x and set_y
         return self._dashx, self._dashy
 
-    def get_prop_tup(self, renderer=None):
+    def get_prop_tup(self):
         """
         Return a hashable tuple of properties.
 
@@ -1404,7 +1396,7 @@ class TextWithDash(Text):
         want to cache derived information about text (e.g., layouts) and
         need to know if the text has changed.
         """
-        props = [p for p in Text.get_prop_tup(self, renderer=renderer)]
+        props = [p for p in Text.get_prop_tup(self)]
         props.extend([self._x, self._y, self._dashlength,
                       self._dashdirection, self._dashrotation, self._dashpad,
                       self._dashpush])
@@ -2234,6 +2226,7 @@ class Annotation(Text, _AnnotationBase):
 
             d = self.arrowprops.copy()
             ms = d.pop("mutation_scale", self.get_size())
+            ms = renderer.points_to_pixels(ms)
             self.arrow_patch.set_mutation_scale(ms)
 
             if "arrowstyle" not in d:
@@ -2250,10 +2243,11 @@ class Annotation(Text, _AnnotationBase):
                         " use 'headlength' to set the head length in points.")
                 headlength = d.pop('headlength', 12)
 
-                # NB: ms is in pts
-                stylekw = dict(head_length=headlength / ms,
-                               head_width=headwidth / ms,
-                               tail_width=width / ms)
+                to_style = self.figure.dpi / (72 * ms)
+
+                stylekw = dict(head_length=headlength * to_style,
+                               head_width=headwidth * to_style,
+                               tail_width=width * to_style)
 
                 self.arrow_patch.set_arrowstyle('simple', **stylekw)
 

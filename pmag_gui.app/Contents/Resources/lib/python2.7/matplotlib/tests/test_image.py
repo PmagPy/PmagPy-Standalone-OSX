@@ -1,10 +1,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
+import sys
 import io
 import os
-import warnings
 
 from nose.plugins.attrib import attr
 
@@ -14,27 +14,18 @@ from matplotlib.testing.decorators import (image_comparison,
                                            knownfailureif, cleanup)
 from matplotlib.image import (BboxImage, imread, NonUniformImage,
                               AxesImage, FigureImage, PcolorImage)
-from matplotlib.transforms import Bbox, Affine2D, TransformedBbox
-from matplotlib import rcParams, rc_context
-from matplotlib import patches
+from matplotlib.transforms import Bbox
+from matplotlib import rcParams
 import matplotlib.pyplot as plt
 
-from matplotlib import mlab
-from nose.tools import assert_raises
-from numpy.testing import (
-    assert_array_equal, assert_array_almost_equal, assert_allclose)
-from matplotlib.testing.noseclasses import KnownFailureTest
-from copy import copy
-from numpy import ma
-import matplotlib.colors as colors
-import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
-import numpy as np
+from numpy.testing import assert_array_equal
+
 
 import nose
 
 try:
     from PIL import Image
+    del Image
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
@@ -107,7 +98,6 @@ def test_image_python_io():
     buffer.seek(0)
     plt.imread(buffer)
 
-
 @knownfailureif(not HAS_PIL)
 def test_imread_pil_uint16():
     img = plt.imread(os.path.join(os.path.dirname(__file__),
@@ -124,8 +114,6 @@ def test_imread_pil_uint16():
 #     plt.imread(fname)
 #     os.remove(fname)
 
-
-@cleanup
 def test_imsave():
     # The goal here is that the user can specify an output logical DPI
     # for the image, but this will not actually add any extra pixels
@@ -161,7 +149,7 @@ def test_imsave_color_alpha():
     # acceptably preserved through a save/read roundtrip.
     from numpy import random
     random.seed(1)
-    data = random.rand(16, 16, 4)
+    data = random.rand(256, 128, 4)
 
     buff = io.BytesIO()
     plt.imsave(buff, data)
@@ -169,29 +157,16 @@ def test_imsave_color_alpha():
     buff.seek(0)
     arr_buf = plt.imread(buff)
 
-    # Recreate the float -> uint8 conversion of the data
-    # We can only expect to be the same with 8 bits of precision,
-    # since that's what the PNG file used.
-    data = (255*data).astype('uint8')
-    arr_buf = (255*arr_buf).astype('uint8')
+    # Recreate the float -> uint8 -> float32 conversion of the data
+    data = (255*data).astype('uint8').astype('float32')/255
+    # Wherever alpha values were rounded down to 0, the rgb values all get set
+    # to 0 during imsave (this is reasonable behaviour).
+    # Recreate that here:
+    for j in range(3):
+        data[data[:, :, 3] == 0, j] = 1
 
     assert_array_equal(data, arr_buf)
 
-@image_comparison(baseline_images=['image_alpha'], remove_text=True)
-def test_image_alpha():
-    plt.figure()
-
-    np.random.seed(0)
-    Z = np.random.rand(6, 6)
-
-    plt.subplot(131)
-    plt.imshow(Z, alpha=1.0, interpolation='none')
-
-    plt.subplot(132)
-    plt.imshow(Z, alpha=0.5, interpolation='none')
-
-    plt.subplot(133)
-    plt.imshow(Z, alpha=0.5, interpolation='nearest')
 
 @cleanup
 def test_cursor_data():
@@ -264,13 +239,14 @@ def test_cursor_data():
 
 @image_comparison(baseline_images=['image_clip'])
 def test_image_clip():
-    d = [[1, 2], [3, 4]]
+    from math import pi
 
-    fig, ax = plt.subplots()
-    im = ax.imshow(d)
-    patch = patches.Circle((0, 0), radius=1, transform=ax.transData)
-    im.set_clip_path(patch)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='hammer')
 
+    d = [[1,2],[3,4]]
+
+    im = ax.imshow(d, extent=(-pi,pi,-pi/2,pi/2))
 
 @image_comparison(baseline_images=['image_cliprect'])
 def test_image_cliprect():
@@ -358,7 +334,7 @@ def test_image_composite_background():
     arr = np.arange(12).reshape(4, 3)
     ax.imshow(arr, extent=[0, 2, 15, 0])
     ax.imshow(arr, extent=[4, 6, 15, 0])
-    ax.set_facecolor((1, 0, 0, 0.5))
+    ax.set_axis_bgcolor((1, 0, 0, 0.5))
     ax.set_xlim([0, 12])
 
 @image_comparison(baseline_images=['image_composite_alpha'], remove_text=True)
@@ -382,12 +358,12 @@ def test_image_composite_alpha():
     ax.imshow(arr2, extent=[0, 5, 1, 2])
     ax.imshow(arr2, extent=[0, 5, 2, 3], alpha=0.6)
     ax.imshow(arr2, extent=[0, 5, 3, 4], alpha=0.3)
-    ax.set_facecolor((0, 0.5, 0, 1))
+    ax.set_axis_bgcolor((0, 0.5, 0, 1))
     ax.set_xlim([0, 5])
     ax.set_ylim([5, 0])
 
 
-@image_comparison(baseline_images=['rasterize_10dpi'], extensions=['pdf','svg'], remove_text=True)
+@image_comparison(baseline_images=['rasterize_10dpi'], extensions=['pdf','svg'], tol=5e-2, remove_text=True)
 def test_rasterize_dpi():
     # This test should check rasterized rendering with high output resolution.
     # It plots a rasterized line and a normal image with implot. So it will catch
@@ -420,27 +396,22 @@ def test_rasterize_dpi():
     rcParams['savefig.dpi'] = 10
 
 
-@image_comparison(baseline_images=['bbox_image_inverted'], remove_text=True)
+@image_comparison(baseline_images=['bbox_image_inverted'],
+                  extensions=['png', 'pdf'])
 def test_bbox_image_inverted():
     # This is just used to produce an image to feed to BboxImage
-    image = np.arange(100).reshape((10, 10))
+    fig = plt.figure()
+    axes = fig.add_subplot(111)
+    axes.plot([1, 2, 3])
 
-    ax = plt.subplot(111)
-    bbox_im = BboxImage(
-        TransformedBbox(Bbox([[100, 100], [0, 0]]), ax.transData))
+    im_buffer = io.BytesIO()
+    fig.savefig(im_buffer)
+    im_buffer.seek(0)
+    image = imread(im_buffer)
+
+    bbox_im = BboxImage(Bbox([[100, 100], [0, 0]]))
     bbox_im.set_data(image)
-    bbox_im.set_clip_on(False)
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 100)
-    ax.add_artist(bbox_im)
-
-    image = np.identity(10)
-
-    bbox_im = BboxImage(
-        TransformedBbox(Bbox([[0.1, 0.2], [0.3, 0.25]]), ax.figure.transFigure))
-    bbox_im.set_data(image)
-    bbox_im.set_clip_on(False)
-    ax.add_artist(bbox_im)
+    axes.add_artist(bbox_im)
 
 
 @cleanup
@@ -491,34 +462,6 @@ def test_nonuniformimage_setnorm():
     ax = plt.gca()
     im = NonUniformImage(ax)
     im.set_norm(plt.Normalize())
-
-
-@knownfailureif(not HAS_PIL)
-@cleanup
-def test_jpeg_alpha():
-    plt.figure(figsize=(1, 1), dpi=300)
-    # Create an image that is all black, with a gradient from 0-1 in
-    # the alpha channel from left to right.
-    im = np.zeros((300, 300, 4), dtype=float)
-    im[..., 3] = np.linspace(0.0, 1.0, 300)
-
-    plt.figimage(im)
-
-    buff = io.BytesIO()
-    with rc_context({'savefig.facecolor': 'red'}):
-        plt.savefig(buff, transparent=True, format='jpg', dpi=300)
-
-    buff.seek(0)
-    image = Image.open(buff)
-
-    # If this fails, there will be only one color (all black). If this
-    # is working, we should have all 256 shades of grey represented.
-    num_colors = len(image.getcolors(256))
-    assert 175 <= num_colors <= 185, 'num colors: %d' % (num_colors, )
-    # The fully transparent part should be red, not white or black
-    # or anything else
-    corner_pixel = image.getpixel((0, 0))
-    assert corner_pixel == (254, 0, 0), "corner pixel: %r" % (corner_pixel, )
 
 
 @cleanup
@@ -573,6 +516,10 @@ def test_minimized_rasterized():
     # in Postscript, the best way to detect it is to generate SVG
     # and then parse the output to make sure the two colorbar images
     # are the same size.
+    if sys.version_info[:2] < (2, 7):
+        raise nose.SkipTest("xml.etree.ElementTree.Element.iter "
+                            "added in py 2.7")
+
     from xml.etree import ElementTree
 
     np.random.seed(0)
@@ -606,161 +553,6 @@ def test_load_from_url():
     Z = plt.imread(req)
 
 
-@image_comparison(baseline_images=['log_scale_image'],
-                  remove_text=True)
-def test_log_scale_image():
-    Z = np.zeros((10, 10))
-    Z[::2] = 1
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    ax.imshow(Z, extent=[1, 100, 1, 100], cmap='viridis',
-              vmax=1, vmin=-1)
-    ax.set_yscale('log')
-
-
-
-@image_comparison(baseline_images=['rotate_image'],
-                  remove_text=True)
-def test_rotate_image():
-    delta = 0.25
-    x = y = np.arange(-3.0, 3.0, delta)
-    X, Y = np.meshgrid(x, y)
-    Z1 = mlab.bivariate_normal(X, Y, 1.0, 1.0, 0.0, 0.0)
-    Z2 = mlab.bivariate_normal(X, Y, 1.5, 0.5, 1, 1)
-    Z = Z2 - Z1  # difference of Gaussians
-
-    fig, ax1 = plt.subplots(1, 1)
-    im1 = ax1.imshow(Z, interpolation='none', cmap='viridis',
-                     origin='lower',
-                     extent=[-2, 4, -3, 2], clip_on=True)
-
-    trans_data2 = Affine2D().rotate_deg(30) + ax1.transData
-    im1.set_transform(trans_data2)
-
-    # display intended extent of the image
-    x1, x2, y1, y2 = im1.get_extent()
-
-    ax1.plot([x1, x2, x2, x1, x1], [y1, y1, y2, y2, y1], "r--", lw=3,
-             transform=trans_data2)
-
-    ax1.set_xlim(2, 5)
-    ax1.set_ylim(0, 4)
-
-
-@cleanup
-def test_image_preserve_size():
-    buff = io.BytesIO()
-
-    im = np.zeros((481, 321))
-    plt.imsave(buff, im)
-
-    buff.seek(0)
-    img = plt.imread(buff)
-
-    assert img.shape[:2] == im.shape
-
-
-@cleanup
-def test_image_preserve_size2():
-    n = 7
-    data = np.identity(n, float)
-
-    fig = plt.figure(figsize=(n, n), frameon=False)
-
-    ax = plt.Axes(fig, [0.0, 0.0, 1.0, 1.0])
-    ax.set_axis_off()
-    fig.add_axes(ax)
-    ax.imshow(data, interpolation='nearest', origin='lower',aspect='auto')
-    buff = io.BytesIO()
-    fig.savefig(buff, dpi=1)
-
-    buff.seek(0)
-    img = plt.imread(buff)
-
-    assert img.shape == (7, 7, 4)
-
-    assert_array_equal(np.asarray(img[:, :, 0], bool),
-                       np.identity(n, bool)[::-1])
-
-
-@image_comparison(baseline_images=['mask_image_over_under'],
-                  remove_text=True, extensions=['png'])
-def test_mask_image_over_under():
-    delta = 0.025
-    x = y = np.arange(-3.0, 3.0, delta)
-    X, Y = np.meshgrid(x, y)
-    Z1 = mlab.bivariate_normal(X, Y, 1.0, 1.0, 0.0, 0.0)
-    Z2 = mlab.bivariate_normal(X, Y, 1.5, 0.5, 1, 1)
-    Z = 10*(Z2 - Z1)  # difference of Gaussians
-
-    palette = copy(plt.cm.gray)
-    palette.set_over('r', 1.0)
-    palette.set_under('g', 1.0)
-    palette.set_bad('b', 1.0)
-    Zm = ma.masked_where(Z > 1.2, Z)
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    im = ax1.imshow(Zm, interpolation='bilinear',
-                    cmap=palette,
-                    norm=colors.Normalize(vmin=-1.0, vmax=1.0, clip=False),
-                    origin='lower', extent=[-3, 3, -3, 3])
-    ax1.set_title('Green=low, Red=high, Blue=bad')
-    fig.colorbar(im, extend='both', orientation='horizontal',
-                 ax=ax1, aspect=10)
-
-    im = ax2.imshow(Zm, interpolation='nearest',
-                    cmap=palette,
-                    norm=colors.BoundaryNorm([-1, -0.5, -0.2, 0, 0.2, 0.5, 1],
-                                             ncolors=256, clip=False),
-                    origin='lower', extent=[-3, 3, -3, 3])
-    ax2.set_title('With BoundaryNorm')
-    fig.colorbar(im, extend='both', spacing='proportional',
-                 orientation='horizontal', ax=ax2, aspect=10)
-
-
-@image_comparison(baseline_images=['mask_image'],
-                  remove_text=True)
-def test_mask_image():
-    # Test mask image two ways: Using nans and using a masked array.
-
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-
-    A = np.ones((5, 5))
-    A[1:2, 1:2] = np.nan
-
-    ax1.imshow(A, interpolation='nearest')
-
-    A = np.zeros((5, 5), dtype=np.bool)
-    A[1:2, 1:2] = True
-    A = np.ma.masked_array(np.ones((5, 5), dtype=np.uint16), A)
-
-    ax2.imshow(A, interpolation='nearest')
-
-
-@image_comparison(baseline_images=['imshow_endianess'],
-                  remove_text=True, extensions=['png'])
-def test_imshow_endianess():
-    x = np.arange(10)
-    X, Y = np.meshgrid(x, x)
-    Z = ((X-5)**2 + (Y-5)**2)**0.5
-
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-
-    kwargs = dict(origin="lower", interpolation='nearest',
-                  cmap='viridis')
-
-    ax1.imshow(Z.astype('<f8'), **kwargs)
-    ax2.imshow(Z.astype('>f8'), **kwargs)
-
-
-@cleanup
-def test_imshow_no_warn_invalid():
-    with warnings.catch_warnings(record=True) as warns:
-        warnings.simplefilter("always")
-        plt.imshow([[1, 2], [3, np.nan]])
-    assert len(warns) == 0
-
-
-if __name__ == '__main__':
-    nose.runmodule(argv=['-s', '--with-doctest'], exit=False)
+if __name__=='__main__':
+    import nose
+    nose.runmodule(argv=['-s','--with-doctest'], exit=False)

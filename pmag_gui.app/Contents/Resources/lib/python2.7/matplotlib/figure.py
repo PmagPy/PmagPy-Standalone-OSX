@@ -14,7 +14,7 @@ contains all the plot elements.  The following classes are defined
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import six
+from matplotlib.externals import six
 
 import warnings
 from operator import itemgetter
@@ -32,7 +32,7 @@ import matplotlib.cbook as cbook
 
 from matplotlib.cbook import Stack, iterable
 
-from matplotlib import image as mimage
+from matplotlib import _image
 from matplotlib.image import FigureImage
 
 import matplotlib.colorbar as cbar
@@ -168,25 +168,23 @@ class SubplotParams(object):
 
         The following attributes are available
 
-        left  : 0.125
+        *left*  : 0.125
             The left side of the subplots of the figure
 
-        right : 0.9
+        *right* : 0.9
             The right side of the subplots of the figure
 
-        bottom : 0.1
+        *bottom* : 0.1
             The bottom of the subplots of the figure
 
-        top : 0.9
+        *top* : 0.9
             The top of the subplots of the figure
 
-        wspace : 0.2
-            The amount of width reserved for blank space between subplots,
-            expressed as a fraction of the average axis width
+        *wspace* : 0.2
+            The amount of width reserved for blank space between subplots
 
-        hspace : 0.2
-            The amount of height reserved for white space between subplots,
-            expressed as a fraction of the average axis height
+        *hspace* : 0.2
+            The amount of height reserved for white space between subplots
         """
 
         self.validate = True
@@ -342,9 +340,6 @@ class Figure(Artist):
         self.patch.set_aa(False)
 
         self._hold = rcParams['axes.hold']
-        if self._hold is None:
-            self._hold = True
-
         self.canvas = None
         self._suptitle = None
 
@@ -515,22 +510,17 @@ class Figure(Artist):
         kwargs are :class:`matplotlib.text.Text` properties.  Using figure
         coordinates, the defaults are:
 
-          x : 0.5
+          *x* : 0.5
             The x location of the text in figure coords
 
-          y : 0.98
+          *y* : 0.98
             The y location of the text in figure coords
 
-          horizontalalignment : 'center'
+          *horizontalalignment* : 'center'
             The horizontal alignment of the text
 
-          verticalalignment : 'top'
+          *verticalalignment* : 'top'
             The vertical alignment of the text
-
-        If the `fontproperties` keyword argument is given then the
-        rcParams defaults for `fontsize` (`figure.titlesize`) and
-        `fontweight` (`figure.titleweight`) will be ignored in favour
-        of the `FontProperties` defaults.
 
         A :class:`matplotlib.text.Text` instance is returned.
 
@@ -546,11 +536,10 @@ class Figure(Artist):
         if ('verticalalignment' not in kwargs) and ('va' not in kwargs):
             kwargs['verticalalignment'] = 'top'
 
-        if 'fontproperties' not in kwargs:
-            if 'fontsize' not in kwargs and 'size' not in kwargs:
-                kwargs['size'] = rcParams['figure.titlesize']
-            if 'fontweight' not in kwargs and 'weight' not in kwargs:
-                kwargs['weight'] = rcParams['figure.titleweight']
+        if 'fontsize' not in kwargs and 'size' not in kwargs:
+            kwargs['size'] = rcParams['figure.titlesize']
+        if 'fontweight' not in kwargs and 'weight' not in kwargs:
+            kwargs['weight'] = rcParams['figure.titleweight']
 
         sup = self.text(x, y, t, **kwargs)
         if self._suptitle is not None:
@@ -572,7 +561,6 @@ class Figure(Artist):
         """
         self.canvas = canvas
 
-    @cbook.deprecated("2.0")
     def hold(self, b=None):
         """
         Set the hold state.  If hold is None (default), toggle the
@@ -583,8 +571,6 @@ class Figure(Artist):
             hold()      # toggle hold
             hold(True)  # hold is on
             hold(False) # hold is off
-
-        All "hold" machinery is deprecated.
         """
         if b is None:
             self._hold = not self._hold
@@ -650,7 +636,7 @@ class Figure(Artist):
         (:meth:`~matplotlib.axes.Axes.imshow`) which will be resampled
         to fit the current axes.  If you want a resampled image to
         fill the entire figure, you can define an
-        :class:`~matplotlib.axes.Axes` with extent [0,0,1,1].
+        :class:`~matplotlib.axes.Axes` with size [0,1,0,1].
 
         An :class:`matplotlib.image.FigureImage` instance is returned.
 
@@ -681,7 +667,7 @@ class Figure(Artist):
         self.stale = True
         return im
 
-    def set_size_inches(self, w, h=None, forward=True):
+    def set_size_inches(self, w, h=None, forward=False):
         """
         set_size_inches(w,h, forward=False)
 
@@ -713,8 +699,7 @@ class Figure(Artist):
         self.bbox_inches.p1 = w, h
 
         if forward:
-            ratio = getattr(self.canvas, '_dpi_ratio', 1)
-            dpival = self.dpi / ratio
+            dpival = self.dpi
             canvasw = w * dpival
             canvash = h * dpival
             manager = getattr(self.canvas, 'manager', None)
@@ -866,7 +851,7 @@ class Figure(Artist):
 
             rect = l,b,w,h
             fig.add_axes(rect)
-            fig.add_axes(rect, frameon=False, facecolor='g')
+            fig.add_axes(rect, frameon=False, axisbg='g')
             fig.add_axes(rect, polar=True)
             fig.add_axes(rect, projection='polar')
             fig.add_axes(ax)
@@ -947,7 +932,7 @@ class Figure(Artist):
             fig.add_subplot(1,1,1)
 
             # add subplot with red background
-            fig.add_subplot(212, facecolor='r')
+            fig.add_subplot(212, axisbg='r')
 
             # add a polar subplot
             fig.add_subplot(111, projection='polar')
@@ -1098,53 +1083,83 @@ class Figure(Artist):
         if not self.get_visible():
             return
 
+        renderer.open_group('figure')
+        # prevent triggering call backs during the draw process
+        self._stale = True
+        if self.get_tight_layout() and self.axes:
+            try:
+                self.tight_layout(renderer, **self._tight_parameters)
+            except ValueError:
+                pass
+                # ValueError can occur when resizing a window.
+
+        if self.frameon:
+            self.patch.draw(renderer)
+
         # a list of (zorder, func_to_call, list_of_args)
         dsu = []
 
         for a in self.patches:
-            dsu.append((a.get_zorder(), a))
+            dsu.append((a.get_zorder(), a, a.draw, [renderer]))
 
         for a in self.lines:
-            dsu.append((a.get_zorder(), a))
+            dsu.append((a.get_zorder(), a, a.draw, [renderer]))
 
         for a in self.artists:
-            dsu.append((a.get_zorder(), a))
+            dsu.append((a.get_zorder(), a, a.draw, [renderer]))
 
-        for a in self.images:
-            dsu.append((a.get_zorder(), a))
+        # override the renderer default if self.suppressComposite
+        # is not None
+        not_composite = renderer.option_image_nocomposite()
+        if self.suppressComposite is not None:
+            not_composite = self.suppressComposite
+
+        if (len(self.images) <= 1 or not_composite or
+                not cbook.allequal([im.origin for im in self.images])):
+            for a in self.images:
+                dsu.append((a.get_zorder(), a, a.draw, [renderer]))
+        else:
+            # make a composite image blending alpha
+            # list of (_image.Image, ox, oy)
+            mag = renderer.get_image_magnification()
+            ims = [(im.make_image(mag), im.ox, im.oy, im.get_alpha())
+                   for im in self.images]
+
+            im = _image.from_images(int(self.bbox.height * mag),
+                                    int(self.bbox.width * mag),
+                                    ims)
+
+            im.is_grayscale = False
+            l, b, w, h = self.bbox.bounds
+
+            def draw_composite():
+                gc = renderer.new_gc()
+                gc.set_clip_rectangle(self.bbox)
+                gc.set_clip_path(self.get_clip_path())
+                renderer.draw_image(gc, l, b, im)
+                gc.restore()
+
+            dsu.append((self.images[0].get_zorder(), self.images[0],
+                        draw_composite, []))
 
         # render the axes
         for a in self.axes:
-            dsu.append((a.get_zorder(), a))
+            dsu.append((a.get_zorder(), a, a.draw, [renderer]))
 
         # render the figure text
         for a in self.texts:
-            dsu.append((a.get_zorder(), a))
+            dsu.append((a.get_zorder(), a, a.draw, [renderer]))
 
         for a in self.legends:
-            dsu.append((a.get_zorder(), a))
+            dsu.append((a.get_zorder(), a, a.draw, [renderer]))
 
         dsu = [row for row in dsu if not row[1].get_animated()]
         dsu.sort(key=itemgetter(0))
+        for zorder, a, func, args in dsu:
+            func(*args)
 
-        try:
-            renderer.open_group('figure')
-            if self.get_tight_layout() and self.axes:
-                try:
-                    self.tight_layout(renderer, **self._tight_parameters)
-                except ValueError:
-                    pass
-                    # ValueError can occur when resizing a window.
-
-            if self.frameon:
-                self.patch.draw(renderer)
-
-            mimage._draw_list_compositing_images(
-                renderer, self, dsu, self.suppressComposite)
-
-            renderer.close_group('figure')
-        finally:
-            self.stale = False
+        renderer.close_group('figure')
+        self.stale = False
 
         self._cachedRenderer = renderer
         self.canvas.draw_event(renderer)
@@ -1198,67 +1213,43 @@ class Figure(Artist):
 
         Keyword arguments:
 
-          prop: [ *None* | FontProperties | dict ]
+          *prop*: [ *None* | FontProperties | dict ]
             A :class:`matplotlib.font_manager.FontProperties`
             instance. If *prop* is a dictionary, a new instance will be
             created with *prop*. If *None*, use rc settings.
 
-          numpoints: integer
+          *numpoints*: integer
             The number of points in the legend line, default is 4
 
-          scatterpoints: integer
+          *scatterpoints*: integer
             The number of points in the legend line, default is 4
 
-          scatteryoffsets: list of floats
+          *scatteryoffsets*: list of floats
             a list of yoffsets for scatter symbols in legend
 
-          markerscale: [ *None* | scalar ]
+          *markerscale*: [ *None* | scalar ]
             The relative size of legend markers vs. original. If *None*, use rc
             settings.
 
-          markerfirst: [ *True* | *False* ]
+          *markerfirst*: [ *True* | *False* ]
             if *True*, legend marker is placed to the left of the legend label
             if *False*, legend marker is placed to the right of the legend
             label
 
-          frameon: [ *None* | bool ]
-            Control whether the legend should be drawn on a patch (frame).
-            Default is *None* which will take the value from the
-            ``legend.frameon`` :data:`rcParam<matplotlib.rcParams>`.
-
-          fancybox: [ *None* | *False* | *True* ]
+          *fancybox*: [ *None* | *False* | *True* ]
             if *True*, draw a frame with a round fancybox.  If *None*, use rc
 
-          shadow: [ *None* | *False* | *True* ]
+          *shadow*: [ *None* | *False* | *True* ]
             If *True*, draw a shadow behind legend. If *None*, use rc settings.
 
-          framealpha: [ *None* | float ]
-            Control the alpha transparency of the legend's background.
-            Default is *None* which will take the value from the
-            ``legend.framealpha`` :data:`rcParam<matplotlib.rcParams>`.
-
-          facecolor: [ *None* | "inherit" | a color spec ]
-            Control the legend's background color.
-            Default is *None* which will take the value from the
-            ``legend.facecolor`` :data:`rcParam<matplotlib.rcParams>`.
-            If ``"inherit"``, it will take the ``axes.facecolor``
-            :data:`rcParam<matplotlib.rcParams>`.
-
-          edgecolor: [ *None* | "inherit" | a color spec ]
-            Control the legend's background patch edge color.
-            Default is *None* which will take the value from the
-            ``legend.edgecolor`` :data:`rcParam<matplotlib.rcParams>`.
-            If ``"inherit"``, it will take the ``axes.edgecolor``
-            :data:`rcParam<matplotlib.rcParams>`.
-
-          ncol : integer
+          *ncol* : integer
             number of columns. default is 1
 
-          mode : [ "expand" | *None* ]
+          *mode* : [ "expand" | *None* ]
             if mode is "expand", the legend will be horizontally expanded
             to fill the axes area (or *bbox_to_anchor*)
 
-          title : string
+          *title* : string
             the legend title
 
         Padding and spacing between various elements use following keywords
@@ -1598,7 +1589,7 @@ class Figure(Artist):
                 cax, kw = cbar.make_axes_gridspec(ax, **kw)
             else:
                 cax, kw = cbar.make_axes(ax, **kw)
-        cax._hold = True
+        cax.hold(True)
         cb = cbar.colorbar_factory(cax, mappable, **kw)
 
         self.sca(current_ax)
@@ -1636,6 +1627,11 @@ class Figure(Artist):
     def ginput(self, n=1, timeout=30, show_clicks=True, mouse_add=1,
                mouse_pop=3, mouse_stop=2):
         """
+        Call signature::
+
+          ginput(self, n=1, timeout=30, show_clicks=True,
+                 mouse_add=1, mouse_pop=3, mouse_stop=2)
+
         Blocking call to interact with the figure.
 
         This will wait for *n* clicks from the user and return a list of the
@@ -1670,6 +1666,10 @@ class Figure(Artist):
 
     def waitforbuttonpress(self, timeout=-1):
         """
+        Call signature::
+
+          waitforbuttonpress(self, timeout=-1)
+
         Blocking call to interact with the figure.
 
         This will return True is a key was pressed, False if a mouse
@@ -1722,13 +1722,13 @@ class Figure(Artist):
 
         Parameters:
 
-          pad : float
+          *pad* : float
             padding between the figure edge and the edges of subplots,
             as a fraction of the font-size.
-          h_pad, w_pad : float
+          *h_pad*, *w_pad* : float
             padding (height/width) between edges of adjacent subplots.
             Defaults to `pad_inches`.
-          rect : if rect is given, it is interpreted as a rectangle
+          *rect* : if rect is given, it is interpreted as a rectangle
             (left, bottom, right, top) in the normalized figure
             coordinate that the whole subplots area (including
             labels) will fit into. Default is (0, 0, 1, 1).
