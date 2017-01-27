@@ -111,7 +111,7 @@ class MagMainFrame(wx.Frame):
 
         bSizer0 = wx.StaticBoxSizer(wx.StaticBox(self.panel, wx.ID_ANY, "Choose MagIC project directory"), wx.HORIZONTAL)
         self.dir_path = wx.TextCtrl(self.panel, id=-1, size=(600,25), style=wx.TE_READONLY)
-        self.change_dir_button = buttons.GenButton(self.panel, id=-1, label="change dir",size=(-1, -1))
+        self.change_dir_button = buttons.GenButton(self.panel, id=-1, label="change directory",size=(-1, -1))
         self.change_dir_button.SetBackgroundColour("#F8F8FF")
         self.change_dir_button.InitColours()
         self.Bind(wx.EVT_BUTTON, self.on_change_dir_button, self.change_dir_button)
@@ -543,15 +543,18 @@ def main():
         sys.exit()
     print '-I- Starting Pmag GUI - please be patient'
     # if redirect is true, wxpython makes its own output window for stdout/stderr
-    app = wx.App(redirect=True)
+    if 'darwin' in sys.platform:
+        app = wx.App(redirect=False)
+    else:
+        app = wx.App(redirect=True)
     app.frame = MagMainFrame()
     working_dir = pmag.get_named_arg_from_sys('-WD', '.')
 
     ## this causes an error with Canopy Python
     ## (it works with brew Python)
     ## need to use these lines for Py2app
-    if working_dir == '.':
-        app.frame.on_change_dir_button(None)
+    #if working_dir == '.':
+    #    app.frame.on_change_dir_button(None)
 
     app.frame.Show()
     app.frame.Center()
