@@ -16,10 +16,12 @@ from pmagpy import pmag
 from pmagpy import ipmag
 from pmagpy import builder2 as builder
 from pmagpy import new_builder as nb
-from dialogs import pmag_basic_dialogs
+from dialogs import pmag_basic_dialogs_native3 as pbd3
+from dialogs import pmag_basic_dialogs as pbd2
 from dialogs import pmag_er_magic_dialogs
 from dialogs import pmag_gui_menu3 as pmag_gui_menu
 from dialogs import ErMagicBuilder
+from dialogs import demag_dialogs
 from dialogs import pmag_widgets as pw
 
 try:
@@ -55,7 +57,6 @@ class MagMainFrame(wx.Frame):
             DM = self.data_model_num
         # if you still don't have DM, make the user choose
         if not DM:
-            from dialogs import demag_dialogs
             ui_dialog = demag_dialogs.user_input(self,['data_model'],parse_funcs=[float], heading="Please input prefered data model (2.5,3.0).  Note: 2.5 is for legacy projects only, if you are have new data please use 3.0.", values=[3])
             res = ui_dialog.ShowModal()
             vals = ui_dialog.get_values()
@@ -70,15 +71,19 @@ class MagMainFrame(wx.Frame):
         self.resource_dir = os.getcwd()
 
         if not WD:
-            self.get_DIR()        # choose directory dialog
+            self.get_DIR() # choose directory dialog
         else:
             self.WD = WD
         self.HtmlIsOpen = False
         self.Bind(wx.EVT_CLOSE, self.on_menu_exit)
+        global pmag_basic_dialogs
         if self.data_model_num == 2:
+            pmag_basic_dialogs = pbd2
             self.er_magic = builder.ErMagicBuilder(self.WD, data_model=self.data_model)
         elif self.data_model_num == 3:
+            pmag_basic_dialogs = pbd3
             wx.CallAfter(self.get_wd_data)
+        else: pw.simple_warning("Input data model not recognized please input 2.x or 3.x"); return
             #self.contribution = nb.Contribution(self.WD, dmodel=dmodel)
         #self.er_magic.init_default_headers()
         #self.er_magic.init_actual_headers()
@@ -150,15 +155,6 @@ class MagMainFrame(wx.Frame):
         self.btn1.InitColours()
         self.Bind(wx.EVT_BUTTON, self.on_convert_file, self.btn1)
 
-        if self.data_model_num == 3:
-            text = "1a. Convert to 3.0. format"
-            self.btn1a = buttons.GenButton(self.panel, id=-1, label=text,
-                                           size=(450, 50), name='step 1a')
-            self.btn1a.SetBackgroundColour("#FDC68A")
-            self.btn1a.InitColours()
-            self.Bind(wx.EVT_BUTTON, self.on_convert_3, self.btn1a)
-
-
         text = "2. (optional) Calculate geographic/tilt-corrected directions"
         self.btn2 = buttons.GenButton(self.panel, id=-1, label=text, size=(450, 50), name='step 2')
         self.btn2.SetBackgroundColour("#FDC68A")
@@ -176,6 +172,15 @@ class MagMainFrame(wx.Frame):
         self.btn4.InitColours()
         self.Bind(wx.EVT_BUTTON, self.on_unpack, self.btn4)
 
+        if self.data_model_num == 3:
+            text = "Convert directory to 3.0. format (legacy data only)"
+            self.btn1a = buttons.GenButton(self.panel, id=-1, label=text,
+                                           size=(300, 50), name='step 1a')
+            self.btn1a.SetBackgroundColour("#FDC68A")
+            self.btn1a.InitColours()
+            self.Bind(wx.EVT_BUTTON, self.on_convert_3, self.btn1a)
+
+
         #str = "OR"
         OR = wx.StaticText(self.panel, -1, "or", (20, 120))
         font = wx.Font(18, wx.SWISS, wx.NORMAL, wx.NORMAL)
@@ -187,9 +192,6 @@ class MagMainFrame(wx.Frame):
         bSizer1_1.AddSpacer(20)
         bSizer1_1.Add(self.btn1, wx.ALIGN_TOP)
         bSizer1_1.AddSpacer(20)
-        if self.data_model_num == 3:
-            bSizer1_1.Add(self.btn1a, wx.ALIGN_TOP)
-            bSizer1_1.AddSpacer(20)
         bSizer1_1.Add(self.btn2, wx.ALIGN_TOP)
         bSizer1_1.AddSpacer(20)
         bSizer1_1.Add(self.btn3, wx.ALIGN_TOP)
@@ -200,7 +202,18 @@ class MagMainFrame(wx.Frame):
 
         bSizer1.Add(OR, 0, wx.ALIGN_CENTER, 0)
         bSizer1.AddSpacer(20)
-        bSizer1.Add(self.btn4, 0, wx.ALIGN_CENTER, 0)
+
+        bSizer1_2 = wx.BoxSizer(wx.VERTICAL)
+        spacing = 60 if self.data_model_num == 3 else 90
+        bSizer1_2.AddSpacer(spacing)
+
+        bSizer1_2.Add(self.btn4, 0, wx.ALIGN_CENTER, 0)
+        if self.data_model_num == 3:
+            bSizer1_2.AddSpacer(20)
+            bSizer1_2.Add(self.btn1a, 0, wx.ALIGN_CENTER, 0)
+            bSizer1_2.AddSpacer(20)
+
+        bSizer1.Add(bSizer1_2)
         bSizer1.AddSpacer(20)
 
         #---sizer 2 ----
@@ -225,7 +238,7 @@ class MagMainFrame(wx.Frame):
         bSizer2.AddSpacer(20)
 
         #---sizer 3 ----
-        bSizer3 = wx.StaticBoxSizer(wx.StaticBox(self.panel, wx.ID_ANY, "Upload to MagIC database"), wx.HORIZONTAL)
+        bSizer3 = wx.StaticBoxSizer(wx.StaticBox(self.panel, wx.ID_ANY, "Create file for upload to MagIC database"), wx.HORIZONTAL)
 
         text = "Create MagIC txt file for upload"
         self.btn_upload = buttons.GenButton(self.panel, id=-1, label=text, size=(300, 50))
@@ -380,7 +393,7 @@ class MagMainFrame(wx.Frame):
     def on_run_demag_gui(self, event):
         outstring = "demag_gui.py -WD %s"%self.WD
         print "-I- running python script:\n %s"%(outstring)
-        demag_gui.main(self.WD, standalone_app=False, parent=self)
+        demag_gui.start(self.WD, standalone_app=False, parent=self, DM=self.data_model_num)
 
     def on_convert_file(self, event):
         pmag_dialogs_dia = pmag_basic_dialogs.import_magnetometer_data(self, wx.ID_ANY, '', self.WD)
@@ -390,9 +403,10 @@ class MagMainFrame(wx.Frame):
 
     def on_convert_3(self, event):
         # turn files from 2.5 --> 3.0 (rough translation)
-        res = pmag.convert_directory_2_to_3('magic_measurements.txt',
-                                            input_dir=self.WD, output_dir=self.WD)
-        if not res:
+        meas, upgraded, no_upgrade = pmag.convert_directory_2_to_3('magic_measurements.txt',
+                                                                   input_dir=self.WD, output_dir=self.WD,
+                                                                   data_model=self.contribution.data_model)
+        if not meas:
             wx.MessageBox('2.5 --> 3.0 failed. Do you have a magic_measurements.txt file in your working directory?',
                           'Info', wx.OK | wx.ICON_INFORMATION)
             return
@@ -401,9 +415,30 @@ class MagMainFrame(wx.Frame):
         self.contribution = nb.Contribution(self.WD)
         # make skeleton files with specimen, sample, site, location data
         self.contribution.propagate_measurement_info()
+        #
+        # note what DIDN'T upgrade
+        #no_upgrade = []
+        #for fname in os.listdir(self.WD):
+        #    if 'rmag' in fname:
+        #        no_upgrade.append(fname)
+        #    elif fname in ['pmag_results.txt', 'pmag_criteria.txt',
+        #                   'er_synthetics.txt', 'er_images.txt',
+        #                   'er_plots.txt', 'er_ages.txt']:
+        #        no_upgrade.append(fname)
+
         # pop up
-        wx.MessageBox('2.5 --> 3.0 translation completed!', 'Info',
-                      wx.OK | wx.ICON_INFORMATION)
+        upgraded_string = ", ".join(upgraded)
+        if no_upgrade:
+            no_upgrade_string = ", ".join(no_upgrade)
+            msg = '2.5 --> 3.0 translation completed!\n\nThese 3.0 format files were created: {}.\n\nHowever, these 2.5 format files could not be upgraded: {}.\n\nTo convert all 2.5 files, use the MagIC upgrade tool: https://www2.earthref.org/MagIC/upgrade\n'.format(upgraded_string, no_upgrade_string)
+            if 'criteria.txt' in upgraded:
+                msg += '\nNote: Please check your criteria file for completeness and accuracy, as not all 2.5 files will be fully upgraded.'
+            if 'pmag_criteria.txt' in no_upgrade:
+                msg += '\nNote: Not all criteria files can be upgraded, even on the MagIC site.  You may need to recreate an old pmag_criteria file from scratch in Thellier GUI or Demag GUI.'
+            wx.MessageBox(msg, 'Warning', wx.OK | wx.ICON_INFORMATION)
+        else:
+            msg = '2.5 --> 3.0 translation completed!\nThese files were converted: {}'.format(upgraded_string)
+            wx.MessageBox(msg, 'Info', wx.OK | wx.ICON_INFORMATION)
 
 
 
@@ -420,7 +455,7 @@ class MagMainFrame(wx.Frame):
             self.ErMagic_frame = ErMagicBuilder.MagIC_model_builder(self.WD, self, self.er_magic)#,self.Data,self.Data_hierarchy)
         elif self.data_model_num == 3:
             if not os.path.isfile(os.path.join(self.WD, 'measurements.txt')):
-                pw.simple_warning("Your working directory must have a 3.0. format measurements.txt file to run this step.  Make sure you have fully completed step 1 (import magnetometer file) and step 1a (convert to 3.0., if necessary) and try again.")
+                pw.simple_warning("Your working directory must have a 3.0. format measurements.txt file to run this step.  Make sure you have fully completed step 1 (import magnetometer file) and ALSO converted to 3.0., if necessary), then try again.")
                 return False
 
             wait = wx.BusyInfo('Compiling required data, please wait...')
@@ -504,7 +539,8 @@ class MagMainFrame(wx.Frame):
         wx.Yield()
         if self.data_model_num == 3:
             res, error_message, has_problems, all_failing_items = ipmag.upload_magic3(dir_path=self.WD,
-                                                                                      vocab=self.contribution.vocab)
+                                                                                      vocab=self.contribution.vocab,
+                                                                                      contribution=self.contribution)
         if self.data_model_num == 2:
             res, error_message, errors = ipmag.upload_magic(dir_path=self.WD, data_model=self.er_magic.data_model)
             del wait

@@ -64,6 +64,15 @@ class MainFrame(wx.Frame):
         wx.Yield()
         print '-I- Read in any available data from working directory'
         self.contribution = nb.Contribution(self.WD, dmodel=self.data_model)
+        # propagate names from measurements into other tables
+        if "measurements" in self.contribution.tables:
+            self.contribution.propagate_measurement_info()
+        # propagate names from any table into other tables
+        # (i.e., site name from samples)
+        self.contribution.propagate_all_tables_info()
+        # extract average lats/lons from sites table
+        self.contribution.get_min_max_lat_lon()
+        self.edited = False
         del wait
 
 
@@ -168,7 +177,7 @@ class MainFrame(wx.Frame):
 
         #---sizer 2 ----
 
-        bSizer2 = wx.StaticBoxSizer(wx.StaticBox(self.panel, wx.ID_ANY, "Upload to MagIC database", name='bSizer2'), wx.HORIZONTAL)
+        bSizer2 = wx.StaticBoxSizer(wx.StaticBox(self.panel, wx.ID_ANY, "Create file for upload to MagIC database", name='bSizer2'), wx.HORIZONTAL)
 
         text = "prepare upload txt file"
         self.btn_upload = buttons.GenButton(self.panel, id=-1, label=text,
@@ -231,15 +240,7 @@ class MainFrame(wx.Frame):
             self.WD = change_dir_dialog.GetPath()
             self.dir_path.SetValue(self.WD)
         change_dir_dialog.Destroy()
-        wait = wx.BusyInfo('Initializing data object in new directory, please wait...')
-        wx.Yield()
-        print '-I- Initializing magic data object'
-        # make new contribution object, but reuse old data_model
-        self.contribution = nb.Contribution(self.WD, dmodel=self.data_model)
-        self.edited = False
-        print '-I- Read in any available data from working directory'
-        print '-I- Initializing headers'
-        del wait
+        self.get_wd_data()
 
     def on_open_grid_frame(self):
         self.Hide()
@@ -267,6 +268,9 @@ class MainFrame(wx.Frame):
             grid_type = self.FindWindowById(event.Id).Name[:-4] # remove ('_btn')
         wait = wx.BusyInfo('Making {} grid, please wait...'.format(grid_type))
         wx.Yield()
+        # propagate site lat/lon info into locations if necessary
+        if grid_type == 'locations' and 'sites' in self.contribution.tables:
+            self.contribution.get_min_max_lat_lon()
         # hide mainframe
         self.on_open_grid_frame()
         # make grid frame
