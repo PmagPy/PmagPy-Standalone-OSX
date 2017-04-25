@@ -30,14 +30,15 @@ class MainFrame(wx.Frame):
     MagIC GUI
     """
 
-    def __init__(self, WD=None, name='Main Frame', dmodel=None):
+    def __init__(self, WD=None, name='Main Frame', dmodel=None, title=None, contribution=None):
         try:
             version = pmag.get_version()
         except:
             version = ""
-        title = "MagIC GUI   version: %s" % version
-        if sys.platform in ['win32', 'win64']:
-            title += "  Powered by Enthought Canopy"
+        if not title:
+            title = "MagIC GUI   version: %s" % version
+        #if sys.platform in ['win32', 'win64']:
+        #    title += "  Powered by Enthought Canopy"
         wx.Frame.__init__(self, None, wx.ID_ANY, title, name=name)
         #
         self.grid_frame = None
@@ -57,9 +58,16 @@ class MainFrame(wx.Frame):
         self.InitUI()
 
         print '-I- Completed interface'
-        wx.CallAfter(self.get_wd_data)
+        if contribution:
+            self.contribution = contribution
+        else:
+            wx.CallAfter(self.get_wd_data)
 
     def get_wd_data(self):
+        self.edited = False
+        self.validation_mode = False
+        self.reset_highlights()
+
         wait = wx.BusyInfo('Reading in data from current working directory, please wait...')
         wx.Yield()
         print '-I- Read in any available data from working directory'
@@ -72,6 +80,9 @@ class MainFrame(wx.Frame):
         self.contribution.propagate_all_tables_info()
         # extract average lats/lons from sites table
         self.contribution.get_min_max_lat_lon()
+        # extract age info from ages table and put into other tables
+        self.contribution.propagate_ages()
+        # finish up
         self.edited = False
         del wait
 
@@ -146,12 +157,12 @@ class MainFrame(wx.Frame):
         self.btn5.InitColours()
         self.Bind(wx.EVT_BUTTON, self.make_grid_frame, self.btn5)
 
-        #text = "6. add results data"
-        #self.btn6 = buttons.GenButton(self.panel, id=-1, label=text,
-        #                              size=(300, 50), name='result_btn')
-        #self.btn6.SetBackgroundColour("#C4DF9B")
-        #self.btn6.InitColours()
-        #self.Bind(wx.EVT_BUTTON, self.make_grid_frame, self.btn6)
+        text = "6. add measurements data"
+        self.btn6 = buttons.GenButton(self.panel, id=-1, label=text,
+                                      size=(300, 50), name='measurements_btn')
+        self.btn6.SetBackgroundColour("#C4DF9B")
+        self.btn6.InitColours()
+        self.Bind(wx.EVT_BUTTON, self.make_grid_frame, self.btn6)
 
         bsizer1a = wx.BoxSizer(wx.VERTICAL)
         bsizer1a.AddSpacer(20)
@@ -171,13 +182,13 @@ class MainFrame(wx.Frame):
         #__init__(self, parent, id, label, pos, size, style, validator, name
         bsizer1b.Add(self.btn4, flag=wx.ALIGN_CENTER|wx.BOTTOM, border=20)
         bsizer1b.Add(self.btn5, 0, flag=wx.ALIGN_CENTER|wx.BOTTOM, border=20)
-        #bsizer1b.Add(self.btn6, 0, wx.ALIGN_CENTER, 0)
+        bsizer1b.Add(self.btn6, 0, wx.ALIGN_CENTER, 0)
         bSizer1.Add(bsizer1b, 0, wx.ALIGN_CENTER, 0)
         bSizer1.AddSpacer(20)
 
         #---sizer 2 ----
 
-        bSizer2 = wx.StaticBoxSizer(wx.StaticBox(self.panel, wx.ID_ANY, "Create file for upload to MagIC database", name='bSizer2'), wx.HORIZONTAL)
+        self.bSizer2 = wx.StaticBoxSizer(wx.StaticBox(self.panel, wx.ID_ANY, "Create file for upload to MagIC database", name='bSizer2'), wx.HORIZONTAL)
 
         text = "prepare upload txt file"
         self.btn_upload = buttons.GenButton(self.panel, id=-1, label=text,
@@ -186,9 +197,9 @@ class MainFrame(wx.Frame):
         self.btn_upload.InitColours()
         self.Bind(wx.EVT_BUTTON, self.on_upload_file, self.btn_upload)
 
-        bSizer2.AddSpacer(20)
-        bSizer2.Add(self.btn_upload, 0, wx.ALIGN_CENTER, 0)
-        bSizer2.AddSpacer(20)
+        self.bSizer2.AddSpacer(20)
+        self.bSizer2.Add(self.btn_upload, 0, wx.ALIGN_CENTER, 0)
+        self.bSizer2.AddSpacer(20)
         #self.Bind(wx.EVT_BUTTON, self.on_btn_upload, self.btn_upload)
 
 
@@ -209,7 +220,7 @@ class MainFrame(wx.Frame):
         vbox.AddSpacer(10)
         vbox.AddSpacer(10)
         self.hbox.AddSpacer(10)
-        vbox.Add(bSizer2, 0, wx.ALIGN_CENTER, 0)
+        vbox.Add(self.bSizer2, 0, wx.ALIGN_CENTER, 0)
         vbox.AddSpacer(10)
 
         self.hbox.Add(vbox, 0, wx.ALIGN_CENTER, 0)
@@ -271,14 +282,35 @@ class MainFrame(wx.Frame):
         # propagate site lat/lon info into locations if necessary
         if grid_type == 'locations' and 'sites' in self.contribution.tables:
             self.contribution.get_min_max_lat_lon()
+        # propagate lithologies/type/class information from sites to samples/specimens
+        if grid_type in ['specimens', 'samples']:
+            self.contribution.propagate_lithology_cols()
+        # propagate average lat/lon info from samples table if
+        # available in samples and missing in sites
+        if grid_type == 'sites':
+            self.contribution.propagate_average_up(cols=['lat', 'lon', 'height'],
+                                           target_df_name='sites',
+                                           source_df_name='samples')
+            self.contribution.propagate_lithology_cols()
         # hide mainframe
         self.on_open_grid_frame()
+        # choose appropriate size for grid
+        if grid_type == 'measurements':
+            huge = True
+        else:
+            huge = False
         # make grid frame
-        self.grid_frame = grid_frame.GridFrame(self.contribution, self.WD, grid_type, grid_type, self.panel)
+        self.grid_frame = grid_frame.GridFrame(self.contribution, self.WD,
+                                               grid_type, grid_type,
+                                               self.panel, huge=huge)
         row_string = ""
         # paint validations if appropriate
         if self.validation_mode:
             if grid_type in self.validation_mode:
+                if grid_type == 'measurements':
+                    skip_cell_render = True
+                else:
+                    skip_cell_render = False
                 self.grid_frame.toggle_help(None, "open")
                 row_problems = self.failing_items[grid_type]["rows"]
                 missing_columns = self.failing_items[grid_type]["missing_columns"]
@@ -287,10 +319,10 @@ class MainFrame(wx.Frame):
                 #col_nums = range(len(all_cols))
                 #col_pos = dict(zip(all_cols, col_nums))
                 if len(row_problems):
-                    row_string = """Columns and rows with problem data have been highlighted in blue.
-Cells with problem data are highlighted according to the type of problem.
-Red: incorrect data
-For full error messages, see {}.""".format(grid_type + "_errors.txt")
+                    row_string = "Columns and rows with problem data have been highlighted in blue.\n"
+                    if not skip_cell_render:
+                        row_string += "Cells with problem data are highlighted according to the type of problem.\nRed: incorrect data\n"
+                    row_string += "For full error messages, see {}.".format(grid_type + "_errors.txt")
                     for row in row_problems['num']:
                         self.grid_frame.grid.paint_invalid_row(row)
                         mask = row_problems["num"] == row
@@ -299,7 +331,8 @@ For full error messages, see {}.""".format(grid_type + "_errors.txt")
                         for col in cols:
                             pre, col_name = val_up3.extract_col_name(col)
                             col_ind = self.grid_frame.grid.col_labels.index(col_name)
-                            self.grid_frame.grid.paint_invalid_cell(row, col_ind)
+                            self.grid_frame.grid.paint_invalid_cell(row, col_ind,
+                                                                    skip_cell=skip_cell_render)
                 current_label = self.grid_frame.msg_text.GetLabel()
                 if len(missing_columns):
                     col_string = "You are missing the following required columns: {}\n\n".format(", ".join(missing_columns))
@@ -324,13 +357,26 @@ For full error messages, see {}.""".format(grid_type + "_errors.txt")
                                                                                   vocab=self.contribution.vocab)
         self.failing_items = all_failing_items
         if has_problems:
+            self.highlight_problems(has_problems)
+        if not has_problems:
+            self.validation_mode = set()
+            self.message.SetLabel('')
+            self.bSizer_msg.ShowItems(False)
+            self.hbox.Fit(self)
+        del wait
+
+    def highlight_problems(self, has_problems):
+        """
+        Outline grid buttons in red if they have validation errors
+        """
+        if has_problems:
             self.validation_mode = set(has_problems)
             # highlighting doesn't work with Windows
             if sys.platform in ['win32', 'win62']:
                 self.message.SetLabel('The following grid(s) have incorrect or incomplete data:\n{}'.format(', '.join(self.validation_mode)))
             # highlighting does work with OSX
             else:
-                for dtype in ["specimens", "samples", "sites", "locations", "ages"]:
+                for dtype in ["specimens", "samples", "sites", "locations", "ages", "measurements"]:
                     wind = self.FindWindowByName(dtype + '_btn')
                     if dtype not in has_problems:
                         wind.Unbind(wx.EVT_PAINT, handler=self.highlight_button)
@@ -339,13 +385,25 @@ For full error messages, see {}.""".format(grid_type + "_errors.txt")
                 self.Refresh()
                 self.message.SetLabel('Highlighted grids have incorrect or incomplete data')
             self.bSizer_msg.ShowItems(True)
+            # manually fire a paint event to make sure all buttons
+            # are highlighted/unhighlighted appropriately
+            paintEvent = wx.CommandEvent(wx.wxEVT_PAINT,
+                                         self.GetId())
+            self.GetEventHandler().ProcessEvent(paintEvent)
+
             self.hbox.Fit(self)
-        if not has_problems:
-            self.validation_mode = set()
-            self.message.SetLabel('')
-            self.bSizer_msg.ShowItems(False)
-            self.hbox.Fit(self)
-        del wait
+
+    def reset_highlights(self):
+        """
+        Remove red outlines from all buttons
+        """
+        for dtype in ["specimens", "samples", "sites", "locations", "ages"]:
+            wind = self.FindWindowByName(dtype + '_btn')
+            wind.Unbind(wx.EVT_PAINT, handler=self.highlight_button)
+        self.Refresh()
+        #self.message.SetLabel('Highlighted grids have incorrect or incomplete data')
+        self.bSizer_msg.ShowItems(False)
+        self.hbox.Fit(self)
 
 
     def highlight_button(self, event):

@@ -567,7 +567,7 @@ class MagMainFrame(wx.Frame):
         ex = None
         try:
             if ipmag.download_magic(f, self.WD, input_dir, overwrite=True):
-                text = "Successfully ran download_magic.py program.\nMagIC files were saved in your working directory.\nSee Terminal/Command Prompt for details."
+                text = "Successfully ran download_magic.py program.\nMagIC files were saved in your working directory.\nSee Terminal/message window for details."
             else:
                 text = "Something went wrong.  Make sure you chose a valid file downloaded from the MagIC database and try again."
 
@@ -599,12 +599,41 @@ class MagMainFrame(wx.Frame):
             text = "You are ready to upload.\n Your file: {}  was generated in MagIC Project Directory.\nDrag and drop this file in the MagIC database.".format(os.path.split(res)[1])
             dlg = wx.MessageDialog(self, caption="Saved", message=text, style=wx.OK)
         else:
-            text = "There were some problems with the creation of your upload file.\nError message: {}\nSee Terminal/Command Prompt for details".format(error_message)
+            text = "There were some problems with the creation of your upload file.\nError message: {}\nSee Terminal/message window for details".format(error_message)
             dlg = wx.MessageDialog(self, caption="Error", message=text, style=wx.OK)
 
         result = dlg.ShowModal()
         if result == wx.ID_OK:
             dlg.Destroy()
+
+        if self.data_model_num == 3:
+            from programs import magic_gui
+            self.Disable()
+            self.Hide()
+            self.magic_gui_frame = magic_gui.MainFrame(self.WD,
+                                                       dmodel=self.data_model,
+                                                       title="Validations",
+                                                       contribution=self.contribution)
+
+
+            self.magic_gui_frame.validation_mode = ['specimens']
+            self.magic_gui_frame.failing_items = all_failing_items
+            self.magic_gui_frame.change_dir_button.Disable()
+            self.magic_gui_frame.Centre()
+            self.magic_gui_frame.Show()
+            self.magic_gui_frame.highlight_problems(has_problems)
+            #
+            # change name of upload button to 'exit validation mode'
+            self.magic_gui_frame.bSizer2.GetStaticBox().SetLabel('return to main GUI')
+            self.magic_gui_frame.btn_upload.SetLabel("exit validation mode")
+            # bind that button to quitting magic gui and re-enabling Pmag GUI
+            self.magic_gui_frame.Bind(wx.EVT_BUTTON, self.on_end_validation, self.magic_gui_frame.btn_upload)
+
+    def on_end_validation(self, event):
+        self.Enable()
+        self.Show()
+        self.magic_gui_frame.Destroy()
+
 
 
     def on_menu_exit(self, event):

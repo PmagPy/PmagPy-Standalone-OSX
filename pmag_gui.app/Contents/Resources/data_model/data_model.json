@@ -1,410 +1,414 @@
 ﻿{
   "magic_version": "3.0",
   "criteria_map": {
-  "site_polarity":{
-    "table_column":"site.dir_polarity",
-    "criterion_operation":"="
-  },
-  "specimen_b_beta":{
-    "table_column":"specimens.int_b_beta",
-    "criterion_operation":"<="
-  },
-  "specimen_int_ptrm_n":{
-    "table_column":"specimens.int_n_ptrm",
-    "criterion_operation":">="
-  },
-  "specimen_int_mad":{
-    "table_column":"specimens.int_mad_free",
-    "criterion_operation":"<="
-  },
-  "specimen_dang":{
-    "table_column":"specimens.int_dang",
-    "criterion_operation":"<="
-  },
-  "specimen_drats":{
-    "table_column":"specimens.int_drats",
-    "criterion_operation":"<="
-  },
-  "specimen_fvds":{
-    "table_column":"specimens.int_fvds",
-    "criterion_operation":">="
-  },
-  "site_int_sigma_perc":{
-    "table_column":"sites.int_abs_sigma_perc",
-    "criterion_operation":"<="
-  },
-  "specimen_md":{
-    "table_column":"specimens.int_maxdev",
-    "criterion_operation":"<="
-  },
-  "specimen_q":{
-    "table_column":"specimens.int_q",
-    "criterion_operation":">="
-  },
-  "site_int_sigma":{
-    "table_column":"sites.int_abs_sigma",
-    "criterion_operation":"<="
-  },
-  "site_int_n":{
-    "table_column":"sites.int_n_samples",
-    "criterion_operation":">="
-  },
-  "specimen_mad":{
-    "table_column":"specimens.dir_mad_free",
-    "criterion_operation":"<="
-  },
-  "specimen_n":{
-    "table_column":"specimens.dir_n_measurements",
-    "criterion_operation":">="
-  },
-  "sample_alpha95":{
-    "table_column":"samples.dir_alpha95",
-    "criterion_operation":"<="
-  },
-  "site_alpha95":{
-    "table_column":"sites.dir_alpha95",
-    "criterion_operation":"<="
-  },
-  "site_k":{
-    "table_column":"sites.dir_k",
-    "criterion_operation":">="
-  },
-  "site_n":{
-    "table_column":"sites.dir_n_samples",
-    "criterion_operation":">="
-  },
-  "site_n_lines":{
-    "table_column":"sites.dir_n_specimens_lines",
-    "criterion_operation":">="
-  },
-  "sample_int_n":{
-    "table_column":"samples.int_n_samples",
-    "criterion_operation":">="
-  },
-  "sample_int_sigma":{
-    "table_column":"samples.int_abs_sigma",
-    "criterion_operation":"<="
-  },
-  "sample_int_sigma_perc":{
-    "table_column":"samples.int_abs_sigma_perc",
-    "criterion_operation":"<="
-  },
-  "specimen_alpha95":{
-    "table_column":"specimens.dir_alpha95",
-    "criterion_operation":"<="
-  },
-  "magic_experiment_names":{
-    "table_column":"measurements.experiment",
-    "criterion_operation":"contains"
-  },
-  "measurement_step_max":{
-    "table_column":"specimens.meas_step_max",
-    "criterion_operation":"<="
-  },
-  "specimen_int_n":{
-    "table_column":"specimens.int_n_measurements",
-    "criterion_operation":">="
-  },
-  "specimen_int_dang":{
-    "table_column":"specimens.int_dang",
-    "criterion_operation":"<="
-  },
-  "anisotropy_alt":{
-    "table_column":"specimens.aniso_alt",
-    "criterion_operation":"<="
-  },
-  "measurement_step_min":{
-    "table_column":"specimens.meas_step_min",
-    "criterion_operation":">="
-  },
-  "measurement_step_unit":{
-    "table_column":"specimens.meas_step_unit",
-    "criterion_operation":"="
-  },
-  "sample_comp_nmb":{
-    "table_column":"samples.dir_comp_name",
-    "criterion_operation":"contains"
-  },
-  "sample_int_rel_sigma":{
-    "table_column":"samples.int_rel_sigma",
-    "criterion_operation":"<="
-  },
-  "sample_int_rel_sigma_perc":{
-    "table_column":"samples.int_rel_sigma_perc",
-    "criterion_operation":"<="
-  },
-  "sample_k":{
-    "table_column":"samples.dir_k",
-    "criterion_operation":">="
-  },
-  "sample_magn_mass":{
-    "table_column":"samples.magn_mass",
-    "criterion_operation":">="
-  },
-  "sample_magn_volume":{
-    "table_column":"samples.magn_volume",
-    "criterion_operation":">="
-  },
-  "sample_n":{
-    "table_column":"samples.dir_n_samples",
-    "criterion_operation":">="
-  },
-  "sample_n_lines":{
-    "table_column":"samples.dir_n_specimens_lines",
-    "criterion_operation":">="
-  },
-  "sample_n_planes":{
-    "table_column":"samples.dir_n_specimens_planes",
-    "criterion_operation":">="
-  },
-  "sample_nrm":{
-    "table_column":"site.dir_nrm_origin",
-    "criterion_operation":"="
-  },
-  "sample_polarity":{
-    "table_column":"site.dir_polarity",
-    "criterion_operation":"="
-  },
-  "sample_r":{
-    "table_column":"samples.dir_r",
-    "criterion_operation":">="
-  },
-  "sample_tilt_correction":{
-    "table_column":"samples.dir_tilt_correction",
-    "criterion_operation":">="
-  },
-  "site_comp_nmb":{
-    "table_column":"sites.dir_comp_name",
-    "criterion_operation":"contains"
-  },
-  "site_int_rel_sigma":{
-    "table_column":"sites.int_rel_sigma",
-    "criterion_operation":"<="
-  },
-  "site_int_rel_sigma_perc":{
-    "table_column":"sites.int_rel_sigma_perc",
-    "criterion_operation":"<="
-  },
-  "site_magn_mass":{
-    "table_column":"sites.magn_mass",
-    "criterion_operation":">="
-  },
-  "site_magn_volume":{
-    "table_column":"sites.magn_volume",
-    "criterion_operation":">="
-  },
-  "site_n_planes":{
-    "table_column":"sites.dir_n_specimens_planes",
-    "criterion_operation":">="
-  },
-  "site_nrm":{
-    "table_column":"site.dir_nrm_origin",
-    "criterion_operation":"="
-  },
-  "site_r":{
-    "table_column":"sites.dir_r",
-    "criterion_operation":">="
-  },
-  "site_tilt_correction":{
-    "table_column":"sites.dir_tilt_correction",
-    "criterion_operation":">="
-  },
-  "specimen_ac_n":{
-    "table_column":"specimens.int_n_ac",
-    "criterion_operation":">="
-  },
-  "specimen_alpha":{
-    "table_column":"specimens.dir_alpha",
-    "criterion_operation":"<="
-  },
-  "specimen_alpha_prime":{
-    "table_column":"specimens.int_alpha_prime",
-    "criterion_operation":"<="
-  },
-  "anisotropy_ftest_flag":{
-    "table_column":"specimens.aniso_ftest_quality",
-    "criterion_operation":"="
-  },
-  "specimen_b_sigma":{
-    "table_column":"specimens.int_b_sigma",
-    "criterion_operation":"<="
-  },
-  "specimen_cdrat":{
-    "table_column":"specimens.int_cdrat",
-    "criterion_operation":"<="
-  },
-  "specimen_coeff_det_sq":{
-    "table_column":"specimens.int_r2_det",
-    "criterion_operation":"<="
-  },
-  "specimen_comp_nmb":{
-    "table_column":"specimens.dir_comp",
-    "criterion_operation":"contains"
-  },
-  "specimen_dac":{
-    "table_column":"specimens.int_dac",
-    "criterion_operation":"<="
-  },
-  "specimen_dck":{
-    "table_column":"specimens.int_dck",
-    "criterion_operation":"<="
-  },
-  "specimen_delta":{
-    "table_column":"specimens.int_delta",
-    "criterion_operation":"<="
-  },
-  "specimen_dpal":{
-    "table_column":"specimens.int_dpal",
-    "criterion_operation":"<="
-  },
-  "specimen_drat":{
-    "table_column":"specimens.int_drat",
-    "criterion_operation":"<="
-  },
-  "specimen_dt":{
-    "table_column":"specimens.int_dt",
-    "criterion_operation":"<="
-  },
-  "specimen_dtr":{
-    "table_column":"specimens.int_dtr",
-    "criterion_operation":"<="
-  },
-  "specimen_f":{
-    "table_column":"specimens.int_f",
-    "criterion_operation":">="
-  },
-  "specimen_frac":{
-    "table_column":"specimens.int_frac",
-    "criterion_operation":">="
-  },
-  "specimen_g":{
-    "table_column":"specimens.int_g",
-    "criterion_operation":">="
-  },
-  "specimen_gamma":{
-    "table_column":"specimens.int_gamma",
-    "criterion_operation":"<="
-  },
-  "specimen_gmax":{
-    "table_column":"specimens.int_gmax",
-    "criterion_operation":"<="
-  },
-  "specimen_int_alpha":{
-    "table_column":"specimens.int_alpha",
-    "criterion_operation":"<="
-  },
-  "specimen_int_crm":{
-    "table_column":"specimens.int_crm",
-    "criterion_operation":"<="
-  },
-  "specimen_int_mad_anc":{
-    "table_column":"specimens.int_mad_anc",
-    "criterion_operation":">="
-  },
-  "specimen_int_ptrm_tail_n":{
-    "table_column":"specimens.int_n_ptrm_tail",
-    "criterion_operation":">="
-  },
-  "specimen_int_rel_sigma":{
-    "table_column":"specimens.int_rel_sigma",
-    "criterion_operation":"<="
-  },
-  "specimen_int_rel_sigma_perc":{
-    "table_column":"specimens.int_rel_sigma_perc",
-    "criterion_operation":"<="
-  },
-  "specimen_int_sigma":{
-    "table_column":"specimens.int_abs_sigma",
-    "criterion_operation":"<="
-  },
-  "specimen_int_sigma_perc":{
-    "table_column":"specimens.int_abs_sigma_perc",
-    "criterion_operation":"<="
-  },
-  "specimen_k":{
-    "table_column":"specimens.int_k",
-    "criterion_operation":"<="
-  },
-  "specimen_k_sse":{
-    "table_column":"specimens.int_k_sse",
-    "criterion_operation":"<="
-  },
-  "specimen_mad_anc":{
-    "table_column":"specimens.dir_mad_anc",
-    "criterion_operation":"<="
-  },
-  "specimen_magn_mass":{
-    "table_column":"specimens.magn_mass",
-    "criterion_operation":">="
-  },
-  "specimen_magn_moment":{
-    "table_column":"specimens.magn_moment",
-    "criterion_operation":">="
-  },
-  "specimen_magn_volume":{
-    "table_column":"specimens.magn_volume",
-    "criterion_operation":">="
-  },
-  "specimen_maxdev":{
-    "table_column":"specimens.int_maxdev",
-    "criterion_operation":"<="
-  },
-  "specimen_mdev":{
-    "table_column":"specimens.int_mdev",
-    "criterion_operation":"<="
-  },
-  "specimen_mdrat":{
-    "table_column":"specimens.int_mdrat",
-    "criterion_operation":"<="
-  },
-  "specimen_nrm":{
-    "table_column":"specimens.dir_nrm_origin",
-    "criterion_operation":"="
-  },
-  "specimen_polarity":{
-    "table_column":"specimens.dir_polarity",
-    "criterion_operation":"="
-  },
-  "specimen_ptrm":{
-    "table_column":"specimens.int_ptrm",
-    "criterion_operation":"<="
-  },
-  "specimen_r_sq":{
-    "table_column":"specimens.int_r2_corr",
-    "criterion_operation":">="
-  },
-  "specimen_rsc":{
-    "table_column":"specimens.int_rsc",
-    "criterion_operation":"<="
-  },
-  "specimen_scat":{
-    "table_column":"specimens.int_scat",
-    "criterion_operation":"="
-  },
-  "specimen_tail_drat":{
-    "table_column":"specimens.int_drat_tail",
-    "criterion_operation":"<="
-  },
-  "specimen_theta":{
-    "table_column":"specimens.int_theta",
-    "criterion_operation":"<="
-  },
-  "specimen_viscosity_index":{
-    "table_column":"specimens.int_viscosity_index",
-    "criterion_operation":"<="
-  },
-  "specimen_w":{
-    "table_column":"specimens.int_w",
-    "criterion_operation":"<="
-  },
-  "specimen_z":{
-    "table_column":"specimens.int_z",
-    "criterion_operation":"<="
-  },
-  "specimen_z_md":{
-    "table_column":"specimens.int_z_md",
-    "criterion_operation":"<="
-  }
+    "site_polarity": {
+      "table_column": "site.dir_polarity",
+      "criterion_operation": "="
+    },
+    "specimen_b_beta": {
+      "table_column": "specimens.int_b_beta",
+      "criterion_operation": "<="
+    },
+    "specimen_int_ptrm_n": {
+      "table_column": "specimens.int_n_ptrm",
+      "criterion_operation": ">="
+    },
+    "specimen_int_mad": {
+      "table_column": "specimens.int_mad_free",
+      "criterion_operation": "<="
+    },
+    "specimen_dang": {
+      "table_column": "specimens.int_dang",
+      "criterion_operation": "<="
+    },
+    "specimen_drats": {
+      "table_column": "specimens.int_drats",
+      "criterion_operation": "<="
+    },
+    "specimen_fvds": {
+      "table_column": "specimens.int_fvds",
+      "criterion_operation": ">="
+    },
+    "site_int_sigma_perc": {
+      "table_column": "sites.int_abs_sigma_perc",
+      "criterion_operation": "<="
+    },
+    "specimen_md": {
+      "table_column": "specimens.int_maxdev",
+      "criterion_operation": "<="
+    },
+    "specimen_q": {
+      "table_column": "specimens.int_q",
+      "criterion_operation": ">="
+    },
+    "site_int_sigma": {
+      "table_column": "sites.int_abs_sigma",
+      "criterion_operation": "<="
+    },
+    "site_int_n": {
+      "table_column": "sites.int_n_samples",
+      "criterion_operation": ">="
+    },
+    "specimen_mad": {
+      "table_column": "specimens.dir_mad_free",
+      "criterion_operation": "<="
+    },
+    "specimen_n": {
+      "table_column": "specimens.dir_n_measurements",
+      "criterion_operation": ">="
+    },
+    "sample_alpha95": {
+      "table_column": "samples.dir_alpha95",
+      "criterion_operation": "<="
+    },
+    "site_alpha95": {
+      "table_column": "sites.dir_alpha95",
+      "criterion_operation": "<="
+    },
+    "site_k": {
+      "table_column": "sites.dir_k",
+      "criterion_operation": ">="
+    },
+    "site_n": {
+      "table_column": "sites.dir_n_samples",
+      "criterion_operation": ">="
+    },
+    "site_n_lines": {
+      "table_column": "sites.dir_n_specimens_lines",
+      "criterion_operation": ">="
+    },
+    "sample_int_n": {
+      "table_column": "samples.int_n_specimens",
+      "criterion_operation": ">="
+    },
+    "sample_int_sigma": {
+      "table_column": "samples.int_abs_sigma",
+      "criterion_operation": "<="
+    },
+    "sample_int_sigma_perc": {
+      "table_column": "samples.int_abs_sigma_perc",
+      "criterion_operation": "<="
+    },
+    "specimen_alpha95": {
+      "table_column": "specimens.dir_alpha95",
+      "criterion_operation": "<="
+    },
+    "magic_experiment_names": {
+      "table_column": "measurements.experiment",
+      "criterion_operation": "contains"
+    },
+    "measurement_step_max": {
+      "table_column": "specimens.meas_step_max",
+      "criterion_operation": "<="
+    },
+    "specimen_int_n": {
+      "table_column": "specimens.int_n_measurements",
+      "criterion_operation": ">="
+    },
+    "specimen_int_dang": {
+      "table_column": "specimens.int_dang",
+      "criterion_operation": "<="
+    },
+    "anisotropy_alt": {
+      "table_column": "specimens.aniso_alt",
+      "criterion_operation": "<="
+    },
+    "measurement_step_min": {
+      "table_column": "specimens.meas_step_min",
+      "criterion_operation": ">="
+    },
+    "measurement_step_unit": {
+      "table_column": "specimens.meas_step_unit",
+      "criterion_operation": "="
+    },
+    "sample_aniso_mean": {
+      "table_column": "samples.int_corr_aniso_mean",
+      "criterion_operation": "<="
+    },
+    "sample_comp_nmb": {
+      "table_column": "samples.dir_comp_name",
+      "criterion_operation": "contains"
+    },
+    "sample_int_rel_sigma": {
+      "table_column": "samples.int_rel_sigma",
+      "criterion_operation": "<="
+    },
+    "sample_int_rel_sigma_perc": {
+      "table_column": "samples.int_rel_sigma_perc",
+      "criterion_operation": "<="
+    },
+    "sample_k": {
+      "table_column": "samples.dir_k",
+      "criterion_operation": ">="
+    },
+    "sample_magn_mass": {
+      "table_column": "samples.magn_mass",
+      "criterion_operation": ">="
+    },
+    "sample_magn_volume": {
+      "table_column": "samples.magn_volume",
+      "criterion_operation": ">="
+    },
+    "sample_n": {
+      "table_column": "samples.dir_n_samples",
+      "criterion_operation": ">="
+    },
+    "sample_n_lines": {
+      "table_column": "samples.dir_n_specimens_lines",
+      "criterion_operation": ">="
+    },
+    "sample_n_planes": {
+      "table_column": "samples.dir_n_specimens_planes",
+      "criterion_operation": ">="
+    },
+    "sample_nrm": {
+      "table_column": "site.dir_nrm_origin",
+      "criterion_operation": "="
+    },
+    "sample_polarity": {
+      "table_column": "site.dir_polarity",
+      "criterion_operation": "="
+    },
+    "sample_r": {
+      "table_column": "samples.dir_r",
+      "criterion_operation": ">="
+    },
+    "sample_tilt_correction": {
+      "table_column": "samples.dir_tilt_correction",
+      "criterion_operation": ">="
+    },
+    "site_comp_nmb": {
+      "table_column": "sites.dir_comp_name",
+      "criterion_operation": "contains"
+    },
+    "site_int_rel_sigma": {
+      "table_column": "sites.int_rel_sigma",
+      "criterion_operation": "<="
+    },
+    "site_int_rel_sigma_perc": {
+      "table_column": "sites.int_rel_sigma_perc",
+      "criterion_operation": "<="
+    },
+    "site_magn_mass": {
+      "table_column": "sites.magn_mass",
+      "criterion_operation": ">="
+    },
+    "site_magn_volume": {
+      "table_column": "sites.magn_volume",
+      "criterion_operation": ">="
+    },
+    "site_n_planes": {
+      "table_column": "sites.dir_n_specimens_planes",
+      "criterion_operation": ">="
+    },
+    "site_nrm": {
+      "table_column": "site.dir_nrm_origin",
+      "criterion_operation": "="
+    },
+    "site_r": {
+      "table_column": "sites.dir_r",
+      "criterion_operation": ">="
+    },
+    "site_tilt_correction": {
+      "table_column": "sites.dir_tilt_correction",
+      "criterion_operation": ">="
+    },
+    "specimen_ac_n": {
+      "table_column": "specimens.int_n_ac",
+      "criterion_operation": ">="
+    },
+    "specimen_alpha": {
+      "table_column": "specimens.dir_alpha",
+      "criterion_operation": "<="
+    },
+    "specimen_alpha_prime": {
+      "table_column": "specimens.int_alpha_prime",
+      "criterion_operation": "<="
+    },
+    "specimen_aniso_ftest_flag": {
+      "table_column": "specimens.aniso_ftest_quality",
+      "criterion_operation": "="
+    },
+    "specimen_b_sigma": {
+      "table_column": "specimens.int_b_sigma",
+      "criterion_operation": "<="
+    },
+    "specimen_cdrat": {
+      "table_column": "specimens.int_cdrat",
+      "criterion_operation": "<="
+    },
+    "specimen_coeff_det_sq": {
+      "table_column": "specimens.int_r2_det",
+      "criterion_operation": "<="
+    },
+    "specimen_comp_nmb": {
+      "table_column": "specimens.dir_comp",
+      "criterion_operation": "contains"
+    },
+    "specimen_dac": {
+      "table_column": "specimens.int_dac",
+      "criterion_operation": "<="
+    },
+    "specimen_dck": {
+      "table_column": "specimens.int_dck",
+      "criterion_operation": "<="
+    },
+    "specimen_delta": {
+      "table_column": "specimens.int_delta",
+      "criterion_operation": "<="
+    },
+    "specimen_dpal": {
+      "table_column": "specimens.int_dpal",
+      "criterion_operation": "<="
+    },
+    "specimen_drat": {
+      "table_column": "specimens.int_drat",
+      "criterion_operation": "<="
+    },
+    "specimen_dt": {
+      "table_column": "specimens.int_dt",
+      "criterion_operation": "<="
+    },
+    "specimen_dtr": {
+      "table_column": "specimens.int_dtr",
+      "criterion_operation": "<="
+    },
+    "specimen_f": {
+      "table_column": "specimens.int_f",
+      "criterion_operation": ">="
+    },
+    "specimen_frac": {
+      "table_column": "specimens.int_frac",
+      "criterion_operation": ">="
+    },
+    "specimen_g": {
+      "table_column": "specimens.int_g",
+      "criterion_operation": ">="
+    },
+    "specimen_gamma": {
+      "table_column": "specimens.int_gamma",
+      "criterion_operation": "<="
+    },
+    "specimen_gmax": {
+      "table_column": "specimens.int_gmax",
+      "criterion_operation": "<="
+    },
+    "specimen_int_alpha": {
+      "table_column": "specimens.int_alpha",
+      "criterion_operation": "<="
+    },
+    "specimen_int_crm": {
+      "table_column": "specimens.int_crm",
+      "criterion_operation": "<="
+    },
+    "specimen_int_mad_anc": {
+      "table_column": "specimens.int_mad_anc",
+      "criterion_operation": ">="
+    },
+    "specimen_int_ptrm_tail_n": {
+      "table_column": "specimens.int_n_ptrm_tail",
+      "criterion_operation": ">="
+    },
+    "specimen_int_rel_sigma": {
+      "table_column": "specimens.int_rel_sigma",
+      "criterion_operation": "<="
+    },
+    "specimen_int_rel_sigma_perc": {
+      "table_column": "specimens.int_rel_sigma_perc",
+      "criterion_operation": "<="
+    },
+    "specimen_int_sigma": {
+      "table_column": "specimens.int_abs_sigma",
+      "criterion_operation": "<="
+    },
+    "specimen_int_sigma_perc": {
+      "table_column": "specimens.int_abs_sigma_perc",
+      "criterion_operation": "<="
+    },
+    "specimen_k": {
+      "table_column": "specimens.int_k",
+      "criterion_operation": "<="
+    },
+    "specimen_k_sse": {
+      "table_column": "specimens.int_k_sse",
+      "criterion_operation": "<="
+    },
+    "specimen_mad_anc": {
+      "table_column": "specimens.dir_mad_anc",
+      "criterion_operation": "<="
+    },
+    "specimen_magn_mass": {
+      "table_column": "specimens.magn_mass",
+      "criterion_operation": ">="
+    },
+    "specimen_magn_moment": {
+      "table_column": "specimens.magn_moment",
+      "criterion_operation": ">="
+    },
+    "specimen_magn_volume": {
+      "table_column": "specimens.magn_volume",
+      "criterion_operation": ">="
+    },
+    "specimen_maxdev": {
+      "table_column": "specimens.int_maxdev",
+      "criterion_operation": "<="
+    },
+    "specimen_mdev": {
+      "table_column": "specimens.int_mdev",
+      "criterion_operation": "<="
+    },
+    "specimen_mdrat": {
+      "table_column": "specimens.int_mdrat",
+      "criterion_operation": "<="
+    },
+    "specimen_nrm": {
+      "table_column": "specimens.dir_nrm_origin",
+      "criterion_operation": "="
+    },
+    "specimen_polarity": {
+      "table_column": "specimens.dir_polarity",
+      "criterion_operation": "="
+    },
+    "specimen_ptrm": {
+      "table_column": "specimens.int_ptrm",
+      "criterion_operation": "<="
+    },
+    "specimen_r_sq": {
+      "table_column": "specimens.int_r2_corr",
+      "criterion_operation": ">="
+    },
+    "specimen_rsc": {
+      "table_column": "specimens.int_rsc",
+      "criterion_operation": "<="
+    },
+    "specimen_scat": {
+      "table_column": "specimens.int_scat",
+      "criterion_operation": "="
+    },
+    "specimen_tail_drat": {
+      "table_column": "specimens.int_drat_tail",
+      "criterion_operation": "<="
+    },
+    "specimen_theta": {
+      "table_column": "specimens.int_theta",
+      "criterion_operation": "<="
+    },
+    "specimen_viscosity_index": {
+      "table_column": "specimens.int_viscosity_index",
+      "criterion_operation": "<="
+    },
+    "specimen_w": {
+      "table_column": "specimens.int_w",
+      "criterion_operation": "<="
+    },
+    "specimen_z": {
+      "table_column": "specimens.int_z",
+      "criterion_operation": "<="
+    },
+    "specimen_z_md": {
+      "table_column": "specimens.int_z_md",
+      "criterion_operation": "<="
+    }
   },
   "tables": {
     "contribution": {
@@ -2105,7 +2109,7 @@
           "position": 80,
           "type": "Number",
           "unit": "Am^2",
-          "description": "Paleomagnetic axial dipole moment, Average of site VDMs",
+          "description": "Paleomagnetic axial dipole moment, Average of site VADMs",
           "validations": [
             "requiredIfGroup(\"PADM\")"
           ],
@@ -4207,10 +4211,18 @@
             }
           ]
         },
+        "int_corr_aniso_mean": {
+          "label": "Paleointensity Anisotropy Correction Factor",
+          "group": "Paleointensity",
+          "position": 87,
+          "type": "Number",
+          "unit": "Dimensionless",
+          "description": "Mean of paleointensity anisotropy correction factors for all specimens from the same mother site"
+        },
         "aniso_type": {
           "label": "Anisotropy Type",
           "group": "Anisotropy",
-          "position": 87,
+          "position": 88,
           "type": "String",
           "description": "Anisotropy calculation type",
           "examples": [
@@ -4232,7 +4244,7 @@
         "aniso_tilt_correction": {
           "label": "Anisotropy Tilt Correction",
           "group": "Anisotropy",
-          "position": 88,
+          "position": 89,
           "type": "Number",
           "unit": "%",
           "description": "Percentage tilt correction applied to the data",
@@ -4252,7 +4264,7 @@
         "aniso_v1": {
           "label": "Anisotropy V1",
           "group": "Anisotropy",
-          "position": 89,
+          "position": 90,
           "type": "Matrix",
           "unit": "Custom",
           "description": "Anisotropy eigenparameters for the maximum eigenvalue (T1), a colon-delimited list of tau (T1), dec, inc, confidence ellipse type, and confidence ellipse parameters",
@@ -4301,7 +4313,7 @@
         "aniso_v2": {
           "label": "Anisotropy V2",
           "group": "Anisotropy",
-          "position": 90,
+          "position": 91,
           "type": "Matrix",
           "unit": "Custom",
           "description": "Anisotropy eigenparameters for the intermediate eigenvalue (T2), a colon-delimited list of tau (T2), dec, inc, confidence ellipse type, and confidence ellipse parameters",
@@ -4350,7 +4362,7 @@
         "aniso_v3": {
           "label": "Anisotropy V3",
           "group": "Anisotropy",
-          "position": 91,
+          "position": 92,
           "type": "Matrix",
           "unit": "Custom",
           "description": "Anisotropy eigenparameters for the minimum eigenvalue (T3), a colon-delimited list of tau (T3), dec, inc, confidence ellipse type, and confidence ellipse parameters",
@@ -4399,7 +4411,7 @@
         "aniso_perc": {
           "label": "Anisotropy Percent",
           "group": "Anisotropy",
-          "position": 92,
+          "position": 93,
           "type": "Number",
           "unit": "%",
           "description": "Percent anisotropy, 100 * (S1-S3) / (S1+S2+S3)",
@@ -4417,7 +4429,7 @@
         "aniso_total": {
           "label": "Anisotropy Total",
           "group": "Anisotropy",
-          "position": 93,
+          "position": 94,
           "type": "Number",
           "unit": "%",
           "description": "Total anisotropy, 100 * (S1-S3) / Mean",
@@ -4435,7 +4447,7 @@
         "aniso_p": {
           "label": "Anisotropy P",
           "group": "Anisotropy",
-          "position": 94,
+          "position": 95,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Anisotropy degree, T1/T3",
@@ -4449,7 +4461,7 @@
         "aniso_pp": {
           "label": "Anisotropy P'",
           "group": "Anisotropy",
-          "position": 95,
+          "position": 96,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -4466,7 +4478,7 @@
         "aniso_t": {
           "label": "Anisotropy T",
           "group": "Anisotropy",
-          "position": 96,
+          "position": 97,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -4483,7 +4495,7 @@
         "aniso_l": {
           "label": "Anisotropy L",
           "group": "Anisotropy",
-          "position": 97,
+          "position": 98,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Lineation, T1/T2",
@@ -4497,7 +4509,7 @@
         "aniso_f": {
           "label": "Anisotropy F",
           "group": "Anisotropy",
-          "position": 98,
+          "position": 99,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Foliation, T2/T3",
@@ -4511,7 +4523,7 @@
         "aniso_ll": {
           "label": "Anisotropy L'",
           "group": "Anisotropy",
-          "position": 99,
+          "position": 100,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -4528,7 +4540,7 @@
         "aniso_ff": {
           "label": "Anisotropy F'",
           "group": "Anisotropy",
-          "position": 100,
+          "position": 101,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -4545,7 +4557,7 @@
         "aniso_vg": {
           "label": "Anisotropy Vg",
           "group": "Anisotropy",
-          "position": 101,
+          "position": 102,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Graham's V parameter defined by sin(V)=sqrt((K2-K3)/(K1-K3))",
@@ -4560,7 +4572,7 @@
         "aniso_fl": {
           "label": "Anisotropy FL Ratio",
           "group": "Anisotropy",
-          "position": 102,
+          "position": 103,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "F/L",
@@ -4571,10 +4583,21 @@
             }
           ]
         },
+        "aniso_ftest_quality": {
+          "label": "Anisotropy F Test Quality",
+          "group": "Anisotropy",
+          "position": 104,
+          "type": "String",
+          "unit": "Flag",
+          "description": "Indicating if a good (g) or bad (b) data according to the F statistical test for anisotropy",
+          "validations": [
+            "cv(\"data_quality\")"
+          ]
+        },
         "aniso_ftest": {
           "label": "Anisotropy F Test",
           "group": "Anisotropy",
-          "position": 103,
+          "position": 105,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for anisotropy",
@@ -4588,7 +4611,7 @@
         "aniso_ftest12": {
           "label": "Anisotropy F Test Prolateness",
           "group": "Anisotropy",
-          "position": 104,
+          "position": 106,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for prolateness",
@@ -4602,7 +4625,7 @@
         "aniso_ftest23": {
           "label": "Anisotropy F Test Oblateness",
           "group": "Anisotropy",
-          "position": 105,
+          "position": 107,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for oblateness",
@@ -4616,7 +4639,7 @@
         "description": {
           "label": "Description",
           "group": "Metadata",
-          "position": 106,
+          "position": 108,
           "type": "String",
           "description": "Site and result description and comments",
           "previous_columns": [
@@ -4649,7 +4672,7 @@
         "rotation_sequence": {
           "label": "Sequence of Rotations",
           "group": "Metadata",
-          "position": 107,
+          "position": 109,
           "type": "Matrix",
           "unit": "Custom",
           "description": "N by M matrix with N sequential rotations and the length of each row defined by the first element: the rotation type",
@@ -4685,7 +4708,7 @@
         "criteria": {
           "label": "Criteria Names",
           "group": "Metadata",
-          "position": 108,
+          "position": 110,
           "type": "List",
           "description": "Colon-delimited list of criteria names",
           "examples": [
@@ -4713,7 +4736,7 @@
         "instrument_codes": {
           "label": "Instrument Codes",
           "group": "Metadata",
-          "position": 109,
+          "position": 111,
           "type": "List",
           "description": "Colon-delimited list of instrument codes",
           "validations": [
@@ -4733,7 +4756,7 @@
         "software_packages": {
           "label": "Software Packages",
           "group": "Metadata",
-          "position": 110,
+          "position": 112,
           "type": "List",
           "description": "Colon-delimited list of software used for data reduction",
           "examples": [
@@ -4758,7 +4781,7 @@
         "external_database_ids": {
           "label": "External Database IDs",
           "group": "Metadata",
-          "position": 111,
+          "position": 113,
           "type": "Dictionary",
           "description": "Dictionary of external databases and IDs where data are used",
           "examples": [
@@ -4799,7 +4822,7 @@
         "scientists": {
           "label": "Research Scientist Names",
           "group": "Metadata",
-          "position": 112,
+          "position": 114,
           "type": "List",
           "description": "Colon-delimited list of EarthRef handles and/or names and emails for scientists who described the site",
           "examples": [
@@ -4826,7 +4849,7 @@
         "analysts": {
           "label": "Analyst Names",
           "group": "Metadata",
-          "position": 113,
+          "position": 115,
           "type": "List",
           "description": "Colon-delimited list of EarthRef handles and/or names and emails for analysts",
           "examples": [
@@ -6206,10 +6229,18 @@
             }
           ]
         },
+        "int_corr_aniso_mean": {
+          "label": "Paleointensity Anisotropy Correction Factor",
+          "group": "Paleointensity",
+          "position": 69,
+          "type": "Number",
+          "unit": "Dimensionless",
+          "description": "Mean of paleointensity anisotropy correction factors for all specimens from the same mother sample"
+        },
         "aniso_type": {
           "label": "Anisotropy Type",
           "group": "Anisotropy",
-          "position": 69,
+          "position": 70,
           "type": "String",
           "description": "Anisotropy calculation type",
           "examples": [
@@ -6231,7 +6262,7 @@
         "aniso_tilt_correction": {
           "label": "Anisotropy Tilt Correction",
           "group": "Anisotropy",
-          "position": 70,
+          "position": 71,
           "type": "Number",
           "unit": "%",
           "description": "Percentage tilt correction applied to the data",
@@ -6251,7 +6282,7 @@
         "aniso_v1": {
           "label": "Anisotropy V1",
           "group": "Anisotropy",
-          "position": 71,
+          "position": 72,
           "type": "Matrix",
           "unit": "Custom",
           "description": "Anisotropy eigenparameters for the maximum eigenvalue (T1), a colon-delimited list of tau (T1), dec, inc, confidence ellipse type, and confidence ellipse parameters",
@@ -6300,7 +6331,7 @@
         "aniso_v2": {
           "label": "Anisotropy V2",
           "group": "Anisotropy",
-          "position": 72,
+          "position": 73,
           "type": "Matrix",
           "unit": "Custom",
           "description": "Anisotropy eigenparameters for the intermediate eigenvalue (T2), a colon-delimited list of tau (T2), dec, inc, confidence ellipse type, and confidence ellipse parameters",
@@ -6349,7 +6380,7 @@
         "aniso_v3": {
           "label": "Anisotropy V3",
           "group": "Anisotropy",
-          "position": 73,
+          "position": 74,
           "type": "Matrix",
           "unit": "Custom",
           "description": "Anisotropy eigenparameters for the minimum eigenvalue (T3), a colon-delimited list of tau (T3), dec, inc, confidence ellipse type, and confidence ellipse parameters",
@@ -6398,7 +6429,7 @@
         "aniso_perc": {
           "label": "Anisotropy Percent",
           "group": "Anisotropy",
-          "position": 74,
+          "position": 75,
           "type": "Number",
           "unit": "%",
           "description": "Percent anisotropy, 100 * (S1-S3) / (S1+S2+S3)",
@@ -6416,7 +6447,7 @@
         "aniso_total": {
           "label": "Anisotropy Total",
           "group": "Anisotropy",
-          "position": 75,
+          "position": 76,
           "type": "Number",
           "unit": "%",
           "description": "Total anisotropy, 100 * (S1-S3) / Mean",
@@ -6434,7 +6465,7 @@
         "aniso_p": {
           "label": "Anisotropy P",
           "group": "Anisotropy",
-          "position": 76,
+          "position": 77,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Anisotropy degree, T1/T3",
@@ -6448,7 +6479,7 @@
         "aniso_pp": {
           "label": "Anisotropy P'",
           "group": "Anisotropy",
-          "position": 77,
+          "position": 78,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -6465,7 +6496,7 @@
         "aniso_t": {
           "label": "Anisotropy T",
           "group": "Anisotropy",
-          "position": 78,
+          "position": 79,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -6482,7 +6513,7 @@
         "aniso_l": {
           "label": "Anisotropy L",
           "group": "Anisotropy",
-          "position": 79,
+          "position": 80,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Lineation, T1/T2",
@@ -6496,7 +6527,7 @@
         "aniso_f": {
           "label": "Anisotropy F",
           "group": "Anisotropy",
-          "position": 80,
+          "position": 81,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Foliation, T2/T3",
@@ -6510,7 +6541,7 @@
         "aniso_ll": {
           "label": "Anisotropy L'",
           "group": "Anisotropy",
-          "position": 81,
+          "position": 82,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -6527,7 +6558,7 @@
         "aniso_ff": {
           "label": "Anisotropy F'",
           "group": "Anisotropy",
-          "position": 82,
+          "position": 83,
           "type": "Number",
           "unit": "Dimensionless",
           "urls": [
@@ -6544,7 +6575,7 @@
         "aniso_vg": {
           "label": "Anisotropy Vg",
           "group": "Anisotropy",
-          "position": 83,
+          "position": 84,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Graham's V parameter defined by sin(V)=sqrt((K2-K3)/(K1-K3))",
@@ -6559,7 +6590,7 @@
         "aniso_fl": {
           "label": "Anisotropy FL Ratio",
           "group": "Anisotropy",
-          "position": 84,
+          "position": 85,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "F/L",
@@ -6570,10 +6601,21 @@
             }
           ]
         },
+        "aniso_ftest_quality": {
+          "label": "Anisotropy F Test Quality",
+          "group": "Anisotropy",
+          "position": 86,
+          "type": "String",
+          "unit": "Flag",
+          "description": "Indicating if a good (g) or bad (b) data according to the F statistical test for anisotropy",
+          "validations": [
+            "cv(\"data_quality\")"
+          ]
+        },
         "aniso_ftest": {
           "label": "Anisotropy F Test",
           "group": "Anisotropy",
-          "position": 85,
+          "position": 87,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for anisotropy",
@@ -6587,7 +6629,7 @@
         "aniso_ftest12": {
           "label": "Anisotropy F Test Prolateness",
           "group": "Anisotropy",
-          "position": 86,
+          "position": 88,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for prolateness",
@@ -6601,7 +6643,7 @@
         "aniso_ftest23": {
           "label": "Anisotropy F Test Oblateness",
           "group": "Anisotropy",
-          "position": 87,
+          "position": 89,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for oblateness",
@@ -6615,7 +6657,7 @@
         "description": {
           "label": "Description",
           "group": "Metadata",
-          "position": 88,
+          "position": 90,
           "type": "String",
           "description": "Sample and result description and comments",
           "previous_columns": [
@@ -6648,7 +6690,7 @@
         "rotation_sequence": {
           "label": "Sequence of Rotations",
           "group": "Metadata",
-          "position": 89,
+          "position": 91,
           "type": "Matrix",
           "unit": "Custom",
           "description": "N by M matrix with N sequential rotations and the length of each row defined by the first element: the rotation type",
@@ -6684,7 +6726,7 @@
         "criteria": {
           "label": "Criteria Names",
           "group": "Metadata",
-          "position": 90,
+          "position": 92,
           "type": "List",
           "description": "Colon-delimited list of criteria names",
           "examples": [
@@ -6712,7 +6754,7 @@
         "instrument_codes": {
           "label": "Instrument Codes",
           "group": "Metadata",
-          "position": 91,
+          "position": 93,
           "type": "List",
           "description": "Colon-delimited list of instrument codes",
           "validations": [
@@ -6732,7 +6774,7 @@
         "software_packages": {
           "label": "Software Packages",
           "group": "Metadata",
-          "position": 92,
+          "position": 94,
           "type": "List",
           "description": "Colon-delimited list of software used for data reduction",
           "examples": [
@@ -6757,7 +6799,7 @@
         "external_database_ids": {
           "label": "External Database IDs",
           "group": "Metadata",
-          "position": 93,
+          "position": 95,
           "type": "Dictionary",
           "description": "Dictionary of external databases and IDs where data are used",
           "examples": [
@@ -6798,7 +6840,7 @@
         "scientists": {
           "label": "Research Scientist Names",
           "group": "Metadata",
-          "position": 94,
+          "position": 96,
           "type": "List",
           "description": "Colon-delimited list of EarthRef handles and/or names and emails for scientists who described the sample",
           "examples": [
@@ -6817,7 +6859,7 @@
         "analysts": {
           "label": "Analyst Names",
           "group": "Metadata",
-          "position": 95,
+          "position": 97,
           "type": "List",
           "description": "Colon-delimited list of EarthRef handles and/or names and emails for analysts",
           "examples": [
@@ -8500,7 +8542,7 @@
           ]
         },
         "int_corr_cooling_rate": {
-          "label": "Paleointensity Correction Cooling Rate",
+          "label": "Paleointensity Cooling Rate Correction Factor",
           "group": "Paleointensity",
           "position": 76,
           "type": "Number",
@@ -8513,8 +8555,8 @@
             }
           ]
         },
-        "int_corr_anisotropy": {
-          "label": "Paleointensity Correction Anisotropy",
+        "int_corr_aniso": {
+          "label": "Paleointensity Anisotropy Correction Factor",
           "group": "Paleointensity",
           "position": 77,
           "type": "Number",
@@ -8528,7 +8570,7 @@
           ]
         },
         "int_corr_nlt": {
-          "label": "Paleointensity Correction Non-Linear TRM",
+          "label": "Paleointensity Non-Linear TRM Correction Factor",
           "group": "Paleointensity",
           "position": 78,
           "type": "Number",
@@ -8580,37 +8622,31 @@
             }
           ]
         },
-        "int_b": {
-          "label": "Paleointensity Best-fit Line Slope",
-          "group": "Paleointensity Arai Statistics",
+        "treat_dc_field_phi": {
+          "label": "Lab Treatment Orientation Phi",
+          "group": "Lab Treatments",
           "position": 81,
           "type": "Number",
-          "unit": "Dimensionless",
-          "description": "The slope of the best-fit line of the selected TRM and NRM points on an Arai plot",
+          "unit": "Degrees",
+          "description": "Orientation of the lab field with respect for the specimen",
           "previous_columns": [
             {
-              "table": "pmag_specimens",
-              "column": "specimen_b"
+              "table": "magic_measurements",
+              "column": "treatment_dc_field_phi"
             }
           ]
         },
-        "int_b_sigma": {
-          "label": "Paleointensity Best-fit Line Slope Sigma",
-          "group": "Paleointensity Arai Statistics",
+        "treat_dc_field_theta": {
+          "label": "Lab Treatment Orientation Theta",
+          "group": "Lab Treatments",
           "position": 82,
           "type": "Number",
-          "unit": "Dimensionless",
-          "urls": [
-            "http://dx.doi.org/10.1139/p66-090"
-          ],
-          "description": "The standard error on the slope on an Arai plot",
-          "validations": [
-            "min(0)"
-          ],
+          "unit": "Degrees",
+          "description": "Orientation of the lab field with respect for the specimen",
           "previous_columns": [
             {
-              "table": "pmag_specimens",
-              "column": "specimen_b_sigma"
+              "table": "magic_measurements",
+              "column": "treatment_dc_field_theta"
             }
           ]
         },
@@ -10013,10 +10049,21 @@
             }
           ]
         },
+        "aniso_ftest_quality": {
+          "label": "Anisotropy F Test Quality",
+          "group": "Anisotropy",
+          "position": 154,
+          "type": "String",
+          "unit": "Flag",
+          "description": "Indicating if a good (g) or bad (b) data according to the F statistical test for anisotropy",
+          "validations": [
+            "cv(\"data_quality\")"
+          ]
+        },
         "aniso_ftest": {
           "label": "Anisotropy F Test",
           "group": "Anisotropy",
-          "position": 154,
+          "position": 155,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for anisotropy",
@@ -10030,7 +10077,7 @@
         "aniso_ftest12": {
           "label": "Anisotropy F Test Prolateness",
           "group": "Anisotropy",
-          "position": 155,
+          "position": 156,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for prolateness",
@@ -10044,7 +10091,7 @@
         "aniso_ftest23": {
           "label": "Anisotropy F Test Oblateness",
           "group": "Anisotropy",
-          "position": 156,
+          "position": 157,
           "type": "Number",
           "unit": "%",
           "description": "F statistical test for oblateness",
@@ -10058,7 +10105,7 @@
         "hyst_loop": {
           "label": "Hysteresis Loop Number",
           "group": "Hysteresis",
-          "position": 157,
+          "position": 158,
           "type": "Integer",
           "description": "Hysteresis loop counter",
           "previous_columns": [
@@ -10071,7 +10118,7 @@
         "hyst_ss": {
           "label": "Hysteresis S*",
           "group": "Hysteresis",
-          "position": 158,
+          "position": 159,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Curvature of major loop in upper left quadrant",
@@ -10089,7 +10136,7 @@
         "hyst_sq": {
           "label": "Hysteresis Squareness",
           "group": "Hysteresis",
-          "position": 159,
+          "position": 160,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Squareness of major loop",
@@ -10107,7 +10154,7 @@
         "hyst_mr_moment": {
           "label": "Hysteresis Mr Moment",
           "group": "Hysteresis",
-          "position": 160,
+          "position": 161,
           "type": "Number",
           "unit": "Am^2",
           "description": "Measured intensity of remanent magnetization, Moment",
@@ -10121,7 +10168,7 @@
         "hyst_mr_volume": {
           "label": "Hysteresis Mr Volume",
           "group": "Hysteresis",
-          "position": 161,
+          "position": 162,
           "type": "Number",
           "unit": "A/m",
           "description": "Measured intensity of remanent magnetization, Volume normalized",
@@ -10135,7 +10182,7 @@
         "hyst_mr_mass": {
           "label": "Hysteresis Mr Mass",
           "group": "Hysteresis",
-          "position": 162,
+          "position": 163,
           "type": "Number",
           "unit": "Am^2/kg",
           "description": "Measured intensity of remanent magnetization, Mass normalized",
@@ -10149,7 +10196,7 @@
         "hyst_ms_moment": {
           "label": "Hysteresis Ms Moment",
           "group": "Hysteresis",
-          "position": 163,
+          "position": 164,
           "type": "Number",
           "unit": "Am^2",
           "description": "Measured intensity of saturation magnetization, Moment",
@@ -10163,7 +10210,7 @@
         "hyst_ms_volume": {
           "label": "Hysteresis Ms Volume",
           "group": "Hysteresis",
-          "position": 164,
+          "position": 165,
           "type": "Number",
           "unit": "A/m",
           "description": "Measured intensity of saturation magnetization, Volume normalized",
@@ -10177,7 +10224,7 @@
         "hyst_ms_mass": {
           "label": "Hysteresis Ms Mass",
           "group": "Hysteresis",
-          "position": 165,
+          "position": 166,
           "type": "Number",
           "unit": "Am^2/kg",
           "description": "Measured intensity of saturation magnetization, Mass normalized",
@@ -10191,7 +10238,7 @@
         "hyst_mr_ms": {
           "label": "Hysteresis Mr over Ms",
           "group": "Hysteresis",
-          "position": 166,
+          "position": 167,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Ratio of saturation remanence to saturation",
@@ -10205,7 +10252,7 @@
         "hyst_bcr": {
           "label": "Hysteresis Bcr",
           "group": "Hysteresis",
-          "position": 167,
+          "position": 168,
           "type": "Number",
           "unit": "T",
           "description": "Coercivity of remanence",
@@ -10219,7 +10266,7 @@
         "hyst_bc": {
           "label": "Hysteresis Bc",
           "group": "Hysteresis",
-          "position": 168,
+          "position": 169,
           "type": "Number",
           "unit": "T",
           "description": "Coercivity",
@@ -10233,7 +10280,7 @@
         "hyst_bcr_bc": {
           "label": "Hysteresis Bcr over Bc",
           "group": "Hysteresis",
-          "position": 169,
+          "position": 170,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Ratio of coercivity of remanence over coercivity",
@@ -10247,7 +10294,7 @@
         "hyst_bc_offset": {
           "label": "Hysteresis Bc Offset",
           "group": "Hysteresis",
-          "position": 170,
+          "position": 171,
           "type": "Number",
           "unit": "T",
           "description": "Offset between coercivity in positive and negative fields",
@@ -10261,7 +10308,7 @@
         "hyst_xhf": {
           "label": "Hysteresis Xhf",
           "group": "Hysteresis",
-          "position": 171,
+          "position": 172,
           "type": "Number",
           "unit": "m^3",
           "description": "High field slope",
@@ -10275,7 +10322,7 @@
         "hyst_th": {
           "label": "Hysteresis Transient Magnetization",
           "group": "Hysteresis",
-          "position": 172,
+          "position": 173,
           "type": "Number",
           "unit": "T",
           "description": "Transient energy dissipation related to domain state",
@@ -10289,7 +10336,7 @@
         "rem_dfc_moment": {
           "label": "Remanence Delta Field Cooled Moment",
           "group": "Remanence",
-          "position": 173,
+          "position": 174,
           "type": "Number",
           "unit": "Am^2",
           "description": "Fractional remanence loss at Tv (80K,130K) after field cooling, Moment",
@@ -10303,7 +10350,7 @@
         "rem_dfc_volume": {
           "label": "Remanence Delta Field Cooled Volume",
           "group": "Remanence",
-          "position": 174,
+          "position": 175,
           "type": "Number",
           "unit": "A/m",
           "description": "Fractional remanence loss at Tv (80K,130K) after field cooling, Volume normalized",
@@ -10317,7 +10364,7 @@
         "rem_dfc_mass": {
           "label": "Remanence Delta Field Cooled Mass",
           "group": "Remanence",
-          "position": 175,
+          "position": 176,
           "type": "Number",
           "unit": "Am^2/kg",
           "description": "Fractional remanence loss at Tv (80K,130K) after field cooling, Mass normalized",
@@ -10331,7 +10378,7 @@
         "rem_dzfc_moment": {
           "label": "Remanence Delta Zerofield Cooled Moment",
           "group": "Remanence",
-          "position": 176,
+          "position": 177,
           "type": "Number",
           "unit": "Am^2",
           "description": "Fractional remanence loss at Tv (80K,130K) after zero-field cooling, Moment",
@@ -10345,7 +10392,7 @@
         "rem_dzfc_volume": {
           "label": "Remanence Delta Zerofield Cooled Volume",
           "group": "Remanence",
-          "position": 177,
+          "position": 178,
           "type": "Number",
           "unit": "A/m",
           "description": "Fractional remanence loss at Tv (80K,130K) after zero-field cooling, Volume normalized",
@@ -10359,7 +10406,7 @@
         "rem_dzfc_mass": {
           "label": "Remanence Delta Zerofield Cooled Mass",
           "group": "Remanence",
-          "position": 178,
+          "position": 179,
           "type": "Number",
           "unit": "Am^2/kg",
           "description": "Fractional remanence loss at Tv (80K,130K) after zero-field cooling, Mass normalized",
@@ -10373,7 +10420,7 @@
         "rem_delta_ratio": {
           "label": "Remanence Delta FC/ZFC Ratio",
           "group": "Remanence",
-          "position": 179,
+          "position": 180,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Ratio (Delta FC/Delta ZFC)",
@@ -10387,7 +10434,7 @@
         "rem_delta_temp_low": {
           "label": "Remanence Delta Temperature Low",
           "group": "Remanence",
-          "position": 180,
+          "position": 181,
           "type": "Number",
           "unit": "K",
           "description": "Low Temperature of delta FC/ZFC calculation",
@@ -10401,7 +10448,7 @@
         "rem_delta_temp_high": {
           "label": "Remanence Delta Temperature High",
           "group": "Remanence",
-          "position": 181,
+          "position": 182,
           "type": "Number",
           "unit": "K",
           "description": "High Temperature of delta FC/ZFC calculation",
@@ -10415,7 +10462,7 @@
         "rem_mr_moment": {
           "label": "Remanence Mr Moment",
           "group": "Remanence",
-          "position": 182,
+          "position": 183,
           "type": "Number",
           "unit": "Am^2",
           "description": "Measured intensity of remanent moment, Moment",
@@ -10429,7 +10476,7 @@
         "rem_mr_volume": {
           "label": "Remanence Mr Volume",
           "group": "Remanence",
-          "position": 183,
+          "position": 184,
           "type": "Number",
           "unit": "A/m",
           "description": "Measured intensity of remanent moment, Volume normalized",
@@ -10443,7 +10490,7 @@
         "rem_mr_mass": {
           "label": "Remanence Mr Mass",
           "group": "Remanence",
-          "position": 184,
+          "position": 185,
           "type": "Number",
           "unit": "Am^2/kg",
           "description": "Measured intensity of remanent moment, Mass normalized",
@@ -10457,7 +10504,7 @@
         "rem_bcr": {
           "label": "Remanence Bcr",
           "group": "Remanence",
-          "position": 185,
+          "position": 186,
           "type": "Number",
           "unit": "T",
           "description": "Coercivity of remanence",
@@ -10471,7 +10518,7 @@
         "rem_sratio": {
           "label": "Remanence S Ratio",
           "group": "Remanence",
-          "position": 186,
+          "position": 187,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "SIRM ratio S(X)",
@@ -10485,7 +10532,7 @@
         "rem_sratio_forward": {
           "label": "Remanence S Ratio Forward Field",
           "group": "Remanence",
-          "position": 187,
+          "position": 188,
           "type": "Number",
           "unit": "T",
           "description": "SIRM field used to calculate S Ratio",
@@ -10499,7 +10546,7 @@
         "rem_sratio_back": {
           "label": "Remanence S Ratio Back Field",
           "group": "Remanence",
-          "position": 188,
+          "position": 189,
           "type": "Number",
           "unit": "T",
           "description": "Backfield used to calculate S Ratio",
@@ -10513,7 +10560,7 @@
         "rem_hirm_moment": {
           "label": "Remanence HIRM Moment",
           "group": "Remanence",
-          "position": 189,
+          "position": 190,
           "type": "Number",
           "unit": "Am^2",
           "description": "Hard IRM factor, HIRM = SIRM - IRM(300 mT), Moment",
@@ -10527,7 +10574,7 @@
         "rem_hirm_volume": {
           "label": "Remanence HIRM Volume",
           "group": "Remanence",
-          "position": 190,
+          "position": 191,
           "type": "Number",
           "unit": "A/m",
           "description": "Hard IRM factor, HIRM = SIRM - IRM(300 mT), Volume normalized",
@@ -10541,7 +10588,7 @@
         "rem_hirm_mass": {
           "label": "Remanence HIRM Mass",
           "group": "Remanence",
-          "position": 191,
+          "position": 192,
           "type": "Number",
           "unit": "Am^2/kg",
           "description": "Hard IRM factor, HIRM = SIRM - IRM(300 mT), Mass normalized",
@@ -10555,7 +10602,7 @@
         "rem_armx": {
           "label": "Remanence ARMx",
           "group": "Remanence",
-          "position": 192,
+          "position": 193,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Anhysteretic susceptibility, Xarm = ARM / Hdc",
@@ -10569,7 +10616,7 @@
         "rem_cross_over": {
           "label": "Remanence Cross Over Point",
           "group": "Remanence",
-          "position": 193,
+          "position": 194,
           "type": "Number",
           "unit": "T",
           "description": "Field at which demagnetization moment equals acquisition moment",
@@ -10583,7 +10630,7 @@
         "rem_mdf": {
           "label": "Remanence MDF",
           "group": "Remanence",
-          "position": 194,
+          "position": 195,
           "type": "Number",
           "unit": "T",
           "description": "Median destructive field",
@@ -10597,7 +10644,7 @@
         "rem_maf": {
           "label": "Remanence MAF",
           "group": "Remanence",
-          "position": 195,
+          "position": 196,
           "type": "Number",
           "unit": "T",
           "description": "Median acquisition field",
@@ -10611,7 +10658,7 @@
         "rem_mdt": {
           "label": "Remanence MDT",
           "group": "Remanence",
-          "position": 196,
+          "position": 197,
           "type": "Number",
           "unit": "K",
           "description": "Median destructive temperature",
@@ -10625,7 +10672,7 @@
         "rem_cmf": {
           "label": "Remanence Component Median Field",
           "group": "Remanence",
-          "position": 197,
+          "position": 198,
           "type": "Number",
           "unit": "T",
           "description": "Median field of remanence component",
@@ -10639,7 +10686,7 @@
         "rem_cd": {
           "label": "Remanence Component Dispersion",
           "group": "Remanence",
-          "position": 198,
+          "position": 199,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Dispersion (standard deviation) of remanence components",
@@ -10653,7 +10700,7 @@
         "rem_n_comp": {
           "label": "Remanence N Components",
           "group": "Remanence",
-          "position": 199,
+          "position": 200,
           "type": "Integer",
           "description": "Number of remanence components used",
           "validations": [
@@ -10669,7 +10716,7 @@
         "rem_sa": {
           "label": "Remanence Sa",
           "group": "Remanence",
-          "position": 200,
+          "position": 201,
           "type": "Number",
           "unit": "Am^2/log(s)",
           "description": "Viscosity coefficient dM/d(log t) during the acquisition of viscous remanence",
@@ -10683,7 +10730,7 @@
         "rem_sd": {
           "label": "Remanence Sd",
           "group": "Remanence",
-          "position": 201,
+          "position": 202,
           "type": "Number",
           "unit": "Am^2/log(s)",
           "description": "Decay in the viscosity coefficient dM/d(log t) during the acquisition of viscous remanence",
@@ -10697,7 +10744,7 @@
         "rem_q": {
           "label": "Remanence Koenigsberger Ratio",
           "group": "Remanence",
-          "position": 202,
+          "position": 203,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Koenigsberger ratio",
@@ -10711,7 +10758,7 @@
         "susc_chi_volume": {
           "label": "Susceptibility X Volume",
           "group": "Susceptibility",
-          "position": 203,
+          "position": 204,
           "type": "Number",
           "unit": "SI Dimensionless",
           "description": "Average magnetic susceptibility, Volume normalized",
@@ -10725,7 +10772,7 @@
         "susc_chi_mass": {
           "label": "Susceptibility X Mass",
           "group": "Susceptibility",
-          "position": 204,
+          "position": 205,
           "type": "Number",
           "unit": "m^3/kg",
           "description": "Average magnetic susceptibility, Mass normalized",
@@ -10739,7 +10786,7 @@
         "susc_f": {
           "label": "Susceptibility Xfd",
           "group": "Susceptibility",
-          "position": 205,
+          "position": 206,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Frequency dependence , Xfd calculation",
@@ -10753,7 +10800,7 @@
         "susc_f_low": {
           "label": "Susceptibility Xfd Low",
           "group": "Susceptibility",
-          "position": 206,
+          "position": 207,
           "type": "Number",
           "unit": "Hz",
           "description": "Xfd calculation, Low frequency",
@@ -10767,7 +10814,7 @@
         "susc_f_high": {
           "label": "Susceptibility Xfd High",
           "group": "Susceptibility",
-          "position": 207,
+          "position": 208,
           "type": "Number",
           "unit": "Hz",
           "description": "Xfd calculation, High frequency",
@@ -10781,7 +10828,7 @@
         "susc_h": {
           "label": "Susceptibility Xhd",
           "group": "Susceptibility",
-          "position": 208,
+          "position": 209,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Amplitude dependence, Xhd calculation",
@@ -10795,7 +10842,7 @@
         "susc_h_low": {
           "label": "Susceptibility Xhd Low",
           "group": "Susceptibility",
-          "position": 209,
+          "position": 210,
           "type": "Number",
           "unit": "T",
           "description": "Xhd calculation, Low amplitude",
@@ -10809,7 +10856,7 @@
         "susc_h_high": {
           "label": "Susceptibility Xhd High",
           "group": "Susceptibility",
-          "position": 210,
+          "position": 211,
           "type": "Number",
           "unit": "T",
           "description": "Xhd calculation, High amplitude",
@@ -10823,7 +10870,7 @@
         "susc_loss_tangent": {
           "label": "Susceptibility Loss Tangent",
           "group": "Susceptibility",
-          "position": 211,
+          "position": 212,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Loss tangent or X(quadrature) over X(inphase)",
@@ -10837,7 +10884,7 @@
         "susc_lab_field_ac_high": {
           "label": "Susceptibility Max Lab AC Field",
           "group": "Susceptibility",
-          "position": 212,
+          "position": 213,
           "type": "Number",
           "unit": "T",
           "description": "Maximum or peak lab AC field applied during measurement",
@@ -10856,7 +10903,7 @@
         "description": {
           "label": "Description",
           "group": "Metadata",
-          "position": 213,
+          "position": 214,
           "type": "String",
           "description": "Specimen and result description and comments",
           "previous_columns": [
@@ -10917,7 +10964,7 @@
         "rotation_sequence": {
           "label": "Sequence of Rotations",
           "group": "Metadata",
-          "position": 214,
+          "position": 215,
           "type": "Matrix",
           "unit": "Custom",
           "description": "N by M matrix with N sequential rotations and the length of each row defined by the first element: the rotation type",
@@ -10953,7 +11000,7 @@
         "criteria": {
           "label": "Criteria Names",
           "group": "Metadata",
-          "position": 215,
+          "position": 216,
           "type": "List",
           "description": "Colon-delimited list of criteria names",
           "examples": [
@@ -10997,7 +11044,7 @@
         "instrument_codes": {
           "label": "Instrument Codes",
           "group": "Metadata",
-          "position": 216,
+          "position": 217,
           "type": "List",
           "description": "Colon-delimited list of instrument codes",
           "validations": [
@@ -11033,7 +11080,7 @@
         "software_packages": {
           "label": "Software Packages",
           "group": "Metadata",
-          "position": 217,
+          "position": 218,
           "type": "List",
           "description": "Colon-delimited list of software used for data reduction",
           "examples": [
@@ -11074,7 +11121,7 @@
         "external_database_ids": {
           "label": "External Database IDs",
           "group": "Metadata",
-          "position": 218,
+          "position": 219,
           "type": "Dictionary",
           "description": "Dictionary of external databases and IDs where data are used",
           "examples": [
@@ -11147,7 +11194,7 @@
         "scientists": {
           "label": "Research Scientist Names",
           "group": "Metadata",
-          "position": 219,
+          "position": 220,
           "type": "List",
           "description": "Colon-delimited list of EarthRef handles and/or names and emails for scientists who described the specimen",
           "examples": [
@@ -11178,7 +11225,7 @@
         "analysts": {
           "label": "Analyst Names",
           "group": "Metadata",
-          "position": 220,
+          "position": 221,
           "type": "List",
           "description": "Colon-delimited list of EarthRef handles and/or names and emails for analysts",
           "examples": [
@@ -11670,10 +11717,20 @@
             }
           ]
         },
+        "treat_step_num": {
+          "label": "Lab Treatment MW Power Integral",
+          "group": "Lab Treatments",
+          "position": 27,
+          "type": "Integer",
+          "description": "Step number of the treatment",
+          "validations": [
+            "min(0)"
+          ]
+        },
         "meas_pos_x": {
           "label": "Measurement X Position",
           "group": "Measurement Parameters",
-          "position": 27,
+          "position": 28,
           "type": "Number",
           "unit": "m",
           "description": "Position of the measurement relative to an arbitrary origin on the specimen, X",
@@ -11687,7 +11744,7 @@
         "meas_pos_y": {
           "label": "Measurement Y Position",
           "group": "Measurement Parameters",
-          "position": 28,
+          "position": 29,
           "type": "Number",
           "unit": "m",
           "description": "Position of the measurement relative to an arbitrary origin on the specimen, Y",
@@ -11701,7 +11758,7 @@
         "meas_pos_z": {
           "label": "Measurement Z Position",
           "group": "Measurement Parameters",
-          "position": 29,
+          "position": 30,
           "type": "Number",
           "unit": "m",
           "description": "Position of the measurement relative to an arbitrary origin on the specimen, Z",
@@ -11715,7 +11772,7 @@
         "meas_orient_phi": {
           "label": "Measurement Orientation Phi",
           "group": "Measurement Parameters",
-          "position": 30,
+          "position": 31,
           "type": "Number",
           "unit": "Degrees",
           "description": "Orientation of specimen in magnetometer",
@@ -11729,7 +11786,7 @@
         "meas_orient_theta": {
           "label": "Measurement Orientation Theta",
           "group": "Measurement Parameters",
-          "position": 31,
+          "position": 32,
           "type": "Number",
           "unit": "Degrees",
           "description": "Orientation of specimen in magnetometer",
@@ -11743,7 +11800,7 @@
         "meas_n_orient": {
           "label": "Measurement N Orientations",
           "group": "Measurement Parameters",
-          "position": 32,
+          "position": 33,
           "type": "Integer",
           "description": "Number of different orientations in measurement",
           "validations": [
@@ -11759,7 +11816,7 @@
         "meas_temp": {
           "label": "Measurement Temperature",
           "group": "Measurement Parameters",
-          "position": 33,
+          "position": 34,
           "type": "Number",
           "unit": "K",
           "description": "Temperature",
@@ -11776,7 +11833,7 @@
         "meas_temp_change": {
           "label": "Measurement Temperature Change",
           "group": "Measurement Parameters",
-          "position": 34,
+          "position": 35,
           "type": "Number",
           "unit": "K",
           "description": "Change in temperature during each measurement step",
@@ -11790,7 +11847,7 @@
         "meas_freq": {
           "label": "Measurement Frequency",
           "group": "Measurement Parameters",
-          "position": 35,
+          "position": 36,
           "type": "Number",
           "unit": "Hz",
           "description": "Frequency",
@@ -11804,7 +11861,7 @@
         "meas_field_ac": {
           "label": "Measurement Lab AC Field",
           "group": "Measurement Parameters",
-          "position": 36,
+          "position": 37,
           "type": "Number",
           "unit": "T",
           "description": "Lab AC field applied during measurement",
@@ -11823,7 +11880,7 @@
         "meas_field_dc": {
           "label": "Measurement Lab DC Field",
           "group": "Measurement Parameters",
-          "position": 37,
+          "position": 38,
           "type": "Number",
           "unit": "T",
           "description": "Lab DC field applied during measurement",
@@ -11841,7 +11898,7 @@
         "magn_x": {
           "label": "Magnetic Field X",
           "group": "Raw Measurement",
-          "position": 38,
+          "position": 39,
           "type": "Number",
           "unit": "Am^2",
           "description": "Measured magnetic field strength, X"
@@ -11849,7 +11906,7 @@
         "magn_x_sigma": {
           "label": "Magnetic Field X Sigma",
           "group": "Raw Measurement",
-          "position": 39,
+          "position": 40,
           "type": "Number",
           "unit": "Am^2",
           "description": "Standard deviation in measurements, X",
@@ -11864,7 +11921,7 @@
         "magn_y": {
           "label": "Magnetic Field Y",
           "group": "Raw Measurement",
-          "position": 40,
+          "position": 41,
           "type": "Number",
           "unit": "Am^2",
           "description": "Measured magnetic field strength, Y"
@@ -11872,7 +11929,7 @@
         "magn_y_sigma": {
           "label": "Magnetic Field Y Sigma",
           "group": "Raw Measurement",
-          "position": 41,
+          "position": 42,
           "type": "Number",
           "unit": "Am^2",
           "description": "Standard deviation in measurements, Y",
@@ -11887,7 +11944,7 @@
         "magn_z": {
           "label": "Magnetic Field Z",
           "group": "Raw Measurement",
-          "position": 42,
+          "position": 43,
           "type": "Number",
           "unit": "Am^2",
           "description": "Measured magnetic field strength, Z"
@@ -11895,7 +11952,7 @@
         "magn_z_sigma": {
           "label": "Magnetic Field Z Sigma",
           "group": "Raw Measurement",
-          "position": 43,
+          "position": 44,
           "type": "Number",
           "unit": "Am^2",
           "description": "Standard deviation in measurements, Z",
@@ -11910,7 +11967,7 @@
         "magn_xyz_sigma": {
           "label": "Standard Deviation",
           "group": "Raw Measurement",
-          "position": 44,
+          "position": 45,
           "type": "Number",
           "unit": "Am^2",
           "description": "Standard deviation in measurements, Average X, Y and Z directions",
@@ -11925,7 +11982,7 @@
         "magn_r2_det": {
           "label": "Coefficient of Determination",
           "group": "Raw Measurement",
-          "position": 45,
+          "position": 46,
           "type": "Number",
           "unit": "Dimensionless",
           "description": "Goodness of fit in regression, R squared",
@@ -11944,7 +12001,7 @@
         "dir_dec": {
           "label": "Declination",
           "group": "Direction",
-          "position": 46,
+          "position": 47,
           "type": "Number",
           "unit": "Degrees",
           "description": "Directions in specimen coordinates, Declination",
@@ -11963,7 +12020,7 @@
         "dir_inc": {
           "label": "Inclination",
           "group": "Direction",
-          "position": 47,
+          "position": 48,
           "type": "Number",
           "unit": "Degrees",
           "description": "Directions in specimen coordinates, Inclination",
@@ -11982,7 +12039,7 @@
         "dir_csd": {
           "label": "Circular Standard Deviation",
           "group": "Direction",
-          "position": 48,
+          "position": 49,
           "type": "Number",
           "unit": "Degrees",
           "description": "Circular standard deviation in measurements",
@@ -11997,7 +12054,7 @@
         "magn_moment": {
           "label": "Magnetic Moment",
           "group": "Magnetization",
-          "position": 49,
+          "position": 50,
           "type": "Number",
           "unit": "Am^2",
           "description": "Measured magnetic moment",
@@ -12015,7 +12072,7 @@
         "magn_volume": {
           "label": "Magnetization Volume",
           "group": "Magnetization",
-          "position": 50,
+          "position": 51,
           "type": "Number",
           "unit": "A/m",
           "description": "Measured intensity of magnetization, Volume normalized",
@@ -12033,7 +12090,7 @@
         "magn_mass": {
           "label": "Magnetization Mass",
           "group": "Magnetization",
-          "position": 51,
+          "position": 52,
           "type": "Number",
           "unit": "Am^2/kg",
           "description": "Measured intensity of magnetization, Mass normalized",
@@ -12051,7 +12108,7 @@
         "hyst_loop": {
           "label": "Measurement Hysteresis Loop Number",
           "group": "Hysteresis",
-          "position": 52,
+          "position": 53,
           "type": "Integer",
           "description": "Hysteresis loop counter",
           "validations": [
@@ -12067,7 +12124,7 @@
         "hyst_sweep_rate": {
           "label": "Measurement Hysteresis Sweep Rate",
           "group": "Hysteresis",
-          "position": 53,
+          "position": 54,
           "type": "Number",
           "unit": "T/s",
           "description": "Rate of field sweep during a hysteresis loop measurement",
@@ -12081,7 +12138,7 @@
         "hyst_charging_mode": {
           "label": "Measurement Hysteresis Charging Mode",
           "group": "Hysteresis",
-          "position": 54,
+          "position": 55,
           "type": "String",
           "description": "Measurement hysteresis charging mode",
           "examples": [
@@ -12099,7 +12156,7 @@
         "susc_chi_volume": {
           "label": "Susceptibility X Volume",
           "group": "Susceptibility",
-          "position": 55,
+          "position": 56,
           "type": "Number",
           "unit": "SI Dimensionless",
           "description": "Magnetic susceptibility, Volume normalized",
@@ -12113,7 +12170,7 @@
         "susc_chi_mass": {
           "label": "Susceptibility X Mass",
           "group": "Susceptibility",
-          "position": 56,
+          "position": 57,
           "type": "Number",
           "unit": "m^3/kg",
           "description": "Magnetic susceptibility, Mass normalized",
@@ -12127,7 +12184,7 @@
         "susc_chi_qdr_volume": {
           "label": "Susceptibility Xqdr Volume",
           "group": "Susceptibility",
-          "position": 57,
+          "position": 58,
           "type": "Number",
           "unit": "SI Dimensionless",
           "description": "Quadrature magnetic susceptibility, Volume normalized",
@@ -12141,7 +12198,7 @@
         "susc_chi_qdr_mass": {
           "label": "Susceptibility Xqdr Mass",
           "group": "Susceptibility",
-          "position": 58,
+          "position": 59,
           "type": "Number",
           "unit": "m^3/kg",
           "description": "Quadrature magnetic susceptibility, Mass normalized",
@@ -12155,7 +12212,7 @@
         "description": {
           "label": "Description",
           "group": "Metadata",
-          "position": 59,
+          "position": 60,
           "type": "String",
           "description": "Measurement description and comments",
           "previous_columns": [
@@ -12168,7 +12225,7 @@
         "timestamp": {
           "label": "Measurement Timestamp",
           "group": "Metadata",
-          "position": 60,
+          "position": 61,
           "type": "Timestamp",
           "description": "Date and time when the measurement occured",
           "notes": "ISO 8601 date and time (e.g. \"yyyy-mm-ddThh:mm:ss.sssZ\")",
@@ -12186,7 +12243,7 @@
         "software_packages": {
           "label": "MagIC Software Packages",
           "group": "Metadata",
-          "position": 61,
+          "position": 62,
           "type": "List",
           "description": "Colon-delimited list of software used for data reduction",
           "examples": [
@@ -12203,7 +12260,7 @@
         "external_database_ids": {
           "label": "External Database IDs",
           "group": "Metadata",
-          "position": 62,
+          "position": 63,
           "type": "Dictionary",
           "description": "Dictionary of external databases and IDs where data are used",
           "examples": [
@@ -12228,7 +12285,7 @@
         "analysts": {
           "label": "Analyst Names",
           "group": "Metadata",
-          "position": 63,
+          "position": 64,
           "type": "List",
           "description": "Colon-delimited list of EarthRef handles and/or names and emails for analysts",
           "examples": [
