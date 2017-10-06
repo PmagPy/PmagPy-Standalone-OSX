@@ -3,6 +3,8 @@ Pmag GUI & MagIC GUI are graphical user interfaces (GUIs) that provide tools for
 
 If you would the full PmagPy functionality, go to: https://github.com/ltauxe/PmagPy#what-is-it
 
-To get started, download the zip file by clicking on the green "Clone or Download" button and choosing "Download Zip" option which will download the apps to your computer. Inside the downloaded PmagPy-Standalone folder you will have four files (README.md, licence.txt, magic_gui.app, pmag_gui.app). Double click the app you wish to run (depending on your security settings, you may have to right click the icon and then select "ok" the first time you open it).
+To get started, go to the [latest release](https://github.com/PmagPy/PmagPy-Standalone-OSX/releases/latest).  From there you can download the zipfile for Pmag GUI and/or MagIC GUI.  Once downloaded, you can move the program icon to your Desktop, and double click to get started.  If you see an error message like this: '“magic\_gui\_3.11.0.app” can’t be opened because it is from an unidentified developer', you will need to right click the icon and then select "ok" to override OS X security settings.  Lastly, please be patient, as these programs do take a little while to start up!
 
-This software may be freely distributed; however, please see [license.txt](https://github.com/moonshoes87/PmagPy-Standalone-OSX/blob/master/license.txt) for details.  
+If you discover any bugs, please let us know.  Report any issues [here](https://github.com/PmagPy/PmagPy-Standalone-OSX/issues/new).  Thanks!
+
+This software may be freely distributed; however, please see [license.txt](https://github.com/moonshoes87/PmagPy-Standalone-OSX/blob/master/license.txt) for details.
