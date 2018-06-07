@@ -7,4 +7,11 @@ To get started with these programs, go to the [latest release](https://github.co
 
 If you discover any bugs, please let us know.  Report any issues [here](https://github.com/PmagPy/PmagPy-Standalone-OSX/issues/new).  Thanks!
 
-This software may be freely distributed; however, please see [license.txt](https://github.com/PmagPy/PmagPy-Standalone-OSX/blob/master/license.txt) for details.
+
+Requirements:
+
+  - OS X 10.13 (High Sierra) or higher
+
+Licensing:
+
+  - This software may be freely distributed; however, please see [license.txt](https://github.com/PmagPy/PmagPy-Standalone-OSX/blob/master/license.txt) for details.
