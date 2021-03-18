@@ -15,3 +15,9 @@ Requirements:
 Licensing:
 
   - This software may be freely distributed; however, please see [license.txt](https://github.com/PmagPy/PmagPy-Standalone-OSX/blob/master/license.txt) for details.
+
+## Citing PmagPy
+
+Users of PmagPy should cite the open access article:
+
+Tauxe, L., R. Shaar, L. Jonestrask, N. L. Swanson-Hysell, R. Minnett, A. A. P. Koppers, C. G. Constable, N. Jarboe, K. Gaastra, and L. Fairchild (2016), PmagPy: Software package for paleomagnetic data analysis and a bridge to the Magnetics Information Consortium (MagIC) Database, Geochem. Geophys. Geosyst., 17, https://doi.org/10.1002/2016GC006307.
